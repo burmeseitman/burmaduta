@@ -7,77 +7,105 @@ from ai_processor import AIProcessor
 
 load_dotenv()
 
-API_ID = int(os.getenv("TELEGRAM_API_ID"))
-API_HASH = os.getenv("TELEGRAM_API_HASH")
-CHANNELS = [c.strip() for c in os.getenv("TELEGRAM_CHANNELS", "@khitthitnews").split(",")]
+db = DBManager()
+
+# Load configuration from Database
+API_ID = int(db.get_config("API_ID", os.getenv("SOURCE_API_ID")))
+API_HASH = db.get_config("API_HASH", os.getenv("SOURCE_API_HASH"))
+CHANNELS_STR = db.get_config("INPUT_CHANNELS", os.getenv("SOURCE_CHANNELS", "@newsfeed"))
+CHANNELS = [c.strip() for c in CHANNELS_STR.split(",")]
 
 client = TelegramClient('burmaduta_session', API_ID, API_HASH)
-db = DBManager()
 ai = AIProcessor()
+ai_lock = asyncio.Lock()
 
 @client.on(events.NewMessage(chats=CHANNELS))
 async def handle_new_message(event):
-    message = getattr(event, 'message', event)
-    message_text = getattr(message, 'message', '')
-    message_id = getattr(message, 'id', 0)
+    # event can be a NewMessage event or a raw Message object (from backfill)
+    if hasattr(event, 'message') and not isinstance(event.message, str):
+        msg_obj = event.message
+    else:
+        msg_obj = event
     
-    # Get publish date/time from Telegram
-    publish_dt = message.date
+    # Ensure we are dealing with a Message object that has .date
+    if not hasattr(msg_obj, 'date'):
+        return
+
+    message_text = getattr(msg_obj, 'message', '')
+    message_id = getattr(msg_obj, 'id', 0)
+    
+    if not message_text or not isinstance(message_text, str):
+        return
+    
+    # Get publish date/time from Source
+    publish_dt = msg_obj.date
     publish_date = publish_dt.strftime('%Y-%m-%d')
     publish_time = publish_dt.strftime('%H:%M')
     
     # Get channel handle
-    chat = await event.get_chat()
-    channel_handle = getattr(chat, 'username', str(getattr(chat, 'id', 'unknown')))
-    if channel_handle and not channel_handle.startswith('@'):
-        channel_handle = f"@{channel_handle}"
+    try:
+        chat = await event.get_chat() if hasattr(event, 'get_chat') else await client.get_entity(msg_obj.peer_id)
+        channel_handle = getattr(chat, 'username', str(getattr(chat, 'id', 'unknown')))
+        if channel_handle and not channel_handle.startswith('@'):
+            channel_handle = f"@{channel_handle}"
+    except:
+        channel_handle = "unknown"
 
     if not message_text:
         return
     
-    print(f"New message from {channel_handle} ({message_id}): {message_text[:100]}...")
-    
-    # Process with AI
-    parsed_data = ai.parse_news(message_text)
-    
-    if parsed_data:
-        # Save to database with separate times
-        db.insert_news({
-            'channel_handle': channel_handle,
-            'telegram_id': message_id,
-            'raw_text': message_text,
-            'summary': parsed_data.get('summary'),
-            'crime_type': parsed_data.get('crime_type'),
-            'publish_date': publish_date,
-            'publish_time': publish_time,
-            'event_date': parsed_data.get('event_date'),
-            'event_time': parsed_data.get('event_time'),
-            'location_name': parsed_data.get('location_name'),
-            'latitude': parsed_data.get('latitude'),
-            'longitude': parsed_data.get('longitude')
-        })
-        print(f"Saved: {parsed_data.get('location_name')} ({parsed_data.get('crime_type')}) | Event: {parsed_data.get('event_date')} {parsed_data.get('event_time')}")
+    # Check if we already processed this message ID to save AI quota
+    if db.check_exists(channel_handle, message_id):
+        print(f"Skipping {channel_handle} ({message_id}): Already processed.")
+        return
+
+    # Process with AI (Using a lock to respect global rate limits)
+    async with ai_lock:
+        print(f"🤖 Calling AI for {channel_handle} ({message_id})...")
+        parsed_data = ai.parse_news(message_text)
+        
+        if parsed_data:
+            # Save to database
+            db.insert_news({
+                'channel_handle': channel_handle,
+                'internal_id': message_id,
+                'raw_text': message_text,
+                'summary': parsed_data.get('summary'),
+                'crime_type': parsed_data.get('crime_type'),
+                'publish_date': publish_date,
+                'publish_time': publish_time,
+                'event_date': parsed_data.get('event_date'),
+                'event_time': parsed_data.get('event_time'),
+                'region': parsed_data.get('region'),
+                'township': parsed_data.get('township'),
+                'city': parsed_data.get('city'),
+                'location_name': parsed_data.get('location_name'),
+                'latitude': parsed_data.get('latitude'),
+                'longitude': parsed_data.get('longitude')
+            })
+            print(f"✅ Saved: {parsed_data.get('location_name')} ({parsed_data.get('crime_type')})")
+            # Always throttle after a successful or unsuccessful AI call 
+            # (as long as we actually sent the request)
+            await asyncio.sleep(6) 
+
+async def backfill_channel(channel):
+    try:
+        entity = await client.get_entity(channel)
+        print(f"➜ Backfill Initialized: {channel}")
+        
+        limit = int(db.get_config("FETCH_LIMIT", 50))
+        async for message in client.iter_messages(entity, limit=limit):
+            await handle_new_message(message)
+    except Exception as e:
+        print(f"Error backfilling {channel}: {e}")
 
 async def main():
     await client.start()
-    print(f"Listening for news from channels: {', '.join(CHANNELS)}...")
+    print(f"📡 System LIVE. Monitoring: {', '.join(CHANNELS)}")
     
-    # Connection check and backfill for each channel
-    for channel in CHANNELS:
-        try:
-            entity = await client.get_entity(channel)
-            print(f"Connected to: {entity.title} ({channel})")
-            
-            # Limited backfill
-            print(f"Backfilling {channel}...")
-            async for message in client.iter_messages(entity, limit=5):
-                if message.message:
-                    # Provide dummy event for backfill context if needed, 
-                    # but handle_new_message expects an event or message
-                    await handle_new_message(message)
-        except Exception as e:
-            print(f"Error accessing {channel}: {e}")
-
+    # Run backfill tasks for all channels in parallel
+    backfill_tasks = [asyncio.create_task(backfill_channel(ch)) for ch in CHANNELS]
+    
     await client.run_until_disconnected()
 
 if __name__ == "__main__":

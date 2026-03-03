@@ -1,35 +1,40 @@
 # 🇲🇲 Burma Duta (ဗမာဒူတ)
 > **Real-time News Intelligence & Visualization for Myanmar.**
 
-Burma Duta is a sophisticated news intelligence platform that monitors Telegram channels in real-time, extracts meaningful data using Artificial Intelligence, and visualizes incidents on a high-end interactive map.
+Burma Duta is a sophisticated news intelligence platform that monitors secure data channels in real-time, extracts meaningful data using an Advanced Analytical Engine, and visualizes incidents on a high-end interactive map with integrated statistical analytics.
 
 ## ✨ Core Features
 
--   🕵️ **Multi-Channel Monitoring**: Simultaneously tracks multiple Telegram news sources (e.g., Khit Thit, Mizzima, etc.).
--   🧠 **AI Intelligence**: Leverages **Google Gemini Flash** to parse raw Burmese text into structured JSON data.
--   ⚔️ **Incident Categorization**: Automatically classifies news into five distinct categories:
-    -   **Conflict (တိုက်ပွဲသတင်း)**: ⚔️ Military actions, clashes, and air strikes.
-    -   **Crime (မှုခင်းသတင်း)**: 🚨 Robberies, murders, and security incidents.
-    -   **Accident (မတော်တဆဖြစ်မှု)**: ⚠️ Fire, car crashes, and emergencies.
-    -   **Natural Disaster (သဘာဝဘေးအန္တရာယ်)**: 🌊 Floods, storms, and earthquakes.
+-   🕵️ **Multi-Channel Monitoring**: Simultaneously tracks multiple secure news sources for real-time awareness.
+-   🧠 **AI Intelligence**: Leverages a state-of-the-art **Analytical Engine** to parse raw text into structured data with high precision.
+-   ⚔️ **Hierarchical Categorization**: Automatically classifies news into five main categories with granular sub-categories:
+    -   **Military (စစ်ရေးသတင်း)**: ⚔️ Clashes (#တိုက်ပွဲဖြစ်ပွားမှု), Artillery/Airstrikes (#လက်နက်ကြီး/လေကြောင်းရန်), IDPs (#စစ်ဘေးရှောင်သတင်း).
+    -   **Crime (မှုခင်းသတင်း)**: 🚨 Robbery, Murder, Burglary, Drugs, etc.
+    -   **Accident (မတော်တဆဖြစ်မှု)**: ⚠️ Fire, Car/Motorcycle Crashes, Drowning.
+    -   **Natural Disaster (သဘာဝဘေးအန္တရာယ်)**: 🌊 Floods, Storms, Earthquakes, Landslides.
     -   **General (အထွေထွေ)**: ℹ️ Infrastructure, health, and public announcements.
--   📍 **Emoji-Based Map**: Visualizes events using category-specific emojis on a dark-themed geospatial interface.
--   🕒 **Dual Timestamping**: Distinguishes between when the **incident occurred** (Event Time) and when it was **reported** (Publish Time).
--   🛡️ **Smart Deduplication**: Intelligently combines multiple reports of the same incident into a single map marker.
+-   📊 **Interactive Analytics**: High-end data visualization using a professional charting suite:
+    -   **Doughnut Chart**: Category distribution with interactive legends.
+    -   **Monthly Bar Chart**: Historical trends for the current year.
+    -   **Interactive Stats**: Top-right floating cards that expand to show sub-category breakdowns on click.
+-   📍 **Intelligent Mapping**: Visualizes events using an interactive geospatial interface with category-specific custom icons and interactive hashtag popups.
+-   ⚙️ **Database-Centric Config**: Sensitive access keys and monitoring settings are managed securely within the internal store, eliminating the need for plain-text environment variables.
+-   🛡️ **Smart Deduplication**: Intelligently identifies and merges redundant reports of the same incident to maintain a clean and accurate intelligence map.
 
 ## 🛠️ Technology Stack
 
--   **Backend**: Python, FastAPI
--   **AI**: Google Generative AI (Gemini 1.5 Flash)
--   **Database**: PostgreSQL (Supabase)
--   **Messaging**: Telethon (Telegram MTProto)
--   **Frontend**: Vanilla HTML/JS, Leaflet.js, Lucide Icons
--   **Styling**: Glassmorphism CSS with Inter & Outfit typography
+-   **Backend**: Python-based High-Performance API
+-   **AI Engine**: Advanced Large Language Model Broker
+-   **Database**: Relational Database Service (Internal Store)
+-   **Messaging**: Secure Channel Protocol Listener
+-   **Frontend**: Modern JS Interface with Geospatial & Analytical Visualizations
+-   **Styling**: Premium Glassmorphism UI with elegant typography
 
 ## 🚀 Setup & Installation
 
 ### 1. Requirements
-Ensure you have Python 3.10+ installed.
+- Python 3.10+
+- Relational Database Instance
 
 ### 2. Install Dependencies
 ```bash
@@ -37,38 +42,44 @@ pip install -r requirements.txt
 ```
 
 ### 3. Environment Configuration
-Rename `.env.example` to `.env` and configure your credentials:
-- `TELEGRAM_API_ID` & `TELEGRAM_API_HASH`: Get from [my.telegram.org](https://my.telegram.org)
-- `TELEGRAM_CHANNELS`: Comma-separated list (e.g., `@khitthitnews,@mizzimatv`)
-- `GEMINI_API_KEY`: Get from [Google AI Studio](https://aistudio.google.com)
-- `DATABASE_URL`: Your Supabase/PostgreSQL connection string.
+Create a `.env` file with your storage URI:
+```env
+INTERNAL_STORE_URI="postgresql://user:password@localhost/dbname"
+```
+
+### 4. Configuration Migration
+Run the migration tool to transfer local settings to the secure internal store:
+```bash
+python backend/migrate_config.py
+```
+*Note: Ensure your `PROCESSOR_KEY`, `CHANNEL_API_ID`, and `MONITOR_LIST` are correctly configured within the system storage.*
 
 ## 🏃 Execution
 
-1.  **Start the Data Engine (Scraper)**:
+1.  **Launch the System**:
     ```bash
+    # Start the API & Dashboard Server
+    python backend/api.py
+    
+    # Start the Intelligence Scraper
     python backend/scraper.py
     ```
-2.  **Launch the API Service**:
-    ```bash
-    python backend/api.py
-    ```
-3.  **View the Intelligence Map**:
-    Open `frontend/index.html` in your web browser.
+2.  **Access the Dashboard**:
+    Open the local server address in your browser.
 
 ## 📁 Project Architecture
 
 ```bash
 ├── backend/
-│   ├── scraper.py       # Real-time Telegram listener
-│   ├── ai_processor.py  # Gemini-powered analytical brain
-│   ├── db_manager.py    # PostgreSQL interface & deduplication
-│   └── api.py           # REST API for the frontend
+│   ├── scraper.py       # Real-time channel listener & AI orchestrator
+│   ├── ai_processor.py  # Analytical brain (hierarchical parsing)
+│   ├── db_manager.py    # Database interface & system configuration
+│   └── api.py           # API service & dashboard server
 ├── frontend/
-│   ├── app.js           # Map logic & dynamic UI management
-│   ├── style.css        # Premium glassmorphic styling
-│   └── index.html       # Main application entry
-└── .env                 # Sensitive configuration
+│   ├── app.js           # Reactive interface & visualization logic
+│   ├── style.css        # Premium glassmorphic design system
+│   └── index.html       # Single-panel dashboard entry
+└── .env                 # Core storage connection URI
 ```
 
 ---
