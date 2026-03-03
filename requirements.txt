@@ -1,0 +1,7 @@
+telethon
+google-generativeai
+psycopg2-binary
+fastapi
+uvicorn
+python-dotenv
+requests

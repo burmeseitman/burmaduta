@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# Secrets
+.env
+*.session
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Frontend
+node_modules/
+dist/

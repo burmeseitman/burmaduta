@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Burma Duta | Real-time News Map</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="map"></div>
+
+    <div class="glass-sidebar">
+        <header>
+            <div class="header-main">
+                <h1>Burma Duta</h1>
+                <div class="live-indicator">
+                    <span class="dot"></span> LIVE
+                </div>
+            </div>
+            <p>Real-time Intelligence Map (Myanmar)</p>
+        </header>
+
+        <!-- Stats Brief -->
+        <div class="stats-overview" id="stats-overview">
+            <div class="stat-item">
+                <span class="stat-value" id="total-count">0</span>
+                <span class="stat-label">Total Events</span>
+            </div>
+            <div class="stat-item highlight">
+                <span class="stat-value" id="latest-type">-</span>
+                <span class="stat-label">Latest Type</span>
+            </div>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="Search by location or description...">
+            <button id="search-btn"><i data-lucide="search"></i></button>
+        </div>
+
+        <div class="category-filters" id="category-filters">
+            <!-- Categories will be injected here -->
+        </div>
+
+        <div id="news-feed" class="news-feed">
+            <p class="status">Connecting to backend...</p>
+        </div>
+
+        <footer>
+            <p>Powered by Gemini Flash & OpenStreetMap</p>
+        </footer>
+    </div>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
