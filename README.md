@@ -88,5 +88,9 @@ python backend/migrate_config.py
 └── .env                 # Core storage connection URI
 ```
 
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 ---
 "Building software at the speed of thought."
