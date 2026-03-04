@@ -98,21 +98,21 @@ class DBManager:
                 cur.execute("SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = %s AND column_name = %s", (TABLE, col))
                 return cur.fetchone() is not None
 
-        # Rename telegram_id -> internal_id
+        # Rename source_id -> internal_id
         if check_col('telegram_id') and not check_col('internal_id'):
             try:
                 with self.conn.cursor() as cur:
-                    print(f"🔄 Migration: Renaming telegram_id to internal_id in {TABLE}...")
+                    print(f"🔄 Migration: Renaming source_id to internal_id in {TABLE}...")
                     cur.execute(f"ALTER TABLE {TABLE} RENAME COLUMN telegram_id TO internal_id;")
                     self.conn.commit()
-                    print(f"✅ Migration successful: Renamed telegram_id to internal_id in {TABLE}.")
+                    print(f"✅ Migration successful: Renamed source_id to internal_id in {TABLE}.")
             except Exception as e:
                 self.conn.rollback()
-                print(f"❌ Migration failed: Renaming telegram_id to internal_id in {TABLE}. Error: {e}")
+                print(f"❌ Migration failed: Renaming source_id to internal_id in {TABLE}. Error: {e}")
         elif check_col('telegram_id') and check_col('internal_id'):
-            print(f"ℹ️ Migration skipped: Both telegram_id and internal_id exist in {TABLE}. Manual intervention may be needed.")
+            print(f"ℹ️ Migration skipped: Both source_id and internal_id exist in {TABLE}.")
         else:
-            print(f"ℹ️ Migration skipped: telegram_id column not found in {TABLE}.")
+            print(f"ℹ️ Migration skipped: legacy source_id column not found in {TABLE}.")
 
 
         # Add sub_category

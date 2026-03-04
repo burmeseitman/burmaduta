@@ -26,9 +26,8 @@ class AIProcessor:
         # Strictly retrieve Model Name from database
         model_name = self.db.get_config("MODEL_NAME")
         if not model_name:
-            # Fallback to a very safe default ONLY if it's absolutely missing in DB, 
-            # but ideally it should be in system_config.
-            print("⚠️ Warning: MODEL_NAME not found in Database. Defaulting to 'gemini-1.5-flash'.")
+            # Fallback to a safe default ONLY if it's absolutely missing in DB
+            print("⚠️ Warning: MODEL_NAME not found in Database. Defaulting to High-performance model.")
             model_name = "gemini-1.5-flash"
             
         self.model_name = model_name

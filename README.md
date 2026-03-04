@@ -26,30 +26,24 @@ Burma Duta is a news intelligence platform that monitors public data channels in
 -   **Frontend**: Modern JS with Glassmorphism UI
 -   **Containerization**: Docker & Docker Compose
 
-## 🚀 Getting Started (Docker)
+## 🚀 Deployment (AWS/GCP/Vultr)
 
-The recommended way to run Burma Duta is using Docker.
+The easiest way to deploy Burma Duta is using the automated setup script, optimized for **1GB RAM** servers (e.g., GCP e2-micro).
 
-### 1. Requirements
-- Docker & Docker Compose
-- Environment configuration (`.env` file)
+### 1. Automated Setup
+Once you have your VPS, run this single command to install Docker, Docker Compose, and configure 2GB Swap:
+```bash
+curl -O https://raw.githubusercontent.com/[your-repo]/main/deploy.sh && chmod +x deploy.sh && ./deploy.sh
+```
 
 ### 2. Configuration
-Create a `.env` file in the project root:
-```env
-DB_USER=postgres
-DB_PASSWORD=your_password
-DB_NAME=burmaduta
-
-SOURCE_API_ID=your_api_id
-SOURCE_API_HASH=your_api_hash
-PROCESSOR_KEY=your_ai_key
-```
+Copy your `.env` and `burmaduta_session.session` (data session file) to the project root.
 
 ### 3. Launch
 ```bash
 docker-compose up -d --build
 ```
+The dashboard will be available at `http://[your-vps-ip]:8081`.
 
 ## 📄 License
 
