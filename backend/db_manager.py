@@ -2,21 +2,41 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
 from dotenv import load_dotenv
-
-load_dotenv()
+# Load .env from project root
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 INTERNAL_STORE_URI = os.getenv("INTERNAL_STORE_URI")
 
 class DBManager:
     def __init__(self):
-        self.conn = psycopg2.connect(INTERNAL_STORE_URI)
-        self.create_table()
+        if not INTERNAL_STORE_URI:
+            print("❌ Error: INTERNAL_STORE_URI not found in environment.")
+            return
+
+        try:
+            # Show connection intent (obscuring password)
+            import urllib.parse as urlparse
+            url = urlparse.urlparse(INTERNAL_STORE_URI)
+            print(f"🔌 Connecting to DB: {url.hostname}:{url.port}{url.path}...")
+            
+            self.conn = psycopg2.connect(INTERNAL_STORE_URI)
+            self.create_source_mapping_table() # Ensure mapping table exists
+            print("✅ Database connection established.")
+        except Exception as e:
+            print(f"❌ Database Connection Error: {e}")
+            raise e
 
     def create_table(self):
+        # Configuration for migration transparency
+        TABLE = 'news_events'
+        
         with self.conn.cursor() as cur:
-            # Main data table
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS news_events (
+            cur.execute("SET lock_timeout = '5s';")
+            
+            # 1. Main Table
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {TABLE} (
                     id SERIAL PRIMARY KEY,
                     channel_handle TEXT,
                     internal_id BIGINT,
@@ -38,25 +58,9 @@ class DBManager:
                     UNIQUE(channel_handle, internal_id)
                 );
             """)
-            # Migration: Standardize internal identifier
-            cur.execute("""
-                DO $$ 
-                BEGIN 
-                    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='news_events' AND column_name='telegram_id') THEN 
-                        ALTER TABLE news_events RENAME COLUMN telegram_id TO internal_id; 
-                    END IF; 
-                END $$;
-            """)
-            # Migration: Add sub_category if it doesn't exist
-            cur.execute("""
-                DO $$ 
-                BEGIN 
-                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='news_events' AND column_name='sub_category') THEN 
-                        ALTER TABLE news_events ADD COLUMN sub_category VARCHAR(100); 
-                    END IF; 
-                END $$;
-            """)
-            # Configuration table
+            self.conn.commit()
+
+            # 2. System Config Table
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS system_config (
                     key TEXT PRIMARY KEY,
@@ -65,6 +69,81 @@ class DBManager:
                 );
             """)
             self.conn.commit()
+
+        # 3. Migrations (Independent transactions to avoid aborted state)
+        def check_col(col):
+            with self.conn.cursor() as cur:
+                # Explicitly check current schema to avoid issues with search_path
+                cur.execute("SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = %s AND column_name = %s", (TABLE, col))
+                return cur.fetchone() is not None
+
+        # Rename telegram_id -> internal_id
+        if check_col('telegram_id') and not check_col('internal_id'):
+            try:
+                with self.conn.cursor() as cur:
+                    print(f"🔄 Migration: Renaming telegram_id to internal_id in {TABLE}...")
+                    cur.execute(f"ALTER TABLE {TABLE} RENAME COLUMN telegram_id TO internal_id;")
+                    self.conn.commit()
+                    print(f"✅ Migration successful: Renamed telegram_id to internal_id in {TABLE}.")
+            except Exception as e:
+                self.conn.rollback()
+                print(f"❌ Migration failed: Renaming telegram_id to internal_id in {TABLE}. Error: {e}")
+        elif check_col('telegram_id') and check_col('internal_id'):
+            print(f"ℹ️ Migration skipped: Both telegram_id and internal_id exist in {TABLE}. Manual intervention may be needed.")
+        else:
+            print(f"ℹ️ Migration skipped: telegram_id column not found in {TABLE}.")
+
+
+        # Add sub_category
+        if not check_col('sub_category'):
+            try:
+                with self.conn.cursor() as cur:
+                    print(f"🔄 Migration: Adding sub_category column to {TABLE}...")
+                    cur.execute(f"ALTER TABLE {TABLE} ADD COLUMN sub_category VARCHAR(100);")
+                    self.conn.commit()
+                    print(f"✅ Migration successful: Added sub_category column to {TABLE}.")
+            except Exception as e:
+                self.conn.rollback()
+                print(f"❌ Migration failed: Adding sub_category column to {TABLE}. Error: {e}")
+        else:
+            print(f"ℹ️ Migration skipped: sub_category column already exists in {TABLE}.")
+
+    def create_source_mapping_table(self):
+        """Creates the source_mappings table and populates initial values."""
+        try:
+            with self.conn.cursor() as cur:
+                # 1. Create table
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS source_mappings (
+                        handle TEXT PRIMARY KEY,
+                        display_name TEXT NOT NULL,
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                    );
+                """)
+                
+                # 2. Populate initial values provided by user
+                mappings = [
+                    ('@khitthitnews', 'Khit Thit'),
+                    ('@elevenmediagroup', 'Verified News Agency'),
+                    ('@peoplespring', 'People Spring'),
+                    ('@bbcnewsburmese', 'BBC Burmese'),
+                    ('@theirrawaddy', 'The Irrawaddy'),
+                    ('@spmnewsagency2019', 'Shwe Phee Myay'),
+                    ('@infohlaing', 'Hlaing Info')
+                ]
+                
+                for handle, name in mappings:
+                    cur.execute("""
+                        INSERT INTO source_mappings (handle, display_name)
+                        VALUES (%s, %s)
+                        ON CONFLICT (handle) DO NOTHING;
+                    """, (handle, name))
+                
+                self.conn.commit()
+                print("✅ Source mapping table checked/updated.")
+        except Exception as e:
+            print(f"❌ Error creating/populating source_mappings: {e}")
+            self.conn.rollback()
 
     def get_config(self, key, default=None):
         try:
@@ -95,53 +174,82 @@ class DBManager:
             cur.execute("SELECT id FROM news_events WHERE channel_handle = %s AND internal_id = %s LIMIT 1;", (channel_handle, internal_id))
             return cur.fetchone() is not None
 
-    def insert_news(self, data):
-        # 1. Exact Duplicate by ID (Fast)
-        if self.check_exists(data.get('channel_handle'), data.get('internal_id')):
-            return False
-
-        # 2. Content-based Duplicate (Semantic)
-        check_query = """
-            SELECT id FROM news_events 
-            WHERE crime_type = %s AND location_name = %s AND event_date = %s
-            LIMIT 1;
+    def insert_news_batch(self, news_items):
         """
-        with self.conn.cursor() as cur:
-            cur.execute(check_query, (data.get('crime_type'), data.get('location_name'), data.get('event_date')))
-            if cur.fetchone():
-                return False
+        Inserts a list of news items in a single transaction.
+        Handles both exact ID deduplication and semantic deduplication.
+        """
+        if not news_items:
+            return 0
+        
+        inserted_count = 0
+        try:
+            with self.conn.cursor() as cur:
+                for data in news_items:
+                    query = """
+                        INSERT INTO news_events (
+                            channel_handle, internal_id, raw_text, summary, crime_type, sub_category,
+                            publish_date, publish_time, event_date, event_time, 
+                            region, township, city,
+                            location_name, latitude, longitude
+                        ) 
+                        SELECT %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM news_events 
+                            WHERE (channel_handle = %s AND internal_id = %s)
+                            OR (crime_type = %s AND location_name = %s AND event_date = %s::DATE)
+                        )
+                        ON CONFLICT (channel_handle, internal_id) DO NOTHING;
+                    """
+                    
+                    params = (
+                        data.get('channel_handle'),
+                        data.get('internal_id'),
+                        data.get('raw_text'),
+                        data.get('summary'),
+                        data.get('crime_type'),
+                        data.get('sub_category'),
+                        data.get('publish_date'),
+                        data.get('publish_time'),
+                        data.get('event_date'),
+                        data.get('event_time'),
+                        data.get('region'),
+                        data.get('township'),
+                        data.get('city'),
+                        data.get('location_name'),
+                        data.get('latitude'),
+                        data.get('longitude'),
+                        # For the WHERE NOT EXISTS clause (ID check)
+                        data.get('channel_handle'),
+                        data.get('internal_id'),
+                        # For the WHERE NOT EXISTS clause (Semantic check)
+                        data.get('crime_type'),
+                        data.get('location_name'),
+                        data.get('event_date')
+                    )
+                    
+                    cur.execute(query, params)
+                    if cur.rowcount > 0:
+                        inserted_count += 1
+                
+                self.conn.commit()
+                return inserted_count
+        except Exception as e:
+            print(f"Error in batch insert: {e}")
+            self.conn.rollback()
+            return 0
 
-            query = """
-                INSERT INTO news_events (
-                    channel_handle, internal_id, raw_text, summary, crime_type, sub_category,
-                    publish_date, publish_time, event_date, event_time, 
-                    region, township, city,
-                    location_name, latitude, longitude
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (channel_handle, internal_id) DO NOTHING;
-            """
-            cur.execute(query, (
-                data.get('channel_handle'),
-                data.get('internal_id'),
-                data.get('raw_text'),
-                data.get('summary'),
-                data.get('crime_type'),
-                data.get('sub_category'),
-                data.get('publish_date'),
-                data.get('publish_time'),
-                data.get('event_date'),
-                data.get('event_time'),
-                data.get('region'),
-                data.get('township'),
-                data.get('city'),
-                data.get('location_name'),
-                data.get('latitude'),
-                data.get('longitude')
-            ))
-            self.conn.commit()
+    def insert_news(self, data):
+        """Single insert wrapper around batch insert."""
+        return self.insert_news_batch([data]) > 0
 
     def get_all_news(self):
-        query = "SELECT * FROM news_events ORDER BY created_at DESC;"
+        query = """
+            SELECT n.*, COALESCE(s.display_name, n.channel_handle) as source_name
+            FROM news_events n
+            LEFT JOIN source_mappings s ON n.channel_handle = s.handle
+            ORDER BY n.created_at DESC;
+        """
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(query)
             return cur.fetchall()

@@ -19,61 +19,86 @@ client = TelegramClient('burmaduta_session', API_ID, API_HASH)
 ai = AIProcessor()
 ai_lock = asyncio.Lock()
 
-@client.on(events.NewMessage(chats=CHANNELS))
-async def handle_new_message(event):
-    # event can be a NewMessage event or a raw Message object (from backfill)
-    if hasattr(event, 'message') and not isinstance(event.message, str):
-        msg_obj = event.message
-    else:
-        msg_obj = event
-    
-    # Ensure we are dealing with a Message object that has .date
-    if not hasattr(msg_obj, 'date'):
+async def process_messages_batch(messages_batch):
+    """
+    Processes a batch of raw message objects.
+    1. Extracts metadata.
+    2. Filters out existing records using DB check.
+    3. Sends batch text to AI.
+    4. Saves results in a single DB transaction.
+    """
+    if not messages_batch:
         return
 
-    message_text = getattr(msg_obj, 'message', '')
-    message_id = getattr(msg_obj, 'id', 0)
+    # 1. Prepare items for processing and check existence
+    to_process = []
     
-    if not message_text or not isinstance(message_text, str):
-        return
-    
-    # Get publish date/time from Source
-    publish_dt = msg_obj.date
-    publish_date = publish_dt.strftime('%Y-%m-%d')
-    publish_time = publish_dt.strftime('%H:%M')
-    
-    # Get channel handle
-    try:
-        chat = await event.get_chat() if hasattr(event, 'get_chat') else await client.get_entity(msg_obj.peer_id)
-        channel_handle = getattr(chat, 'username', str(getattr(chat, 'id', 'unknown')))
-        if channel_handle and not channel_handle.startswith('@'):
-            channel_handle = f"@{channel_handle}"
-    except:
-        channel_handle = "unknown"
-
-    if not message_text:
-        return
-    
-    # Check if we already processed this message ID to save AI quota
-    if db.check_exists(channel_handle, message_id):
-        print(f"Skipping {channel_handle} ({message_id}): Already processed.")
-        return
-
-    # Process with AI (Using a lock to respect global rate limits)
-    async with ai_lock:
-        print(f"🤖 Calling AI for {channel_handle} ({message_id})...")
-        parsed_data = ai.parse_news(message_text)
+    for msg_obj in messages_batch:
+        message_text = getattr(msg_obj, 'message', '')
+        message_id = getattr(msg_obj, 'id', 0)
         
-        if parsed_data:
-            # Save to database
-            db.insert_news({
-                'channel_handle': channel_handle,
-                'internal_id': message_id,
-                'raw_text': message_text,
+        if not message_text or not isinstance(message_text, str):
+            continue
+            
+        # Get channel handle
+        try:
+            peer = getattr(msg_obj, 'peer_id', None)
+            chat = await client.get_entity(peer) if peer else None
+            channel_handle = getattr(chat, 'username', str(getattr(chat, 'id', 'unknown')))
+            if channel_handle and not channel_handle.startswith('@'):
+                channel_handle = f"@{channel_handle}"
+        except:
+            channel_handle = "unknown"
+
+        # DE-DUPE CHECK: Skip if already in DB
+        if db.check_exists(channel_handle, message_id):
+            print(f"Skipping {channel_handle} ({message_id}): Already processed.")
+            continue
+
+        to_process.append({
+            'msg_obj': msg_obj,
+            'id': message_id,
+            'text': message_text,
+            'channel_handle': channel_handle
+        })
+
+    if not to_process:
+        return
+
+    # 2. Process with AI in BATCH
+    async with ai_lock:
+        print(f"🤖 Calling AI BATCH for {len(to_process)} messages...")
+        # Prepare inputs for parse_news_batch
+        ai_inputs = [{'id': item['id'], 'text': item['text']} for item in to_process]
+        batch_results = ai.parse_news_batch(ai_inputs)
+        
+        # 3. Match AI results back to metadata and build insert list
+        save_list = []
+        if not batch_results:
+             print("⚠️ No valid AI results returned for this batch.")
+             return
+
+        for parsed_data in batch_results:
+            # Match by internal_id mapping back to original
+            ext_id = parsed_data.get('internal_id')
+            if ext_id is None: continue
+            
+            # Use original ID as key (numeric match)
+            orig = next((x for x in to_process if str(x['id']) == str(ext_id)), None)
+            if not orig:
+                continue
+                
+            msg_obj = orig['msg_obj']
+            publish_dt = msg_obj.date
+            
+            save_list.append({
+                'channel_handle': orig['channel_handle'],
+                'internal_id': orig['id'],
+                'raw_text': orig['text'],
                 'summary': parsed_data.get('summary'),
                 'crime_type': parsed_data.get('crime_type'),
-                'publish_date': publish_date,
-                'publish_time': publish_time,
+                'publish_date': publish_dt.strftime('%Y-%m-%d'),
+                'publish_time': publish_dt.strftime('%H:%M'),
                 'event_date': parsed_data.get('event_date'),
                 'event_time': parsed_data.get('event_time'),
                 'region': parsed_data.get('region'),
@@ -81,12 +106,28 @@ async def handle_new_message(event):
                 'city': parsed_data.get('city'),
                 'location_name': parsed_data.get('location_name'),
                 'latitude': parsed_data.get('latitude'),
-                'longitude': parsed_data.get('longitude')
+                'longitude': parsed_data.get('longitude'),
+                'sub_category': parsed_data.get('sub_category')
             })
-            print(f"✅ Saved: {parsed_data.get('location_name')} ({parsed_data.get('crime_type')})")
-            # Always throttle after a successful or unsuccessful AI call 
-            # (as long as we actually sent the request)
-            await asyncio.sleep(6) 
+
+        # 4. Save to database in BATCH
+        if save_list:
+            inserted = db.insert_news_batch(save_list)
+            if inserted > 0:
+                print(f"✅ Batch complete. Saved {inserted}/{len(to_process)} new records.")
+            else:
+                print(f"ℹ️ All {len(to_process)} items in this batch were duplicates (semantic or ID). Skip.")
+        
+        # Throttling to respect AI limits (adjust as needed for batch size)
+        await asyncio.sleep(5)
+
+@client.on(events.NewMessage(chats=CHANNELS))
+async def handle_new_message(event):
+    # Live updates: process immediately or small buffer
+    # For simplicity, we just use a 1-item batch here
+    msg_obj = event.message if hasattr(event, 'message') else event
+    if not hasattr(msg_obj, 'date'): return
+    await process_messages_batch([msg_obj])
 
 async def backfill_channel(channel):
     try:
@@ -94,8 +135,19 @@ async def backfill_channel(channel):
         print(f"➜ Backfill Initialized: {channel}")
         
         limit = int(db.get_config("FETCH_LIMIT", 50))
+        batch_size = 10
+        current_batch = []
+        
         async for message in client.iter_messages(entity, limit=limit):
-            await handle_new_message(message)
+            current_batch.append(message)
+            if len(current_batch) >= batch_size:
+                await process_messages_batch(current_batch)
+                current_batch = []
+        
+        # Process remaining
+        if current_batch:
+            await process_messages_batch(current_batch)
+            
     except Exception as e:
         print(f"Error backfilling {channel}: {e}")
 

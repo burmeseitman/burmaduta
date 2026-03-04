@@ -1,63 +1,80 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Burma Duta | Real-time News Map</title>
-    <!-- Leaflet CSS -->
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""
-    />
-    <link rel="stylesheet" href="style.css" />
-  </head>
 
-  <body>
-    <div id="map"></div>
-    <div id="top-right-stats" class="top-stats-panel"></div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Burma Duta | Real-time News Map</title>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="style.css" />
+</head>
 
-    <div class="glass-sidebar">
-      <header>
-        <div class="header-main">
-          <h1>ဗမာဒူတ</h1>
-          <div class="live-indicator"><span class="dot"></span> တိုက်ရိုက်</div>
+<body>
+  <div id="map"></div>
+  <div id="top-right-stats" class="top-stats-panel"></div>
+  <div id="news-list-container" class="news-list-panel">
+    <div class="news-list-header">
+      <h3>ဖြစ်စဉ်မှတ်တမ်းများ</h3>
+      <span id="news-count-badge">0</span>
+    </div>
+    <div id="news-accordion" class="accordion-body">
+      <!-- News items will be injected here -->
+    </div>
+  </div>
+
+  <div class="glass-sidebar">
+    <header>
+      <div class="header-main">
+        <h1>ဗမာဒူတ</h1>
+        <div class="live-indicator"><span class="dot"></span> တိုက်ရိုက်</div>
+      </div>
+      <p>အချိန်နှင့်တပြေးညီ သတင်းအချက်အလက်ပြမြေပုံ</p>
+    </header>
+
+    <div class="sidebar-scroll-content">
+      <!-- Summary grid removed from here as it moved to top-right -->
+
+      <!-- Filters Row -->
+      <div class="filter-row">
+        <div class="filter-group">
+          <span>တိုင်း/ပြည်နယ်:</span>
+          <select id="region-filter">
+            <option value="All">အားလုံး</option>
+            <option value="ရန်ကုန်">ရန်ကုန်</option>
+            <option value="မန္တလေး">မန္တလေး</option>
+            <option value="စစ်ကိုင်း">စစ်ကိုင်း</option>
+            <option value="ပဲခူး">ပဲခူး</option>
+            <option value="မကွေး">မကွေး</option>
+            <option value="ဧရာဝတီ">ဧရာဝတီ</option>
+            <option value="တနင်္သာရီ">တနင်္သာရီ</option>
+            <option value="နေပြည်တော်">နေပြည်တော်</option>
+            <option value="ရှမ်း">ရှမ်း</option>
+            <option value="ကချင်">ကချင်</option>
+            <option value="ကယား">ကယား</option>
+            <option value="ကရင်">ကရင်</option>
+            <option value="ချင်း">ချင်း</option>
+            <option value="မွန်">မွန်</option>
+            <option value="ရခိုင်">ရခိုင်</option>
+          </select>
         </div>
-        <p>အချိန်နှင့်တပြေးညီ သတင်းအချက်အလက်ပြမြေပုံ</p>
-      </header>
-
-      <div class="sidebar-scroll-content">
-        <!-- Summary grid removed from here as it moved to top-right -->
-
-        <!-- Filters Row -->
-        <div class="filter-row">
-          <div class="filter-group">
-            <span>ရက်စွဲ:</span>
-            <input type="date" id="date-filter">
-          </div>
-          <div class="filter-group">
-            <span>တိုင်း/ပြည်နယ်:</span>
-            <select id="region-filter">
-                <option value="All">အားလုံး</option>
-                <option value="ရန်ကုန်">ရန်ကုန်</option>
-                <option value="မန္တလေး">မန္တလေး</option>
-                <option value="စစ်ကိုင်း">စစ်ကိုင်း</option>
-                <option value="ပဲခူး">ပဲခူး</option>
-                <option value="မကွေး">မကွေး</option>
-                <option value="ဧရာဝတီ">ဧရာဝတီ</option>
-                <option value="တနင်္သာရီ">တနင်္သာရီ</option>
-                <option value="နေပြည်တော်">နေပြည်တော်</option>
-                <option value="ရှမ်း">ရှမ်း</option>
-                <option value="ကချင်">ကချင်</option>
-                <option value="ကယား">ကယား</option>
-                <option value="ကရင်">ကရင်</option>
-                <option value="ချင်း">ချင်း</option>
-                <option value="မွန်">မွန်</option>
-                <option value="ရခိုင်">ရခိုင်</option>
-            </select>
-          </div>
+        <div class="filter-group">
+          <span>အမျိုးအစား:</span>
+          <select id="category-filter">
+            <option value="All">အားလုံး</option>
+            <option value="စစ်ရေးသတင်း">စစ်ရေးသတင်း</option>
+            <option value="မှုခင်းသတင်း">မှုခင်းသတင်း</option>
+            <option value="မတော်တဆဖြစ်မှု">မတော်တဆဖြစ်မှု</option>
+            <option value="သဘာဝဘေးအန္တရာယ်">သဘာဝဘေးအန္တရာယ်</option>
+            <option value="အထွေထွေ">အထွေထွေ</option>
+          </select>
         </div>
+        <div class="filter-group">
+          <span>ရက်စွဲ:</span>
+          <input type="date" id="date-filter">
+        </div>
+      </div>
 
       <!-- Statistics Section -->
       <div class="stats-container">
@@ -72,22 +89,20 @@
         <!-- Hidden feed as we only show stats now -->
       </div>
 
-      </div> <!-- Close sidebar-scroll-content -->
-      <footer>
-        <p>Powered by AI Intelligence & OpenStreetMap</p>
-      </footer>
-    </div>
+    </div> <!-- Close sidebar-scroll-content -->
+    <footer>
+      <p>Powered by AI Intelligence & OpenStreetMap</p>
+    </footer>
+  </div>
 
-    <!-- Apache ECharts -->
-    <script src="https://fastly.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Leaflet JS -->
-    <script
-      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-      crossorigin=""
-    ></script>
-    <script src="app.js"></script>
-  </body>
+  <!-- Apache ECharts -->
+  <script src="https://fastly.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+
 </html>

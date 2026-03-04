@@ -8,11 +8,14 @@ import os
 app = FastAPI()
 
 # Allow CORS
+# Allow CORS (Restricted for Security)
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:8081,http://127.0.0.1:8081").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET"], # Only allow GET for this public API
     allow_headers=["*"],
 )
 
