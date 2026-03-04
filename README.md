@@ -16,9 +16,15 @@ Burma Duta is a sophisticated news intelligence platform that monitors secure da
 -   📊 **Interactive Analytics**: High-end data visualization using a professional charting suite:
     -   **Doughnut Chart**: Category distribution with interactive legends.
     -   **Monthly Bar Chart**: Historical trends for the current year.
-    -   **Interactive Stats**: Top-right floating cards that expand to show sub-category breakdowns on click.
--   📍 **Intelligent Mapping**: Visualizes events using an interactive geospatial interface with category-specific custom icons and interactive hashtag popups.
--   ⚙️ **Database-Centric Config**: Sensitive access keys and monitoring settings are managed securely within the internal store, eliminating the need for plain-text environment variables.
+    -   **Horizontal Stat Cards**: Top-right floating cards displaying real-time counts that expand to show granular sub-category breakdowns.
+-   📍 **Intelligent Mapping**: Visualizes events using an interactive geospatial interface:
+    -   **Custom Icons**: Category-specific icons with pulse animations for new incidents.
+    -   **Interactive Linking**: Automatically zooms and pans the map to the selected region when using filters.
+-   📜 **News Accordion List**: A dedicated bottom-right panel providing a scrollable list of recent events:
+    -   **Adaptive UI**: Expands to show news summaries and source info on click.
+    -   **Bi-directional Sync**: Clicking a map marker centers the accordion on that item, and clicking an accordion item highlights the event info.
+-   📡 **Source Intelligence**: Automatically maps raw Telegram handles to verified news agency names for better credibility.
+-   ⚙️ **Database-Centric Config**: Sensitive access keys and monitoring settings are managed securely within the internal store.
 -   🛡️ **Smart Deduplication**: Intelligently identifies and merges redundant reports of the same incident to maintain a clean and accurate intelligence map.
 
 ## 🛠️ Technology Stack
