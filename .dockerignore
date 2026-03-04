@@ -1,0 +1,15 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.db
+.env
+scraper.log
+burmaduta_session.session
+README.md
+LICENSE
+Dockerfile
+docker-compose.yml

@@ -9,7 +9,8 @@ app = FastAPI()
 
 # Allow CORS
 # Allow CORS (Restricted for Security)
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:8081,http://127.0.0.1:8081").split(",")
+raw_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:8081,http://127.0.0.1:8081,http://localhost:5173")
+ALLOWED_ORIGINS = [o.strip() for o in raw_origins_str.split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,

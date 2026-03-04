@@ -1,6 +1,8 @@
 from telethon import TelegramClient, events
 import os
 import asyncio
+import re
+import random
 from dotenv import load_dotenv
 from db_manager import DBManager
 from ai_processor import AIProcessor
@@ -18,6 +20,9 @@ CHANNELS = [c.strip() for c in CHANNELS_STR.split(",")]
 client = TelegramClient('burmaduta_session', API_ID, API_HASH)
 ai = AIProcessor()
 ai_lock = asyncio.Lock()
+
+# 🛡️ STEALTH: Simple cache to avoid redundant get_entity() calls (reduces server footprint)
+ENTITY_CACHE = {}
 
 async def process_messages_batch(messages_batch):
     """
@@ -40,14 +45,31 @@ async def process_messages_batch(messages_batch):
         if not message_text or not isinstance(message_text, str):
             continue
             
-        # Get channel handle
+        # 🧼 CLEANING: Remove emojis while preserving Burmese and English text
+        # Using a regex that targets symbols/pictographs
+        clean_text = re.sub(r'[\U00010000-\U0010ffff]', '', message_text)
+        # Also trim extra whitespace that might be left behind
+        message_text = " ".join(clean_text.split())
+
+        # Get channel handle (Cached for Stealth)
         try:
             peer = getattr(msg_obj, 'peer_id', None)
-            chat = await client.get_entity(peer) if peer else None
-            channel_handle = getattr(chat, 'username', str(getattr(chat, 'id', 'unknown')))
-            if channel_handle and not channel_handle.startswith('@'):
+            peer_id = str(getattr(peer, 'channel_id', peer))
+            
+            if peer_id in ENTITY_CACHE:
+                channel_handle = ENTITY_CACHE[peer_id]
+            else:
+                chat = await client.get_entity(peer) if peer else None
+                if chat:
+                    channel_handle = getattr(chat, 'username', str(getattr(chat, 'id', 'unknown')))
+                    ENTITY_CACHE[peer_id] = channel_handle # Cache it
+                else:
+                    channel_handle = "unknown"
+                
+            if channel_handle and not channel_handle.startswith('@') and not channel_handle.isdigit() and channel_handle != "unknown":
                 channel_handle = f"@{channel_handle}"
-        except:
+        except Exception as e:
+            # print(f"DEBUG: Entity fetch error for msg {message_id}: {e}")
             channel_handle = "unknown"
 
         # DE-DUPE CHECK: Skip if already in DB
@@ -75,7 +97,7 @@ async def process_messages_batch(messages_batch):
         # 3. Match AI results back to metadata and build insert list
         save_list = []
         if not batch_results:
-             print("⚠️ No valid AI results returned for this batch.")
+             # This is often normal if the AI filtered out all messages based on the prompt rules
              return
 
         for parsed_data in batch_results:
@@ -123,11 +145,26 @@ async def process_messages_batch(messages_batch):
 
 @client.on(events.NewMessage(chats=CHANNELS))
 async def handle_new_message(event):
-    # Live updates: process immediately or small buffer
-    # For simplicity, we just use a 1-item batch here
-    msg_obj = event.message if hasattr(event, 'message') else event
-    if not hasattr(msg_obj, 'date'): return
-    await process_messages_batch([msg_obj])
+    try:
+        # 🕵️ STEALTH JITTER: Add a random delay (1-4 seconds) so we don't look like a script
+        await asyncio.sleep(random.uniform(1.2, 3.8))
+
+        # Live updates: process immediately
+        msg_obj = event.message if hasattr(event, 'message') else event
+        if not msg_obj or not hasattr(msg_obj, 'date'):
+             return
+             
+        # Optional: Pre-extract channel handle from the event for efficiency
+        chat = await event.get_chat()
+        channel_handle = getattr(chat, 'username', str(getattr(chat, 'id', 'unknown')))
+        if channel_handle and not channel_handle.startswith('@') and not channel_handle.isdigit():
+             channel_handle = f"@{channel_handle}"
+             
+        await process_messages_batch([msg_obj])
+    except Exception as e:
+        print(f"❌ Error in handle_new_message: {e}")
+        import traceback
+        traceback.print_exc()
 
 async def backfill_channel(channel):
     try:
@@ -152,8 +189,11 @@ async def backfill_channel(channel):
         print(f"Error backfilling {channel}: {e}")
 
 async def main():
+    # 🕵️ STEALTH: Start and then ensure we are not showing as 'online'
     await client.start()
-    print(f"📡 System LIVE. Monitoring: {', '.join(CHANNELS)}")
+    from telethon import functions
+    await client(functions.account.UpdateStatusRequest(offline=True))
+    print("🕵️ Stealth Scraper started (Presence hidden).")
     
     # Run backfill tasks for all channels in parallel
     backfill_tasks = [asyncio.create_task(backfill_channel(ch)) for ch in CHANNELS]

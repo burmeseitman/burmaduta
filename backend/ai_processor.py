@@ -61,7 +61,7 @@ class AIProcessor:
         try:
             url = f"https://nominatim.openstreetmap.org/search?q={location_name},+Myanmar&format=json&limit=1"
             headers = {'User-Agent': 'BurmaDutaApp/1.0'}
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200 and len(response.json()) > 0:
                 data = response.json()[0]
                 return float(data['lat']), float(data['lon'])
@@ -97,24 +97,54 @@ class AIProcessor:
                 print("❌ Error: AI Client not initialized. Please set PROCESSOR_KEY in database.")
                 return []
 
+            # Add safety settings to allow sensitive but important news content
+            safety_settings = [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+            ]
+
             response = self.client.models.generate_content(
                 model=self.model_name,
-                contents=custom_prompt
+                contents=custom_prompt,
+                config={
+                    'safety_settings': safety_settings,
+                    'response_mime_type': 'application/json'
+                }
             )
             
             if not response or not response.text:
-                print(f"Empty AI response for batch of {len(news_items)}.")
+                # Check for safety blocks
+                if response and hasattr(response, 'candidates') and response.candidates:
+                    can = response.candidates[0]
+                    if hasattr(can, 'finish_reason'):
+                        if can.finish_reason == 'SAFETY':
+                            print(f"⚠️ AI response BLOCKED by safety filters for batch of {len(news_items)}.")
+                        else:
+                            print(f"Empty AI response (Reason: {can.finish_reason}) for batch of {len(news_items)}.")
+                else:
+                    print(f"Empty AI response for batch of {len(news_items)}.")
                 return []
                 
             json_str = response.text.strip()
+            # Clean up potential markdown marks
             if '```json' in json_str:
                 json_str = json_str.split('```json')[1].split('```')[0].strip()
+            elif '```' in json_str:
+                json_str = json_str.split('```')[1].split('```')[0].strip()
             
-            if not json_str or json_str.lower() == 'null':
+            if not json_str or json_str.lower() == 'null' or json_str == '[]':
+                print(f"ℹ️ AI returned empty/null results for {len(news_items)} items (likely didn't match categories).")
                 return []
             
-            results = json.loads(json_str)
-            if isinstance(results, dict): # Sometimes AI returns a single object even if requested array
+            try:
+                results = json.loads(json_str)
+            except Exception as e:
+                print(f"❌ AI JSON Parse Error: {e}. Raw: {json_str[:200]}...")
+                return []
+
+            if isinstance(results, dict): 
                 results = [results]
                 
             final_data = []
@@ -123,23 +153,28 @@ class AIProcessor:
                 if not data or not isinstance(data, dict):
                     continue
                 
-                # � DATA CLEANING: Convert string versions of nulls into actual None
-                # This fixes "invalid input syntax for type time: 'null'" errors
+                # 🧽 COMPREHENSIVE DATA CLEANING
                 for key, value in data.items():
+                    if value is None:
+                        continue
+                    
+                    # 1. Handle Lists (convert to string with Burmese punctuation)
+                    if isinstance(value, list):
+                        value = "၊".join([str(v).strip() for v in value if v])
+                    
                     if isinstance(value, str):
+                        # 2. Convert string-nulls to actual None
                         low_val = value.strip().lower()
                         if low_val in ['null', 'none', 'n/a', '', 'undefined']:
                             data[key] = None
-                        else:
-                            # Keep it string but trim it
-                            data[key] = value.strip()
-
-                # �🧹 Clean & Normalize Sub-category
-                sub_cat = data.get('sub_category')
-                if sub_cat and isinstance(sub_cat, str):
-                    # Remove brackets and replace English comma with Burmese punctuation
-                    sub_cat = sub_cat.replace('{', '').replace('}', '').replace(',', '၊').strip()
-                    data['sub_category'] = sub_cat
+                            continue
+                        
+                        # 3. Clean string values (trim, remove brackets, fix commas)
+                        cleaned = value.replace('{', '').replace('}', '').replace('[', '').replace(']', '').replace(',', '၊').strip()
+                        data[key] = cleaned
+                    else:
+                        # Ensure numeric/other types are preserved or passed as is
+                        data[key] = value
 
                 # 🛑 TIME VALIDATION: Ensure event_time is valid for Postgres TIME type
                 event_time = data.get('event_time')

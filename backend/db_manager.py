@@ -15,17 +15,27 @@ class DBManager:
             return
 
         try:
-            # Show connection intent (obscuring password)
-            import urllib.parse as urlparse
-            url = urlparse.urlparse(INTERNAL_STORE_URI)
-            print(f"🔌 Connecting to DB: {url.hostname}:{url.port}{url.path}...")
-            
             self.conn = psycopg2.connect(INTERNAL_STORE_URI)
             self.create_source_mapping_table() # Ensure mapping table exists
             print("✅ Database connection established.")
         except Exception as e:
             print(f"❌ Database Connection Error: {e}")
             raise e
+
+    def _ensure_connection(self):
+        """Checks if connection is alive and reconnects if needed."""
+        if not self.conn or self.conn.closed != 0:
+            print("🔄 DB Connection lost. Reconnecting...")
+            self.conn = psycopg2.connect(INTERNAL_STORE_URI)
+            return
+
+        try:
+            # Poll the connection to ensure it's still healthy
+            with self.conn.cursor() as cur:
+                cur.execute("SELECT 1;")
+        except (psycopg2.OperationalError, psycopg2.InterfaceError):
+            print("🔄 DB Connection stale. Reconnecting...")
+            self.conn = psycopg2.connect(INTERNAL_STORE_URI)
 
     def create_table(self):
         # Configuration for migration transparency
@@ -70,7 +80,18 @@ class DBManager:
             """)
             self.conn.commit()
 
-        # 3. Migrations (Independent transactions to avoid aborted state)
+            # 3. Optimization Indexes (Speed up filtering and sorting)
+            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_publish_date ON {TABLE} (publish_date);")
+            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_crime_type ON {TABLE} (crime_type);")
+            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_region ON {TABLE} (region);")
+            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_township ON {TABLE} (township);")
+            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_city ON {TABLE} (city);")
+            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_channel_handle ON {TABLE} (channel_handle);")
+            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_created_at ON {TABLE} (created_at DESC);")
+            self.conn.commit()
+            print(f"✅ Optimization indexes ensured for {TABLE}.")
+
+        # 4. Migrations (Independent transactions to avoid aborted state)
         def check_col(col):
             with self.conn.cursor() as cur:
                 # Explicitly check current schema to avoid issues with search_path
@@ -129,7 +150,12 @@ class DBManager:
                     ('@bbcnewsburmese', 'BBC Burmese'),
                     ('@theirrawaddy', 'The Irrawaddy'),
                     ('@spmnewsagency2019', 'Shwe Phee Myay'),
-                    ('@infohlaing', 'Hlaing Info')
+                    ('@infohlaing', 'Hlaing Info'),
+                    ('@mizzimatv', 'Mizzima TV'),
+                    ('@dvbburmese', 'DVB Burmese'),
+                    ('@rfaburmese', 'RFA Burmese'),
+                    ('@voaburmese', 'VOA Burmese'),
+                    ('@chandalinn', 'Chan Da Linn')
                 ]
                 
                 for handle, name in mappings:
@@ -146,6 +172,7 @@ class DBManager:
             self.conn.rollback()
 
     def get_config(self, key, default=None):
+        self._ensure_connection()
         try:
             with self.conn.cursor() as cur:
                 cur.execute("SELECT value FROM system_config WHERE key = %s LIMIT 1;", (key,))
@@ -156,6 +183,7 @@ class DBManager:
             return default
 
     def set_config(self, key, value):
+        self._ensure_connection()
         try:
             with self.conn.cursor() as cur:
                 cur.execute("""
@@ -170,6 +198,7 @@ class DBManager:
             return False
 
     def check_exists(self, channel_handle, internal_id):
+        self._ensure_connection()
         with self.conn.cursor() as cur:
             cur.execute("SELECT id FROM news_events WHERE channel_handle = %s AND internal_id = %s LIMIT 1;", (channel_handle, internal_id))
             return cur.fetchone() is not None
@@ -182,6 +211,7 @@ class DBManager:
         if not news_items:
             return 0
         
+        self._ensure_connection()
         inserted_count = 0
         try:
             with self.conn.cursor() as cur:
@@ -197,7 +227,13 @@ class DBManager:
                         WHERE NOT EXISTS (
                             SELECT 1 FROM news_events 
                             WHERE (channel_handle = %s AND internal_id = %s)
-                            OR (crime_type = %s AND location_name = %s AND event_date = %s::DATE)
+                            OR (
+                                crime_type = %s AND event_date = %s::DATE 
+                                AND COALESCE(city, '') = COALESCE(%s, '')
+                                AND COALESCE(township, '') = COALESCE(%s, '')
+                                AND COALESCE(sub_category, '') = COALESCE(%s, '')
+                                AND (city IS NOT NULL OR township IS NOT NULL)
+                            )
                         )
                         ON CONFLICT (channel_handle, internal_id) DO NOTHING;
                     """
@@ -224,8 +260,10 @@ class DBManager:
                         data.get('internal_id'),
                         # For the WHERE NOT EXISTS clause (Semantic check)
                         data.get('crime_type'),
-                        data.get('location_name'),
-                        data.get('event_date')
+                        data.get('event_date'),
+                        data.get('city'),
+                        data.get('township'),
+                        data.get('sub_category')
                     )
                     
                     cur.execute(query, params)
@@ -244,10 +282,11 @@ class DBManager:
         return self.insert_news_batch([data]) > 0
 
     def get_all_news(self):
+        self._ensure_connection()
         query = """
             SELECT n.*, COALESCE(s.display_name, n.channel_handle) as source_name
             FROM news_events n
-            LEFT JOIN source_mappings s ON n.channel_handle = s.handle
+            LEFT JOIN source_mappings s ON LOWER(n.channel_handle) = LOWER(s.handle)
             ORDER BY n.created_at DESC;
         """
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
