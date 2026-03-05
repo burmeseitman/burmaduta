@@ -1,15 +1,21 @@
 import os
-from google import genai
 import json
 import requests
 import re
+import hashlib
+import time
+from google import genai
 from dotenv import load_dotenv
 from db_manager import DBManager
 
 load_dotenv()
 
 class AIProcessor:
-    _prompt_cache = None # Session-like cache for runtime
+    _prompt_cache = None # Session-like cache for prompt text
+    _current_cache_name = None
+    _current_cache_hash = None
+    _cache_expire_time = 0
+
 
     def __init__(self, db=None):
         self.db = db if db else DBManager()
@@ -87,16 +93,18 @@ class AIProcessor:
                 print("❌ Error: No AI_PROMPT available.")
                 return []
 
-            custom_prompt = active_prompt.replace("Message Text:", "Multiple Message Texts (delineated by MSG_ID):")
-            custom_prompt = custom_prompt.replace("{{text}}", batch_text)
-            custom_prompt += "\nReturn a JSON ARRAY containing objects for each MSG_ID. Each object MUST include 'internal_id' mapping back to the MSG_ID."
-            custom_prompt = custom_prompt.replace("{current_date_str}", self.get_current_date())
-
+            # 🛠️ CONTEXT CACHING REFACTOR: 
+            # Separate static instructions from dynamic message content
+            instructions_base = active_prompt.replace("Message Text:", "Multiple Message Texts (delineated by MSG_ID):")
+            instructions_base = instructions_base.replace("{{text}}", "\n[NEWS DATA LISTED BELOW]\n")
+            instructions_base += "\nReturn a JSON ARRAY containing objects for each MSG_ID. Each object MUST include 'internal_id' mapping back to the MSG_ID."
+            instructions_base = instructions_base.replace("{current_date_str}", self.get_current_date())
+            
             if not self.client:
                 print("❌ Error: AI Client not initialized. Please set PROCESSOR_KEY in database.")
                 return []
 
-            # Add safety settings to allow sensitive but important news content
+            # Add safety settings
             safety_settings = [
                 {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
                 {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -104,14 +112,30 @@ class AIProcessor:
                 {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
             ]
 
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=custom_prompt,
-                config={
-                    'safety_settings': safety_settings,
-                    'response_mime_type': 'application/json'
-                }
-            )
+            # Try to use/create context cache
+            cache_name = self._get_context_cache(instructions_base)
+            
+            if cache_name:
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=batch_text,
+                    config={
+                        'cached_content': cache_name,
+                        'safety_settings': safety_settings,
+                        'response_mime_type': 'application/json'
+                    }
+                )
+            else:
+                # Fallback to standard request
+                full_prompt = instructions_base + "\n\n" + batch_text
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=full_prompt,
+                    config={
+                        'safety_settings': safety_settings,
+                        'response_mime_type': 'application/json'
+                    }
+                )
             
             if not response or not response.text:
                 # Check for safety blocks
@@ -199,3 +223,52 @@ class AIProcessor:
         """Single item wrapper."""
         res = self.parse_news_batch([{'id': 0, 'text': text}])
         return res[0] if res else None
+
+    def _get_context_cache(self, instructions):
+        """Creates or retrieves a context cache for the given instructions."""
+        # Hash instructions to detect prompt changes
+        instr_hash = hashlib.md5(instructions.encode()).hexdigest()
+        
+        # 1. Check if we have a valid, recent cache
+        # We use class variables to share cache across calls in the same session
+        if (AIProcessor._current_cache_name and 
+            AIProcessor._current_cache_hash == instr_hash and 
+            time.time() < AIProcessor._cache_expire_time):
+            return AIProcessor._current_cache_name
+
+        try:
+            # Note: Context caching requires a minimum of 32,768 tokens in many tiers.
+            # However, we attempt to create it; if it's too small, it will return an error 
+            # which we catch to fallback to regular calls.
+            print(f"🔄 Creating Context Cache for {self.model_name}...")
+            
+            cache = self.client.caches.create(
+                model=self.model_name,
+                config={
+                    'display_name': f'burmaduta_instructions_{instr_hash[:8]}',
+                    'contents': [{'role': 'user', 'parts': [{'text': instructions}]}],
+                    'ttl': '3600s', # 1 hour TTL (standard)
+                }
+            )
+            
+            AIProcessor._current_cache_name = cache.name
+            AIProcessor._current_cache_hash = instr_hash
+            # Local expiration set to 55 minutes to be safe
+            AIProcessor._cache_expire_time = time.time() + 3300 
+            
+            print(f"✅ Context Cache created: {cache.name} (Saves input tokens for future batches)")
+            return cache.name
+            
+        except Exception as e:
+            # Silent fallback for common "too short" or non-supported scenarios
+            msg = str(e).lower()
+            if "minimum" in msg or "too short" in msg or "invalid" in msg:
+                # Log only once to avoid cluttering logs
+                if AIProcessor._current_cache_hash != "SKIPPED":
+                    print(f"ℹ️ Context caching skipped: Instructions likely too small (< 32k tokens) or model limit. Normal billing applies.")
+                    AIProcessor._current_cache_hash = "SKIPPED"
+            else:
+                print(f"⚠️ Context Cache Creation Error: {e}")
+            
+            AIProcessor._current_cache_name = None
+            return None
