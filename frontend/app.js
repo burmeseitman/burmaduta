@@ -450,8 +450,10 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
     const selectedDate = dateFilterInput.value || "";
 
     // Global/Re-used constants
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth(); // 0-indexed
+    const refDate = selectedDate ? new Date(selectedDate) : new Date();
+    const currentYear = refDate.getFullYear();
+    const currentMonth = refDate.getMonth(); // 0-indexed
+    const currentDay = refDate.getDate();
     const myanmarMonths = ["ဇန်", "ဖေ", "မတ်", "ဧ", "မေ", "ဇွန်", "ဇူ", "ဩ", "စက်", "အောက်", "နို", "ဒီ"];
 
     // 1. Category Stats (Donut Chart) 
@@ -630,7 +632,6 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
 
     const correlationData = [];
     // If no date is selected, use today to pick target month/year
-    const refDate = selectedDate ? new Date(selectedDate) : new Date();
     const targetMonth = refDate.getMonth();
     const targetYear = refDate.getFullYear();
     const lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
@@ -707,14 +708,15 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
             type: 'scatter',
             itemStyle: {
                 color: (params) => {
-                    // Darker color if no IDP, brighter if high IDP
+                    // Highlight selected day
+                    if (params.data[0] === currentDay) return '#ffdd59'; 
                     return params.data[2] > 0 ? '#f7b731' : '#4b6584';
                 },
-                opacity: 0.8,
+                opacity: (params) => (params.data[0] === currentDay ? 1 : 0.7),
                 shadowBlur: 15,
                 shadowColor: 'rgba(0, 0, 0, 0.3)',
-                borderColor: '#fff',
-                borderWidth: 1
+                borderColor: (params) => (params.data[0] === currentDay ? '#fff' : 'rgba(255,255,255,0.3)'),
+                borderWidth: (params) => (params.data[0] === currentDay ? 2 : 1)
             },
             emphasis: {
                 itemStyle: {
@@ -909,10 +911,12 @@ function updateDangerousTownships() {
     const listBody = document.getElementById("township-list");
     if (!listBody) return;
 
-    // Get current month string (YYYY-MM)
-    const currentMonthPrefix = getLocalDateString().substring(0, 7);
+    // Get month prefix from the SELECTED DATE instead of today
+    const selectedDate = dateFilterInput.value || getLocalDateString();
+    const currentMonthPrefix = selectedDate.substring(0, 7);
     
-    // Filter allNewsItems for the current month, ignoring UI filters
+    // Filter allNewsItems for the selected month, ignoring local category/region filters
+    // to keep it as an 'overall' monthly trend for that period.
     const thisMonthItems = allNewsItems.filter(item => {
         const itemDateStr = item.publish_date || item.event_date || "";
         return itemDateStr.toString().startsWith(currentMonthPrefix);
