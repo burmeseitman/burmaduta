@@ -218,8 +218,9 @@ async def main():
         print(f"❌ Error: Invalid API_ID format in DB: {API_ID_STR}")
         return
 
-    # 2. Initialize Client with DB Credentials
-    client = TelegramClient('burmaduta_session', API_ID, API_HASH)
+    # 2. Initialize Client with DB Credentials (Inside a sub-directory for Docker stability)
+    os.makedirs('sessions', exist_ok=True)
+    client = TelegramClient('sessions/burmaduta', API_ID, API_HASH)
     
     # Register events manually since we initialized late
     client.add_event_handler(handle_new_message)

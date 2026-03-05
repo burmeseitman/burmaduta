@@ -29,5 +29,5 @@ services:
       SOURCE_CHANNELS: ${SOURCE_CHANNELS}
       PROCESSOR_KEY: ${PROCESSOR_KEY}
     volumes:
-      # Persistent session file for Telegram login
-      - ./burmaduta_session.session:/app/burmaduta_session.session
+      # Persistent session directory for Telegram login
+      - ./sessions:/app/sessions
