@@ -10,6 +10,7 @@ INTERNAL_STORE_URI = os.getenv("INTERNAL_STORE_URI")
 
 class DBManager:
     def __init__(self):
+        self.conn = None
         if not INTERNAL_STORE_URI:
             print("❌ Error: INTERNAL_STORE_URI not found in environment.")
             return
@@ -20,11 +21,16 @@ class DBManager:
             print("✅ Database connection established.")
         except Exception as e:
             print(f"❌ Database Connection Error: {e}")
-            raise e
+            # We don't raise here to allow the object to exist, 
+            # but subsequent calls will try to reconnect.
+            self.conn = None
 
     def _ensure_connection(self):
         """Checks if connection is alive and reconnects if needed."""
-        if not self.conn or self.conn.closed != 0:
+        if not self.conn or (hasattr(self.conn, 'closed') and self.conn.closed != 0):
+            if not INTERNAL_STORE_URI:
+                print("❌ Cannot reconnect: INTERNAL_STORE_URI missing.")
+                return 
             print("🔄 DB Connection lost. Reconnecting...")
             self.conn = psycopg2.connect(INTERNAL_STORE_URI)
             return
@@ -173,6 +179,8 @@ class DBManager:
 
     def get_config(self, key, default=None):
         self._ensure_connection()
+        if not self.conn:
+            return default
         try:
             with self.conn.cursor() as cur:
                 cur.execute("SELECT value FROM system_config WHERE key = %s LIMIT 1;", (key,))
@@ -184,6 +192,8 @@ class DBManager:
 
     def set_config(self, key, value):
         self._ensure_connection()
+        if not self.conn:
+            return False
         try:
             with self.conn.cursor() as cur:
                 cur.execute("""
@@ -199,6 +209,8 @@ class DBManager:
 
     def check_exists(self, channel_handle, internal_id):
         self._ensure_connection()
+        if not self.conn:
+            return False
         with self.conn.cursor() as cur:
             cur.execute("SELECT id FROM news_events WHERE channel_handle = %s AND internal_id = %s LIMIT 1;", (channel_handle, internal_id))
             return cur.fetchone() is not None
@@ -212,6 +224,9 @@ class DBManager:
             return 0
         
         self._ensure_connection()
+        if not self.conn:
+            return 0
+            
         inserted_count = 0
         try:
             with self.conn.cursor() as cur:
@@ -283,6 +298,8 @@ class DBManager:
 
     def get_all_news(self):
         self._ensure_connection()
+        if not self.conn:
+            return []
         query = """
             SELECT n.*, COALESCE(s.display_name, n.channel_handle) as source_name
             FROM news_events n
