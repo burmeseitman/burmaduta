@@ -1,5 +1,5 @@
 // Configuration: Use placeholder for build injection
-const API_BASE_URL = "__API_BASE_URL__";
+const API_BASE_URL = "";
 
 
 // Initialize Leaflet Map (Myanmar Centered)
@@ -243,12 +243,7 @@ if (timelineSlider) {
         }
     };
 }
-// Sync timeline slider when manual date filter changes
-dateFilterInput.onchange = (e) => {
-    const newDate = e.target.value;
-    dateFilter = newDate;
-
-    // Sync timeline slider if date is within last 30 days
+function syncTimelineWithDate(newDate) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const selected = new Date(newDate);
@@ -258,10 +253,16 @@ dateFilterInput.onchange = (e) => {
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays >= 0 && diffDays <= 30) {
-        timelineSlider.value = 30 - diffDays;
-        timelineDateDisplay.innerText = formatDateDisplay(newDate);
+        if (timelineSlider) timelineSlider.value = 30 - diffDays;
+        if (timelineDateDisplay) timelineDateDisplay.innerText = formatDateDisplay(newDate);
     }
+}
 
+// Sync timeline slider when manual date filter changes
+dateFilterInput.onchange = (e) => {
+    const newDate = e.target.value;
+    dateFilter = newDate;
+    syncTimelineWithDate(newDate);
     updateUI();
 };
 
@@ -293,7 +294,25 @@ async function fetchNews() {
 
             return { ...item, crime_type: finalType };
         });
+        // If first fetch and no news for today, default to the latest date available
+        const todayStr = getLocalDateString();
+        const hasTodayNews = allNewsItems.some(item => {
+            const itemDateStr = item.publish_date || "";
+            return itemDateStr.toString().startsWith(todayStr);
+        });
+
+        if (allNewsItems.length > 0 && !hasTodayNews && dateFilter === todayStr) {
+            const dates = allNewsItems.map(i => i.publish_date).filter(Boolean);
+            if (dates.length > 0) {
+                const maxDate = dates.sort().reverse()[0].split('T')[0].split(' ')[0];
+                dateFilter = maxDate;
+                dateFilterInput.value = maxDate;
+                syncTimelineWithDate(maxDate);
+            }
+        }
+
         updateUI();
+        if (window.lucide) lucide.createIcons();
     } catch (error) {
         console.error("Error fetching news:", error);
     }

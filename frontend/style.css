@@ -764,7 +764,7 @@ header p {
 /* Filters Row (Single Line) */
 .filter-row {
   display: grid;
-  grid-template-columns: 1fr 1.8fr 1fr; /* Increased middle column for Category dropdown */
+  grid-template-columns: 1fr 1.6fr 1.4fr; 
   gap: 10px;
   margin-bottom: 16px;
 }
@@ -799,7 +799,7 @@ header p {
   /* Fixed height for perfect alignment */
   outline: none;
   font-family: inherit;
-  font-size: 0.85rem;
+  font-size: 0.78rem; /* Reduced from 0.85rem */
   cursor: pointer;
   transition: 0.3s;
   width: 100%;
@@ -822,32 +822,62 @@ header p {
 .date-input-wrapper {
   position: relative;
   width: 100%;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  height: 42px;
+  padding: 0 12px;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.date-input-wrapper:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--primary-color);
+}
+
+.calendar-icon {
+  width: 14px; /* Reduced from 16px */
+  height: 14px;
+  color: var(--primary-color);
+  margin-right: 6px; /* Reduced from 10px */
+  z-index: 1;
+  pointer-events: none;
 }
 
 #date-filter-display {
+  color: white;
+  font-size: 0.78rem; /* Consistent with selects */
+  font-weight: 700;
+  z-index: 1;
+  pointer-events: none;
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.date-chevron {
+  width: 14px;
+  height: 14px;
+  color: rgba(255, 255, 255, 0.4);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.date-input-wrapper input[type="date"] {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
-  height: 42px;
-  line-height: 42px;
-  padding: 0 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  color: white;
-  font-size: 0.85rem;
-  pointer-events: none;
-  box-sizing: border-box;
-  display: block;
-  z-index: 1;
-}
-
-.date-input-wrapper input[type="date"] {
-  position: relative;
-  z-index: 2;
+  height: 100%;
   opacity: 0;
   cursor: pointer;
+  z-index: 2;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .filter-group.full-width {
@@ -870,7 +900,7 @@ header p {
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   color: #fff;
-  font-size: 0.95rem; /* Slightly larger */
+  font-size: 0.78rem; /* Reduced from 0.95rem */
   padding: 10px 14px;
   padding-right: 40px;
   cursor: pointer;
@@ -1029,7 +1059,6 @@ header p {
   color: #fff;
 }
 
-
 .type-မတော်တဆဖြစ်မှု {
   background: #fa8231;
   color: #fff;
@@ -1039,7 +1068,6 @@ header p {
   background: #2980b9;
   color: #fff;
 }
-
 
 .type-အထွေထွေ {
   background: #4b6584;
