@@ -19,6 +19,19 @@ Burma Duta is a news intelligence platform that monitors public data channels in
 -   📍 **Geospatial Mapping**: Visualizes events using an interactive map interface with category-specific categorization and filters.
 -   🐳 **Easy Deployment**: Full support for Docker and Docker Compose for fast setup on any environment, with decoupled architecture capabilities.
 
+## 🛠️ Technology Stack
+
+<p align="left">
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript">
+  <img src="https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white" alt="HTML5">
+  <img src="https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white" alt="CSS3">
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
+  <img src="https://img.shields.io/badge/LLM_AI-FF6F00?style=for-the-badge&logo=google-gemini&logoColor=white" alt="Generative AI">
+</p>
+
 ## 🏗️ System Architecture
 
 The project is built with a highly decoupled architecture, allowing for independent scaling and deployment of the frontend, backend API, and data scraping services.
