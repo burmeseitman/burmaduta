@@ -1049,33 +1049,33 @@ header p {
   margin-bottom: 10px;
 }
 
-.type-တိုက်ပွဲသတင်း {
-  background: #8e44ad;
+.type-စစ်ရေးသတင်း {
+  background: #e74c3c;
   color: #fff;
 }
 
 .type-မှုခင်းသတင်း {
-  background: #eb3b5a;
+  background: #9b59b6;
   color: #fff;
 }
 
 .type-မတော်တဆဖြစ်မှု {
-  background: #fa8231;
-  color: #fff;
+  background: #f1c40f;
+  color: #000;
 }
 
 .type-သဘာဝဘေးအန္တရာယ် {
-  background: #2980b9;
+  background: #e67e22;
   color: #fff;
 }
 
 .type-အထွေထွေ {
-  background: #4b6584;
+  background: #3498db;
   color: #fff;
 }
 
 .type-Other {
-  background: #4b6584;
+  background: #7f8c8d;
   color: #fff;
 }
 

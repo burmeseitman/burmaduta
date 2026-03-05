@@ -117,15 +117,19 @@ function getSubCategoryCounts(items, mainCategory) {
 }
 
 const typeColors = {
-    စစ်ရေးသတင်း: "#8e44ad",
-    မှုခင်းသတင်း: "#eb3b5a",
-    မတော်တဆဖြစ်မှု: "#fa8231",
-    သဘာဝဘေးအန္တရာယ်: "#2980b9",
-    အထွေထွေ: "#16a085",
+    စစ်ရေးသတင်း: "#e74c3c",    // Red for Conflict/War
+    မှုခင်းသတင်း: "#9b59b6",     // Purple for Crime
+    မတော်တဆဖြစ်မှု: "#f1c40f",  // Yellow for Accident
+    သဘာဝဘေးအန္တရာယ်: "#e67e22", // Orange for Disaster
+    အထွေထွေ: "#3498db",        // Blue for General
     Other: "#7f8c8d",
 };
 
-const SUB_PALETTE = ["#0fbcf9", "#34e7e4", "#05c46b", "#ffdd59", "#ffa801", "#ff5e57", "#ef5777", "#575fcf", "#4bcffa", "#d1d8e0"];
+// Sub-palette reflects the same vibe but slightly different tones
+const SUB_PALETTE = [
+    "#8e44ad", "#c0392b", "#f39c12", "#2980b9", "#d35400", 
+    "#16a085", "#2ecc71", "#27ae60", "#34495e", "#bdc3c7"
+];
 
 const typeIcons = {
     စစ်ရေးသတင်း: "⚔️",
@@ -401,8 +405,9 @@ function updateFilters(items) {
         const subEntries = Object.entries(actualSubs);
         if (subEntries.length > 0) {
             subHtml = `<div class="sub-counts">`;
-            subEntries.sort((a, b) => b[1] - a[1]).forEach(([sub, subCount]) => {
-                subHtml += `<div class="sub-item"><span>${sub}</span> <span>${subCount}</span></div>`;
+            subEntries.sort((a, b) => b[1] - a[1]).forEach(([sub, subCount], index) => {
+                const subColor = SUB_PALETTE[index % SUB_PALETTE.length];
+                subHtml += `<div class="sub-item"><span style="color: ${subColor}; font-weight: 700;">•</span> <span>${sub}</span> <span style="background: ${subColor}22; color: ${subColor}; padding: 0px 6px; border-radius: 4px;">${subCount}</span></div>`;
                 totalSubCount += subCount;
             });
             subHtml += `</div>`;
@@ -412,13 +417,16 @@ function updateFilters(items) {
         // This prevents the UI from looking empty when items exist but tags are missing.
         const displayedCount = totalSubCount > 0 ? totalSubCount : count;
 
+        const bgOpacity = "22"; // 13% opacity in hex
+        const color = typeColors[cat];
+
         card.innerHTML = `
             <div class="stat-main-row" onclick="filterByCategory('${cat}')" style="cursor:pointer">
                 <div class="data-box">
-                    <div class="count">${displayedCount}</div>
+                    <div class="count" style="color: ${color}">${displayedCount}</div>
                     <div class="label">${cat}</div>
                 </div>
-                <div class="icon-box">${icon}</div>
+                <div class="icon-box" style="background: ${color}${bgOpacity}; width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid ${color}${bgOpacity};">${icon}</div>
             </div>
             ${subHtml}
         `;
