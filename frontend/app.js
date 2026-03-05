@@ -800,9 +800,12 @@ function updateNewsAccordion(items) {
         return;
     }
 
-    items.forEach(item => {
+    // Pre-sort items to ensure newest are at the top
+    const sortedItems = [...items].sort((a, b) => b.id - a.id);
+
+    sortedItems.forEach(item => {
         const locDetails = [item.region, item.township, item.city].map(escapeHTML).filter(Boolean).join("၊ ");
-        const timeStr = `📅 ${formatDateDisplay(item.event_date) || "မသိရှိပါ။"} | ⏰ ${formatTime12h(item.event_time) || "မသိရှိပါ။"}`;
+        const timeStr = `ဖြစ်ပွားချိန်: 📅 ${formatDateDisplay(item.event_date) || "မသိရ"} | ⏰ ${formatTime12h(item.event_time) || "မသိရ"}`;
 
         const div = document.createElement("div");
         div.className = "accordion-item";
@@ -818,7 +821,7 @@ function updateNewsAccordion(items) {
             <div class="accordion-content">
                 <div class="accordion-summary">${escapeHTML(item.summary) || "သတင်းအကျဉ်း မရှိပါ။"}</div>
                 <div class="accordion-footer">
-                    <span class="accordion-source">📡 ${escapeHTML(item.source_name || item.channel_handle)}</span>
+                    <span class="accordion-source">📡 ${escapeHTML(item.source_name || item.channel_handle)} | သတင်းရက်စွဲ: ${formatDateDisplay(item.publish_date) || "မသိရ"}</span>
                     <span style="opacity: 0.5;">ID: #${item.id}</span>
                 </div>
             </div>
