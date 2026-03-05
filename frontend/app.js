@@ -402,22 +402,33 @@ function updateFilters(items) {
         card.className = "top-stat-card";
         card.style.borderBottomColor = typeColors[cat];
 
-        // 🚀 UNIFIED: Calculate total count as sum of (tags or 1) per item
-        const catItems = items.filter(i => i.crime_type === cat);
-        let totalCount = 0;
+        const actualSubs = getSubCategoryCounts(catItems, cat);
+        
+        // 🚀 UNIFIED FIX: Count items that result in ZERO matched sub-categories
+        let uncategorizedCount = 0;
         catItems.forEach(item => {
-            const subs = getSubCategoryCounts([item], cat);
-            const subSum = Object.values(subs).reduce((a, b) => a + b, 0);
-            totalCount += Math.max(1, subSum);
+            const itemSubs = getSubCategoryCounts([item], cat);
+            const subSum = Object.values(itemSubs).reduce((a, b) => a + b, 0);
+            if (subSum === 0) uncategorizedCount++;
         });
 
-        const actualSubs = getSubCategoryCounts(catItems, cat);
+        if (uncategorizedCount > 0) {
+            actualSubs["အခြား"] = (actualSubs["အခြား"] || 0) + uncategorizedCount;
+        }
+
+        const totalCount = Object.values(actualSubs).reduce((a, b) => a + b, 0);
+
         let subHtml = "";
         const subEntries = Object.entries(actualSubs);
         if (subEntries.length > 0) {
             subHtml = `<div class="sub-counts">`;
-            subEntries.sort((a, b) => b[1] - a[1]).forEach(([sub, subCount], index) => {
-                const subColor = SUB_PALETTE[index % SUB_PALETTE.length];
+            subEntries.sort((a, b) => {
+                // Keep "အခြား" at the bottom
+                if (a[0] === "အခြား") return 1;
+                if (b[0] === "အခြား") return -1;
+                return b[1] - a[1];
+            }).forEach(([sub, subCount], index) => {
+                const subColor = sub === "အခြား" ? "#7f8c8d" : SUB_PALETTE[index % SUB_PALETTE.length];
                 subHtml += `<div class="sub-item"><span style="color: ${subColor}; font-weight: 700;">•</span> <span>${sub}</span> <span style="background: ${subColor}22; color: ${subColor}; padding: 0px 6px; border-radius: 4px;">${subCount}</span></div>`;
             });
             subHtml += `</div>`;
@@ -470,30 +481,45 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
         // This ensures the Donut Chart matches the Top-Right Stats Cards
         chartData = ALL_CATEGORIES.map(cat => {
             const catItems = pieDataItems.filter(i => i.crime_type === cat);
-            let totalCount = 0;
+            const subs = getSubCategoryCounts(catItems, cat);
+            
+            let uncategorized = 0;
             catItems.forEach(item => {
-                const subs = getSubCategoryCounts([item], cat);
-                const subSum = Object.values(subs).reduce((a, b) => a + b, 0);
-                totalCount += Math.max(1, subSum);
+                const itemSubs = getSubCategoryCounts([item], cat);
+                if (Object.keys(itemSubs).length === 0) uncategorized++;
             });
+
+            const total = Object.values(subs).reduce((a, b) => a + b, 0) + uncategorized;
             
             return {
                 name: cat,
-                value: totalCount,
+                value: total,
                 itemStyle: { color: typeColors[cat] || typeColors.Other }
             };
         }).filter(d => d.value > 0); 
     } else {
         // Show sub-categories of the CURRENTLY SELECTED main category
         const subCounts = getSubCategoryCounts(filteredItems, currentFilter);
+        
+        // Count uncategorized for the active category filter
+        let uncategorized = 0;
+        filteredItems.forEach(item => {
+            const itemSubs = getSubCategoryCounts([item], currentFilter);
+            if (Object.keys(itemSubs).length === 0) uncategorized++;
+        });
+        if (uncategorized > 0) subCounts["အခြား"] = (subCounts["အခြား"] || 0) + uncategorized;
 
         chartData = Object.entries(subCounts)
-            .sort((a, b) => b[1] - a[1])
+            .sort((a, b) => {
+                if (a[0] === "အခြား") return 1;
+                if (b[0] === "အခြား") return -1;
+                return b[1] - a[1];
+            })
             .slice(0, 15) 
             .map(([name, value], index) => ({
                 name: name,
                 value: value,
-                itemStyle: { color: SUB_PALETTE[index % SUB_PALETTE.length] }
+                itemStyle: { color: name === "အခြား" ? "#7f8c8d" : SUB_PALETTE[index % SUB_PALETTE.length] }
             }));
     }
 
