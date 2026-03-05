@@ -1,5 +1,6 @@
-// Configuration: Change this to your Cloudflare Tunnel or GCP API URL in production
-const API_BASE_URL = ""; // e.g., "https://api.yourdomain.com" or "https://XXXX-project-name.cloudflare.com"
+// Configuration: Use placeholder for build injection
+const API_BASE_URL = "__API_BASE_URL__";
+
 
 // Initialize Leaflet Map (Myanmar Centered)
 const map = L.map("map", {

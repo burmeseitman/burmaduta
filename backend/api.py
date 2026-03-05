@@ -7,21 +7,12 @@ import os
 
 app = FastAPI()
 
-# Allow CORS
-# Allow CORS (Restricted for Security)
-# Format can be: "https://yourdomain.com,https://yourproject.pages.dev"
-raw_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:8081,http://127.0.0.1:8081,http://localhost:5173")
-ALLOWED_ORIGINS = [o.strip() for o in raw_origins_str.split(",") if o.strip()]
-
-# If no specific origins, fallback to wildcard for initial testing (Dev-friendly)
-if not ALLOWED_ORIGINS:
-    ALLOWED_ORIGINS = ["*"]
-
+# Allow CORS (Enable all during setup for Cloudflare connectivity)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET"], # News fetching only requires GET
+    allow_origins=["*"],
+    allow_credentials=False, # Wildcard with credentials is not allowed
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
