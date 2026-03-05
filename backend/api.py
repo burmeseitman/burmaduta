@@ -7,12 +7,16 @@ import os
 
 app = FastAPI()
 
-# Allow CORS (Enable all during setup for Cloudflare connectivity)
+import os
+
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "*")
+allowed_origins = [o.strip() for o in allowed_origins_str.split(",")] if allowed_origins_str != "*" else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False, # Wildcard with credentials is not allowed
-    allow_methods=["*"],
+    allow_origins=allowed_origins,
+    allow_credentials=False, 
+    allow_methods=["GET", "OPTIONS"], # Hardened: Only allow GET and OPTIONS for public API
     allow_headers=["*"],
 )
 
