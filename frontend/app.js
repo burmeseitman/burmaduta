@@ -848,6 +848,38 @@ function expandNewsItem(id) {
 // Global accessor for compatibility
 window.expandNewsItem = expandNewsItem;
 window.showNewsDetailById = expandNewsItem;
+
+window.resetToHomeView = () => {
+    // Reset filters
+    currentFilter = "All";
+    categoryFilterInput.value = "All";
+    regionFilterInput.value = "All";
+    
+    // Reset date to today or latest available exactly like fetchNews
+    const todayStr = getLocalDateString();
+    let targetDate = todayStr;
+    
+    if (allNewsItems.length > 0) {
+        const hasTodayNews = allNewsItems.some(item => {
+            const itemDateStr = item.publish_date || "";
+            return itemDateStr.toString().startsWith(todayStr);
+        });
+        
+        if (!hasTodayNews) {
+            const dates = allNewsItems.map(i => i.publish_date).filter(Boolean);
+            if (dates.length > 0) {
+                targetDate = dates.sort().reverse()[0].split('T')[0].split(' ')[0];
+            }
+        }
+    }
+    
+    dateFilterInput.value = targetDate;
+    syncTimelineWithDate(targetDate);
+    
+    // Update UI and map view
+    updateUI();
+    map.flyTo([19.7633, 96.0785], 6, { animate: true, duration: 1.5 }); // Reset map center to Myanmar
+};
 // Global Window Resize Handler for all charts
 window.addEventListener('resize', () => {
     if (categoryChart) categoryChart.resize();
