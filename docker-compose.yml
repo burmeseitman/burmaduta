@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Backend API Service
   api:
@@ -11,12 +9,11 @@ services:
     environment:
       # Directly use the Supabase URI from your .env file
       INTERNAL_STORE_URI: ${INTERNAL_STORE_URI}
-      MODEL_NAME: ${MODEL_NAME}
-      AI_PROMPT: ${AI_PROMPT}
+      MODEL_NAME: ${MODEL_NAME:-gemini-1.5-flash}
+      AI_PROMPT: ${AI_PROMPT:-""}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
-    # Note: No internal DB dependency, uses external Supabase
 
-    # Scraper Service
+  # Scraper Service
   scraper:
     build: .
     container_name: burmaduta-scraper
