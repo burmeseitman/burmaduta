@@ -566,18 +566,23 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
     });
 
     fullItems.forEach(item => {
-        const itemDateStr = item.publish_date; // Use publish_date for the time trend chart as well
+        const itemDateStr = item.publish_date || item.event_date;
         if (itemDateStr) {
-            const date = new Date(itemDateStr);
-            if (date.getFullYear() === currentYear) {
-                const m = date.getMonth();
-                if (m <= currentMonth) {
+            const itemDate = new Date(itemDateStr);
+            const itemYear = itemDate.getFullYear();
+            const itemMonth = itemDate.getMonth();
+            
+            // Strictly reflect the timeline: 
+            // 1. Must be the selected year (or earlier, but labels are for current year)
+            // 2. If it's the current year, it must be <= currentMonth
+            // 3. If it's exactly the current month, it must be <= currentDay (to reflect slider)
+            if (itemYear === currentYear) {
+                if (itemMonth < currentMonth || (itemMonth === currentMonth && itemDate.getDate() <= currentDay)) {
                     const cat = item.crime_type;
                     if (categoryTrend[cat] !== undefined) {
-                        // 🚀 SYNC: Count tags to match the stats cards
                         const subs = getSubCategoryCounts([item], cat);
                         const tagCount = Object.values(subs).reduce((a, b) => a + b, 0);
-                        categoryTrend[cat][m] += Math.max(1, tagCount);
+                        categoryTrend[cat][itemMonth] += Math.max(1, tagCount);
                     }
                 }
             }
@@ -638,7 +643,7 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
     const monthName = myanmarMonths[targetMonth];
 
     // Aggregate by day for the selected month/region
-    for (let d = 1; d <= lastDay; d++) {
+    for (let d = 1; d <= currentDay; d++) {
         let idpCount = 0;
         let otherCount = 0;
 
