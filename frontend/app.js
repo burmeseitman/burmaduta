@@ -361,7 +361,7 @@ function updateUI() {
         updateFilters(forPieChart);
         updateMapMarkers(filtered);
         updateNewsAccordion(filtered);
-        updateDangerousTownships(filtered); // 🚀 UPDATED: Now honors the selected date filter
+        updateDangerousTownships(); // 🚀 UPDATED: Calculates for the current month regardless of filters
         renderCharts(filtered, forPieChart, forTrends);
     } catch (e) {
         console.error("Component update failed:", e);
@@ -887,13 +887,22 @@ window.addEventListener('resize', () => {
     if (correlationChart) correlationChart.resize();
 });
 
-// 🚀 Top 5 Dangerous Townships Logic
-function updateDangerousTownships(items) {
+// 🚀 Top 5 Dangerous Townships Logic (Monthly Overall)
+function updateDangerousTownships() {
     const listBody = document.getElementById("township-list");
     if (!listBody) return;
 
+    // Get current month string (YYYY-MM)
+    const currentMonthPrefix = getLocalDateString().substring(0, 7);
+    
+    // Filter allNewsItems for the current month, ignoring UI filters
+    const thisMonthItems = allNewsItems.filter(item => {
+        const itemDateStr = item.publish_date || item.event_date || "";
+        return itemDateStr.toString().startsWith(currentMonthPrefix);
+    });
+
     // Filter out "General" category
-    const nonGeneralItems = items.filter(i => i.crime_type !== "အထွေထွေ");
+    const nonGeneralItems = thisMonthItems.filter(i => i.crime_type !== "အထွေထွေ");
 
     const counts = {};
     nonGeneralItems.forEach(item => {
