@@ -82,26 +82,34 @@ function escapeHTML(str) {
 }
 
 // Helper to reliably count sub-categories across components
-function getSubCategoryCounts(items, mainCategory) {
+function getSubCategoryCounts(items, mainCategory, returnAll = false) {
     const subCounts = {};
     const allowedSubs = SUB_CATEGORIES[mainCategory] || [];
 
-    // If mainCategory is given, filter items first
     const targetItems = mainCategory ? items.filter(i => i.crime_type === mainCategory) : items;
 
     targetItems.forEach(item => {
         const rawS = item.sub_category;
         if (!rawS) return;
 
-        // Search for all allowed keywords within the entire sub_category string
-        // This handles cases where splitting fails or the AI combines them
-        allowedSubs.forEach(spec => {
-            if (rawS.includes(spec)) {
-                subCounts[spec] = (subCounts[spec] || 0) + 1;
+        if (returnAll) {
+            // Count EVERYTHING for detailed views (Map Popups)
+            allowedSubs.forEach(spec => {
+                if (rawS.includes(spec)) {
+                    subCounts[spec] = (subCounts[spec] || 0) + 1;
+                }
+            });
+        } else {
+            // 🚀 ONE EVENT = ONE COUNT FIXED: 
+            // We only pick the FIRST matching sub-category from our specification list 
+            // for statistical balance (Header count == Sum of sub-categories).
+            const matchedSpec = allowedSubs.find(spec => rawS.includes(spec));
+            if (matchedSpec) {
+                subCounts[matchedSpec] = (subCounts[matchedSpec] || 0) + 1;
             }
-        });
+        }
 
-        // If we didn't match any spec but want raw output (for no mainCategory)
+        // Fallback for raw output (only if no mainCategory and no spec matched from allowedSubs)
         if (!mainCategory && Object.keys(subCounts).length === 0) {
             const cleaned = rawS.replace(/[{}]/g, '').split(/[,/၊]/);
             cleaned.forEach(part => {
@@ -826,8 +834,10 @@ function updateMapMarkers(items) {
             });
 
             const typeLabel = escapeHTML(item.crime_type || "အခြား");
-            const safeSub = escapeHTML(item.sub_category);
-            const subLabel = safeSub ? `<div style="font-size: 11px; color: ${color}; margin-top: -4px; margin-bottom: 8px; font-weight: 700; opacity: 0.9;"># ${safeSub}</div>` : "";
+            const subCounts = getSubCategoryCounts([item], item.crime_type, true); // 🚀 pass true to show all tags in popup
+            const subLabel = Object.keys(subCounts).length > 0 
+                ? `<div style="font-size: 11px; margin-bottom:10px;">🏷️ ${Object.keys(subCounts).map(s => `<span class="sub-tag">${s}</span>`).join(" ")}</div>` 
+                : "";
             const typeClass = `type-${typeLabel.split(" ").join("-")}`;
             const locDetails = [item.region, item.township, item.city].map(escapeHTML).filter(Boolean).join("၊ ");
 
