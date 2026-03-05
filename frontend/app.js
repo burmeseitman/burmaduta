@@ -316,6 +316,11 @@ async function fetchNews() {
 
         updateUI();
         if (window.lucide) lucide.createIcons();
+        
+        // Ensure charts resize to fill containers after initial data render
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+        }, 500);
     } catch (error) {
         console.error("Error fetching news:", error);
     }
@@ -639,25 +644,31 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
 
     // 3. Correlation Chart (IDP vs Others - Daily View)
     if (!correlationChart) {
-        correlationChart = echarts.init(document.getElementById('correlationChart'));
+        const container = document.getElementById('correlationChart');
+        if (container) correlationChart = echarts.init(container);
     }
 
     const correlationData = [];
-    // If no date is selected, use today to pick target month/year
     const targetMonth = refDate.getMonth();
     const targetYear = refDate.getFullYear();
     const lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
     const monthName = myanmarMonths[targetMonth];
 
     // Aggregate by day for the selected month/region
-    for (let d = 1; d <= currentDay; d++) {
+    // Loop through the entire month to show the full trend
+    for (let d = 1; d <= lastDay; d++) {
         let idpCount = 0;
         let otherCount = 0;
 
         (fullItems || []).forEach(item => {
             if (item.publish_date) {
-                const [y, m, dayOfMonth] = item.publish_date.split('-').map(Number);
-                if (y === targetYear && (m - 1) === targetMonth && dayOfMonth === d) {
+                // Robust date parsing using new Date()
+                const itemDate = new Date(item.publish_date);
+                const y = itemDate.getFullYear();
+                const m = itemDate.getMonth();
+                const dayOfMonth = itemDate.getDate();
+
+                if (y === targetYear && m === targetMonth && dayOfMonth === d) {
                     const counts = getSubCategoryCounts([item], item.crime_type);
                     if (counts["စစ်ဘေးရှောင်"]) {
                         idpCount += counts["စစ်ဘေးရှောင်"];
