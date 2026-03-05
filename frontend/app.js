@@ -397,10 +397,16 @@ function updateFilters(items) {
         card.className = "top-stat-card";
         card.style.borderBottomColor = typeColors[cat];
 
-        // 🚀 UNIFIED: Use helper to get counts
-        const actualSubs = getSubCategoryCounts(items, cat);
-        let totalSubCount = 0;
-        // The sum is calculated below during sorting
+        // 🚀 UNIFIED: Calculate total count as sum of (tags or 1) per item
+        const catItems = items.filter(i => i.crime_type === cat);
+        let totalCount = 0;
+        catItems.forEach(item => {
+            const subs = getSubCategoryCounts([item], cat);
+            const subSum = Object.values(subs).reduce((a, b) => a + b, 0);
+            totalCount += Math.max(1, subSum);
+        });
+
+        const actualSubs = getSubCategoryCounts(catItems, cat);
         let subHtml = "";
         const subEntries = Object.entries(actualSubs);
         if (subEntries.length > 0) {
@@ -408,14 +414,11 @@ function updateFilters(items) {
             subEntries.sort((a, b) => b[1] - a[1]).forEach(([sub, subCount], index) => {
                 const subColor = SUB_PALETTE[index % SUB_PALETTE.length];
                 subHtml += `<div class="sub-item"><span style="color: ${subColor}; font-weight: 700;">•</span> <span>${sub}</span> <span style="background: ${subColor}22; color: ${subColor}; padding: 0px 6px; border-radius: 4px;">${subCount}</span></div>`;
-                totalSubCount += subCount;
             });
             subHtml += `</div>`;
         }
 
-        // Use sub-category sum, but fallback to news item count if no sub-categories are tagged
-        // This prevents the UI from looking empty when items exist but tags are missing.
-        const displayedCount = totalSubCount > 0 ? totalSubCount : count;
+        const displayedCount = totalCount;
 
         const bgOpacity = "22"; // 13% opacity in hex
         const color = typeColors[cat];
@@ -456,14 +459,20 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
     const isFiltered = currentFilter !== "All";
 
     if (!isFiltered) {
-        // 🚀 SYNC: Show regional category distribution ACROSS ALL TIME
-        // This makes the chart much more useful than just showing 'Today' (which might be empty)
+        // 🚀 SYNC: Show regional category distribution for the SELECTED DATE
+        // This ensures the Donut Chart matches the Top-Right Stats Cards
         chartData = ALL_CATEGORIES.map(cat => {
-            const counts = getSubCategoryCounts(fullItems, cat);
-            const sum = Object.values(counts).reduce((a, b) => a + b, 0);
+            const catItems = pieDataItems.filter(i => i.crime_type === cat);
+            let totalCount = 0;
+            catItems.forEach(item => {
+                const subs = getSubCategoryCounts([item], cat);
+                const subSum = Object.values(subs).reduce((a, b) => a + b, 0);
+                totalCount += Math.max(1, subSum);
+            });
+            
             return {
                 name: cat,
-                value: sum, // Strictly use tag-based sum for regional overview
+                value: totalCount,
                 itemStyle: { color: typeColors[cat] || typeColors.Other }
             };
         }).filter(d => d.value > 0); // Hide slices with zero data to prevent "ghost" labels
