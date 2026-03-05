@@ -402,11 +402,11 @@ function updateFilters(items) {
         card.className = "top-stat-card";
         card.style.borderBottomColor = typeColors[cat];
 
-        const actualSubs = getSubCategoryCounts(catItems, cat);
+        const actualSubs = getSubCategoryCounts(filteredItems, cat);
         
         // 🚀 UNIFIED FIX: Count items that result in ZERO matched sub-categories
         let uncategorizedCount = 0;
-        catItems.forEach(item => {
+        filteredItems.forEach(item => {
             const itemSubs = getSubCategoryCounts([item], cat);
             const subSum = Object.values(itemSubs).reduce((a, b) => a + b, 0);
             if (subSum === 0) uncategorizedCount++;
