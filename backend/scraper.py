@@ -11,17 +11,12 @@ load_dotenv()
 
 db = DBManager()
 
-# Load configuration from Database
-API_ID = int(db.get_config("API_ID", os.getenv("SOURCE_API_ID")))
-API_HASH = db.get_config("API_HASH", os.getenv("SOURCE_API_HASH"))
-CHANNELS_STR = db.get_config("INPUT_CHANNELS", os.getenv("SOURCE_CHANNELS", "@newsfeed"))
-CHANNELS = [c.strip() for c in CHANNELS_STR.split(",")]
-
-client = TelegramClient('burmaduta_session', API_ID, API_HASH)
+# Global placeholders - will be initialized in main()
+client = None
 ai = AIProcessor()
 ai_lock = asyncio.Lock()
 
-# 🛡️ STEALTH: Simple cache to avoid redundant get_entity() calls (reduces server footprint)
+# 🛡️ STEALTH: Simple cache to avoid redundant get_entity() calls
 ENTITY_CACHE = {}
 
 async def process_messages_batch(messages_batch):
@@ -143,10 +138,24 @@ async def process_messages_batch(messages_batch):
         # Throttling to respect AI limits (adjust as needed for batch size)
         await asyncio.sleep(5)
 
-@client.on(events.NewMessage(chats=CHANNELS))
+@events.register(events.NewMessage())
 async def handle_new_message(event):
+    if not client: return 
     try:
-        # 🕵️ STEALTH JITTER: Add a random delay (1-4 seconds) so we don't look like a script
+        # Check if the message is from our monitored channels
+        chat = await event.get_chat()
+        channel_handle = getattr(chat, 'username', str(getattr(chat, 'id', 'unknown')))
+        if channel_handle and not channel_handle.startswith('@') and not channel_handle.isdigit():
+             channel_handle = f"@{channel_handle}"
+        
+        # Pull latest channels list from DB
+        CHANNELS_STR = db.get_config("INPUT_CHANNELS", "")
+        CHANNELS = [c.strip() for c in CHANNELS_STR.split(",")]
+        
+        if channel_handle not in CHANNELS:
+            return
+            
+        # 🕵️ STEALTH JITTER: Add a random delay (1-4 seconds)
         await asyncio.sleep(random.uniform(1.2, 3.8))
 
         # Live updates: process immediately
@@ -189,11 +198,37 @@ async def backfill_channel(channel):
         print(f"Error backfilling {channel}: {e}")
 
 async def main():
+    global client
+    
+    # 1. Fetch Credentials STRICTLY from Supabase
+    print("🔄 Fetching Telegram credentials from Supabase...")
+    API_ID_STR = db.get_config("API_ID")
+    API_HASH = db.get_config("API_HASH")
+    CHANNELS_STR = db.get_config("INPUT_CHANNELS", "@newsfeed")
+    CHANNELS = [c.strip() for c in CHANNELS_STR.split(",")]
+    
+    if not API_ID_STR or not API_HASH:
+        print("❌ Error: API_ID or API_HASH not found in Supabase (system_config table).")
+        print("Please add them to the database first.")
+        return
+
+    try:
+        API_ID = int(API_ID_STR)
+    except ValueError:
+        print(f"❌ Error: Invalid API_ID format in DB: {API_ID_STR}")
+        return
+
+    # 2. Initialize Client with DB Credentials
+    client = TelegramClient('burmaduta_session', API_ID, API_HASH)
+    
+    # Register events manually since we initialized late
+    client.add_event_handler(handle_new_message)
+
     # 🕵️ STEALTH: Start and then ensure we are not showing as 'online'
     await client.start()
     from telethon import functions
     await client(functions.account.UpdateStatusRequest(offline=True))
-    print("🕵️ Stealth Scraper started (Presence hidden).")
+    print(f"🕵️ Stealth Scraper started using AppID: {API_ID} (Presence hidden).")
     
     # Run backfill tasks for all channels in parallel
     backfill_tasks = [asyncio.create_task(backfill_channel(ch)) for ch in CHANNELS]
