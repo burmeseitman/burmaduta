@@ -4,6 +4,7 @@
 
 # 🇲🇲 Burma Duta (ဗမာဒူတ)
 > **Real-time News Intelligence & Visualization for Myanmar.**
+> **Live Demo:** [https://www.burmaduta.com](https://www.burmaduta.com)
 
 Burma Duta is a news intelligence platform that monitors public data channels in real-time, extracts meaningful information using an AI-powered analytical engine, and visualizes incidents on an interactive map with integrated statistical analytics.
 
