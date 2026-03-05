@@ -1,3 +1,6 @@
+// Configuration: Change this to your Cloudflare Tunnel or GCP API URL in production
+const API_BASE_URL = ""; // e.g., "https://api.yourdomain.com" or "https://XXXX-project-name.cloudflare.com"
+
 // Initialize Leaflet Map (Myanmar Centered)
 const map = L.map("map", {
     zoomControl: false,
@@ -82,7 +85,7 @@ function escapeHTML(str) {
 function getSubCategoryCounts(items, mainCategory) {
     const subCounts = {};
     const allowedSubs = SUB_CATEGORIES[mainCategory] || [];
-    
+
     // If mainCategory is given, filter items first
     const targetItems = mainCategory ? items.filter(i => i.crime_type === mainCategory) : items;
 
@@ -100,7 +103,7 @@ function getSubCategoryCounts(items, mainCategory) {
 
             // Strict match with specification first
             const matchedSpec = allowedSubs.find(spec => s.includes(spec) || spec.includes(s));
-            
+
             if (matchedSpec) {
                 subCounts[matchedSpec] = (subCounts[matchedSpec] || 0) + 1;
             } else if (!mainCategory) {
@@ -249,7 +252,7 @@ dateFilterInput.onchange = (e) => {
     today.setHours(0, 0, 0, 0);
     const selected = new Date(newDate);
     selected.setHours(0, 0, 0, 0);
-    
+
     const diffTime = today - selected;
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
@@ -272,9 +275,10 @@ async function filterByCategory(cat) {
 
 async function fetchNews() {
     try {
-        const response = await fetch("/api/news");
+        const endpoint = `${API_BASE_URL}/api/news`;
+        const response = await fetch(endpoint);
         const data = await response.json();
-        
+
         // Strictly normalize main categories to the 5 standard keys
         allNewsItems = data.map(item => {
             let rawType = (item.crime_type || "အထွေထွေ").trim();
@@ -339,13 +343,13 @@ function updateUI() {
         updateMapMarkers(filtered);
         updateNewsAccordion(filtered);
         updateDangerousTownships(filtered); // 🚀 UPDATED: Now honors the selected date filter
-        renderCharts(filtered, forPieChart, forTrends); 
+        renderCharts(filtered, forPieChart, forTrends);
     } catch (e) {
         console.error("Component update failed:", e);
     }
 
     if (window.lucide) {
-        try { lucide.createIcons(); } catch(e) {}
+        try { lucide.createIcons(); } catch (e) { }
     }
 }
 
@@ -374,7 +378,7 @@ function updateFilters(items) {
         const actualSubs = getSubCategoryCounts(items, cat);
         let totalSubCount = 0;
         // The sum is calculated below during sorting
-        let subHtml = ""; 
+        let subHtml = "";
         const subEntries = Object.entries(actualSubs);
         if (subEntries.length > 0) {
             subHtml = `<div class="sub-counts">`;
@@ -414,7 +418,7 @@ function updateFilters(items) {
 function renderCharts(filteredItems, pieDataItems, fullItems) {
     const selectedRegion = regionFilterInput.value || "All";
     const selectedDate = dateFilterInput.value || "";
-    
+
     // Global/Re-used constants
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth(); // 0-indexed
@@ -768,7 +772,7 @@ function updateNewsAccordion(items) {
     const container = document.getElementById("news-accordion");
     const countBadge = document.getElementById("news-count-badge");
     container.innerHTML = "";
-    
+
     // Show all items but let CSS handle scrolling
     countBadge.innerText = items.length;
 
@@ -845,7 +849,7 @@ function updateDangerousTownships(items) {
         // Count tags for this item
         const subCounts = getSubCategoryCounts([item], item.crime_type);
         const totalTags = Object.values(subCounts).reduce((a, b) => a + b, 0);
-        
+
         // Add to aggregate (minimum 1 if item exists)
         counts[ts] = (counts[ts] || 0) + (totalTags || 1);
     });
