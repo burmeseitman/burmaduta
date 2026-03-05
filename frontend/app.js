@@ -477,24 +477,24 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
                 value: totalCount,
                 itemStyle: { color: typeColors[cat] || typeColors.Other }
             };
-        }).filter(d => d.value > 0); // Hide slices with zero data to prevent "ghost" labels
+        }).filter(d => d.value > 0); 
     } else {
         // Show sub-categories of the CURRENTLY SELECTED main category
         const subCounts = getSubCategoryCounts(filteredItems, currentFilter);
 
         chartData = Object.entries(subCounts)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 15) // Increased limit to ensure "Investment" isn't cut off
+            .slice(0, 15) 
             .map(([name, value], index) => ({
                 name: name,
                 value: value,
                 itemStyle: { color: SUB_PALETTE[index % SUB_PALETTE.length] }
             }));
+    }
 
-        // If no data for this category meets the specification
-        if (chartData.length === 0) {
-            chartData = [{ name: "မရှိပါ", value: 0 }];
-        }
+    const hasData = chartData.length > 0;
+    if (!hasData) {
+        chartData = [{ name: "ရလဒ်မရှိပါ။", value: 0, itemStyle: { color: 'rgba(255,255,255,0.05)' } }];
     }
 
     if (!categoryChart) {
@@ -518,8 +518,9 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
     }
 
     const categoryOption = {
-        tooltip: { trigger: 'item', padding: 10, borderRadius: 8 },
+        tooltip: { trigger: 'item', padding: 10, borderRadius: 8, show: hasData },
         legend: {
+            show: hasData,
             orient: 'vertical',
             left: '5%',
             top: 'middle',
@@ -527,20 +528,26 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
             textStyle: { color: 'rgba(255,255,255,0.7)', fontSize: isFiltered ? 9 : 10, fontWeight: '500' },
             icon: 'circle',
             formatter: (name) => {
-                // Shorten long sub-category names in legend if needed
                 return name.length > 20 ? name.substring(0, 18) + '...' : name;
             }
         },
+        title: !hasData ? {
+            text: 'ရလဒ်မရှိပါ။',
+            left: 'center',
+            top: 'center',
+            textStyle: { color: 'rgba(255,255,255,0.4)', fontSize: 14, fontWeight: 'normal' }
+        } : null,
         series: [{
             name: isFiltered ? '' : 'အမျိုးအစား',
             type: 'pie',
-            radius: ['45%', '72%'], // Donut style
-            center: ['75%', '55%'], // Position for visibility
+            radius: ['45%', '72%'], 
+            center: ['75%', '55%'], 
             avoidLabelOverlap: true,
             itemStyle: {
                 borderRadius: 4,
                 borderColor: '#1a1a1f',
-                borderWidth: 2
+                borderWidth: 2,
+                opacity: hasData ? 1 : 0.2
             },
             label: {
                 show: false
