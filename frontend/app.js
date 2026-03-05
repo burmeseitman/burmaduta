@@ -93,25 +93,24 @@ function getSubCategoryCounts(items, mainCategory) {
         const rawS = item.sub_category;
         if (!rawS) return;
 
-        // Unified extraction logic (regex for brackets, split by Burmese/English punctuation)
-        const cleaned = rawS.replace(/[{}]/g, '').split(/[,/၊]/);
-
-        cleaned.forEach(part => {
-            const s = part.trim();
-            // Skip placeholders
-            if (!s || ["null", "none", "n/a", "undefined", "-", "မသိရ", "အခြား", "သတင်း", "သတင်းအချက်အလက်"].includes(s.toLowerCase())) return;
-
-            // Strict match with specification first
-            const matchedSpec = allowedSubs.find(spec => s.includes(spec) || spec.includes(s));
-
-            if (matchedSpec) {
-                subCounts[matchedSpec] = (subCounts[matchedSpec] || 0) + 1;
-            } else if (!mainCategory) {
-                // If we're not filtering by a specific category, we might still want the raw name
-                const shortName = s.length > 25 ? s.substring(0, 22) + "..." : s;
-                subCounts[shortName] = (subCounts[shortName] || 0) + 1;
+        // Search for all allowed keywords within the entire sub_category string
+        // This handles cases where splitting fails or the AI combines them
+        allowedSubs.forEach(spec => {
+            if (rawS.includes(spec)) {
+                subCounts[spec] = (subCounts[spec] || 0) + 1;
             }
         });
+
+        // If we didn't match any spec but want raw output (for no mainCategory)
+        if (!mainCategory && Object.keys(subCounts).length === 0) {
+            const cleaned = rawS.replace(/[{}]/g, '').split(/[,/၊]/);
+            cleaned.forEach(part => {
+                const s = part.trim();
+                if (!s || ["null", "none", "n/a", "undefined", "-", "မသိရ", "အခြား"].includes(s.toLowerCase())) return;
+                const shortName = s.length > 25 ? s.substring(0, 22) + "..." : s;
+                subCounts[shortName] = (subCounts[shortName] || 0) + 1;
+            });
+        }
     });
     return subCounts;
 }
