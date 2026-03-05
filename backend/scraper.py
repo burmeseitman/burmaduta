@@ -67,9 +67,9 @@ async def process_messages_batch(messages_batch):
             # print(f"DEBUG: Entity fetch error for msg {message_id}: {e}")
             channel_handle = "unknown"
 
-        # DE-DUPE CHECK: Skip if already in DB
-        if db.check_exists(channel_handle, message_id):
-            print(f"Skipping {channel_handle} ({message_id}): Already processed.")
+        # DE-DUPE CHECK: Skip if already in DB (check by ID or Content)
+        if db.check_exists(channel_handle, message_id, message_text):
+            print(f"Skipping {channel_handle} ({message_id}): Already processed (ID or Content duplication).")
             continue
 
         to_process.append({

@@ -94,8 +94,12 @@ class DBManager:
             cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_city ON {TABLE} (city);")
             cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_channel_handle ON {TABLE} (channel_handle);")
             cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_created_at ON {TABLE} (created_at DESC);")
+            
+            # 4. Content Uniqueness Index (MD5-based to handle large text)
+            cur.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{TABLE}_raw_text_unique ON {TABLE} (MD5(raw_text));")
+            
             self.conn.commit()
-            print(f"✅ Optimization indexes ensured for {TABLE}.")
+            print(f"✅ Optimization and Unique indexes ensured for {TABLE}.")
 
         # 4. Migrations (Independent transactions to avoid aborted state)
         def check_col(col):
@@ -207,13 +211,22 @@ class DBManager:
             print(f"Error setting config {key}: {e}")
             return False
 
-    def check_exists(self, channel_handle, internal_id):
+    def check_exists(self, channel_handle, internal_id, raw_text=None):
         self._ensure_connection()
         if not self.conn:
             return False
         with self.conn.cursor() as cur:
+            # First check by ID
             cur.execute("SELECT id FROM news_events WHERE channel_handle = %s AND internal_id = %s LIMIT 1;", (channel_handle, internal_id))
-            return cur.fetchone() is not None
+            if cur.fetchone():
+                return True
+            
+            # Then check by exact raw_text (MD5 indexed)
+            if raw_text:
+                cur.execute("SELECT id FROM news_events WHERE MD5(raw_text) = MD5(%s) AND raw_text = %s LIMIT 1;", (raw_text, raw_text))
+                return cur.fetchone() is not None
+                
+            return False
 
     def insert_news_batch(self, news_items):
         """
@@ -242,12 +255,21 @@ class DBManager:
                         WHERE NOT EXISTS (
                             SELECT 1 FROM news_events 
                             WHERE (channel_handle = %s AND internal_id = %s)
+                            OR (raw_text = %s) -- Exact text deduplication
                             OR (
                                 crime_type = %s AND event_date = %s::DATE 
-                                AND COALESCE(city, '') = COALESCE(%s, '')
-                                AND COALESCE(township, '') = COALESCE(%s, '')
-                                AND COALESCE(sub_category, '') = COALESCE(%s, '')
-                                AND (city IS NOT NULL OR township IS NOT NULL)
+                                AND (
+                                    (COALESCE(city, '') = COALESCE(%s, '') AND COALESCE(township, '') = COALESCE(%s, ''))
+                                    OR (COALESCE(location_name, '') = COALESCE(%s, ''))
+                                )
+                                -- If location or sub-category matches, and date/type match, it's likely a duplicate
+                                AND (
+                                    COALESCE(sub_category, '') = COALESCE(%s, '') 
+                                    OR (
+                                        (city IS NOT NULL OR township IS NOT NULL) 
+                                        AND (city = %s OR township = %s)
+                                    )
+                                )
                             )
                         )
                         ON CONFLICT (channel_handle, internal_id) DO NOTHING;
@@ -273,12 +295,17 @@ class DBManager:
                         # For the WHERE NOT EXISTS clause (ID check)
                         data.get('channel_handle'),
                         data.get('internal_id'),
+                        # For the WHERE NOT EXISTS clause (Text check)
+                        data.get('raw_text'),
                         # For the WHERE NOT EXISTS clause (Semantic check)
                         data.get('crime_type'),
                         data.get('event_date'),
                         data.get('city'),
                         data.get('township'),
-                        data.get('sub_category')
+                        data.get('location_name'),
+                        data.get('sub_category'),
+                        data.get('city'),
+                        data.get('township')
                     )
                     
                     cur.execute(query, params)
