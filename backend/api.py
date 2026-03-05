@@ -18,9 +18,20 @@ app.add_middleware(
 
 db = DBManager()
 
+import time
+
+CACHE_TTL = 30  # Cache duration in seconds
+news_cache = {"data": None, "timestamp": 0}
+
 @app.get("/api/news")
 async def get_news():
-    return db.get_all_news()
+    current_time = time.time()
+    # Check if cache is empty or expired
+    if news_cache["data"] is None or (current_time - news_cache["timestamp"]) > CACHE_TTL:
+        print("🔄 Fetching fresh news from database...")
+        news_cache["data"] = db.get_all_news()
+        news_cache["timestamp"] = current_time
+    return news_cache["data"]
 
 # Serve Frontend Files
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
