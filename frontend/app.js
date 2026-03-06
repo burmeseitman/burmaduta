@@ -134,7 +134,7 @@ const typeColors = {
 
 // Sub-palette reflects the same vibe but slightly different tones
 const SUB_PALETTE = [
-    "#8e44ad", "#c0392b", "#f39c12", "#2980b9", "#d35400", 
+    "#8e44ad", "#c0392b", "#f39c12", "#2980b9", "#d35400",
     "#16a085", "#2ecc71", "#27ae60", "#34495e", "#bdc3c7"
 ];
 
@@ -323,7 +323,7 @@ async function fetchNews() {
 
         updateUI();
         if (window.lucide) lucide.createIcons();
-        
+
         // Ensure charts resize to fill containers after initial data render
         setTimeout(() => {
             window.dispatchEvent(new Event('resize'));
@@ -410,7 +410,7 @@ function updateFilters(items) {
         card.style.borderBottomColor = typeColors[cat];
 
         const actualSubs = getSubCategoryCounts(filteredItems, cat);
-        
+
         // 🚀 UNIFIED FIX: Count items that result in ZERO matched sub-categories
         let uncategorizedCount = 0;
         filteredItems.forEach(item => {
@@ -489,7 +489,7 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
         chartData = ALL_CATEGORIES.map(cat => {
             const catItems = pieDataItems.filter(i => i.crime_type === cat);
             const subs = getSubCategoryCounts(catItems, cat);
-            
+
             let uncategorized = 0;
             catItems.forEach(item => {
                 const itemSubs = getSubCategoryCounts([item], cat);
@@ -497,17 +497,17 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
             });
 
             const total = Object.values(subs).reduce((a, b) => a + b, 0) + uncategorized;
-            
+
             return {
                 name: cat,
                 value: total,
                 itemStyle: { color: typeColors[cat] || typeColors.Other }
             };
-        }).filter(d => d.value > 0); 
+        }).filter(d => d.value > 0);
     } else {
         // Show sub-categories of the CURRENTLY SELECTED main category
         const subCounts = getSubCategoryCounts(filteredItems, currentFilter);
-        
+
         // Count uncategorized for the active category filter
         let uncategorized = 0;
         filteredItems.forEach(item => {
@@ -522,7 +522,7 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
                 if (b[0] === "အခြား") return -1;
                 return b[1] - a[1];
             })
-            .slice(0, 15) 
+            .slice(0, 15)
             .map(([name, value], index) => ({
                 name: name,
                 value: value,
@@ -578,8 +578,8 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
         series: [{
             name: isFiltered ? '' : 'အမျိုးအစား',
             type: 'pie',
-            radius: ['45%', '72%'], 
-            center: ['75%', '55%'], 
+            radius: ['45%', '72%'],
+            center: ['75%', '55%'],
             avoidLabelOverlap: true,
             itemStyle: {
                 borderRadius: 4,
@@ -616,7 +616,7 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
             const itemDate = new Date(itemDateStr);
             const itemYear = itemDate.getFullYear();
             const itemMonth = itemDate.getMonth();
-            
+
             // Strictly reflect the timeline: 
             // 1. Must be the selected year (or earlier, but labels are for current year)
             // 2. If it's the current year, it must be <= currentMonth
@@ -756,30 +756,31 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
         },
         series: [{
             symbolSize: (data) => {
-                // Size represents IDP count (min 8px, max 40px)
-                const s = Math.sqrt(data[2]) * 8 + 8;
-                return Math.min(s, 40);
+                // Size represents IDP count (min 12px, max 45px for better visibility)
+                const s = Math.sqrt(data[2]) * 10 + 12;
+                return Math.min(s, 45);
             },
             data: correlationData,
             type: 'scatter',
             itemStyle: {
                 color: (params) => {
-                    // Highlight selected day
-                    if (params.data[0] === currentDay) return '#ffdd59'; 
+                    if (params.data[0] === currentDay) return '#ffdd59';
                     return params.data[2] > 0 ? '#f7b731' : '#4b6584';
                 },
-                opacity: (params) => (params.data[0] === currentDay ? 1 : 0.7),
-                shadowBlur: 15,
+                opacity: 0.8,
+                shadowBlur: 10,
                 shadowColor: 'rgba(0, 0, 0, 0.3)',
-                borderColor: (params) => (params.data[0] === currentDay ? '#fff' : 'rgba(255,255,255,0.3)'),
-                borderWidth: (params) => (params.data[0] === currentDay ? 2 : 1)
+                borderColor: 'rgba(255,255,255,0.4)',
+                borderWidth: 1
             },
             emphasis: {
+                focus: 'self',
+                scale: 1.2,
                 itemStyle: {
-                    color: '#fff',
-                    borderColor: '#f7b731',
-                    borderWidth: 2,
-                    opacity: 1
+                    opacity: 1,
+                    shadowBlur: 20,
+                    borderColor: '#fff',
+                    borderWidth: 2
                 }
             }
         }],
@@ -835,8 +836,8 @@ function updateMapMarkers(items) {
 
             const typeLabel = escapeHTML(item.crime_type || "အခြား");
             const subCounts = getSubCategoryCounts([item], item.crime_type, true); // 🚀 pass true to show all tags in popup
-            const subLabel = Object.keys(subCounts).length > 0 
-                ? `<div style="font-size: 11px; margin-bottom:10px;">🏷️ ${Object.keys(subCounts).map(s => `<span class="sub-tag">${s}</span>`).join(" ")}</div>` 
+            const subLabel = Object.keys(subCounts).length > 0
+                ? `<div style="font-size: 11px; margin-bottom:10px;">🏷️ ${Object.keys(subCounts).map(s => `<span class="sub-tag">${s}</span>`).join(" ")}</div>`
                 : "";
             const typeClass = `type-${typeLabel.split(" ").join("-")}`;
             const locDetails = [item.region, item.township, item.city].map(escapeHTML).filter(Boolean).join("၊ ");
@@ -931,17 +932,17 @@ window.resetToHomeView = () => {
     currentFilter = "All";
     categoryFilterInput.value = "All";
     regionFilterInput.value = "All";
-    
+
     // Reset date to today or latest available exactly like fetchNews
     const todayStr = getLocalDateString();
     let targetDate = todayStr;
-    
+
     if (allNewsItems.length > 0) {
         const hasTodayNews = allNewsItems.some(item => {
             const itemDateStr = item.publish_date || "";
             return itemDateStr.toString().startsWith(todayStr);
         });
-        
+
         if (!hasTodayNews) {
             const dates = allNewsItems.map(i => i.publish_date).filter(Boolean);
             if (dates.length > 0) {
@@ -949,10 +950,10 @@ window.resetToHomeView = () => {
             }
         }
     }
-    
+
     dateFilterInput.value = targetDate;
     syncTimelineWithDate(targetDate);
-    
+
     // Update UI and map view
     updateUI();
     map.flyTo([19.7633, 96.0785], 6, { animate: true, duration: 1.5 }); // Reset map center to Myanmar
@@ -972,7 +973,7 @@ function updateDangerousTownships() {
     // Get month prefix from the SELECTED DATE instead of today
     const selectedDate = dateFilterInput.value || getLocalDateString();
     const currentMonthPrefix = selectedDate.substring(0, 7);
-    
+
     // Filter allNewsItems for the selected month, ignoring local category/region filters
     // to keep it as an 'overall' monthly trend for that period.
     const thisMonthItems = allNewsItems.filter(item => {
