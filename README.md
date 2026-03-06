@@ -72,12 +72,12 @@ Burma Duta is designed to be deployed effortlessly on any Linux-based VPS or clo
 ### 1. Pre-requisites
 Ensure you have the following **private** files ready (do not commit these to source control):
 -   `.env`: Containing your `DATABASE_URL` and `PROCESSOR_KEY`.
--   `burmaduta_session.session`: Your authenticated data source session file.
+-   `sessions/burmaduta.session`: Your authenticated Telegram session file (must be inside the `sessions` directory).
 
 ### 2. Automated Installation
 Run the deployment script to prepare your server environment (Docker, Docker Compose, Swap configuration):
 ```bash
-curl -O https://raw.githubusercontent.com/[your-repo]/main/deploy.sh && chmod +x deploy.sh && ./deploy.sh
+curl -O https://raw.githubusercontent.com/burmeseitman/burmaduta/main/deploy.sh && chmod +x deploy.sh && ./deploy.sh
 ```
 
 ### 3. Launching the Stack
