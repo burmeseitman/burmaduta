@@ -3,6 +3,7 @@ import os
 import asyncio
 import re
 import random
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from db_manager import DBManager
 from ai_processor import AIProcessor
@@ -18,6 +19,15 @@ ai_lock = asyncio.Lock()
 
 # 🛡️ STEALTH: Simple cache to avoid redundant get_entity() calls
 ENTITY_CACHE = {}
+
+def is_quiet_hours():
+    """
+    Checks if current time in Singapore (UTC+8) is between 2:00 AM and 8:00 AM.
+    This helps save AI token fees during hours with low news activity.
+    """
+    # Singapore/Burma standard offset is UTC+8
+    sgt = datetime.now(timezone(timedelta(hours=8)))
+    return 2 <= sgt.hour < 8
 
 async def process_messages_batch(messages_batch):
     """
@@ -141,6 +151,11 @@ async def process_messages_batch(messages_batch):
 @events.register(events.NewMessage())
 async def handle_new_message(event):
     if not client: return 
+    
+    if is_quiet_hours():
+        # Quiet hours (2 AM - 8 AM SGT): Skip processing to save token fees
+        return
+
     try:
         # Check if the message is from our monitored channels
         chat = await event.get_chat()
@@ -176,6 +191,10 @@ async def handle_new_message(event):
         traceback.print_exc()
 
 async def backfill_channel(channel):
+    if is_quiet_hours():
+        print(f"🤫 Skipping backfill for {channel} during quiet hours.")
+        return
+
     try:
         entity = await client.get_entity(channel)
         print(f"➜ Backfill Initialized: {channel}")
@@ -196,6 +215,33 @@ async def backfill_channel(channel):
             
     except Exception as e:
         print(f"Error backfilling {channel}: {e}")
+
+async def run_morning_scheduler(channels):
+    """
+    Background task that monitors time and triggers a backfill 
+    at precisely 8:00 AM SGT to catch up on news from the quiet period.
+    """
+    print("⏰ Morning scheduler active. Will catch up at 8:00 AM SGT.")
+    # If we start during quiet hours, we want to trigger at 8 AM.
+    # If we start during active hours, main() already backfilled, so we wait until tomorrow's 8 AM.
+    current_time = datetime.now(timezone(timedelta(hours=8)))
+    last_backfill_day = current_time.day if not is_quiet_hours() else -1
+    
+    while True:
+        try:
+            sgt = datetime.now(timezone(timedelta(hours=8)))
+            # If it's 8 AM (or shortly after) and we haven't backfilled today yet
+            if sgt.hour == 8 and last_backfill_day != sgt.day:
+                print("🌅 8:00 AM SGT Reached: Starting morning catch-up backfill...")
+                for ch in channels:
+                    await backfill_channel(ch)
+                last_backfill_day = sgt.day
+            
+            # Check every 10 minutes (600 seconds)
+            await asyncio.sleep(600)
+        except Exception as e:
+            print(f"❌ Error in morning scheduler: {e}")
+            await asyncio.sleep(60)
 
 async def main():
     global client
@@ -232,7 +278,14 @@ async def main():
     print(f"🕵️ Stealth Scraper started using AppID: {API_ID} (Presence hidden).")
     
     # Run backfill tasks for all channels in parallel
-    backfill_tasks = [asyncio.create_task(backfill_channel(ch)) for ch in CHANNELS]
+    if not is_quiet_hours():
+        print("🚀 Starting initial backfill...")
+        backfill_tasks = [asyncio.create_task(backfill_channel(ch)) for ch in CHANNELS]
+    else:
+        print("🤫 Quiet hours detected at startup. Skipping initial backfill. Catch-up will start at 8 AM SGT.")
+    
+    # Start the morning scheduler in the background
+    asyncio.create_task(run_morning_scheduler(CHANNELS))
     
     await client.run_until_disconnected()
 
