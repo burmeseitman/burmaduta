@@ -115,27 +115,46 @@ class AIProcessor:
             # Try to use/create context cache
             cache_name = self._get_context_cache(instructions_base)
             
-            if cache_name:
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=batch_text,
-                    config={
-                        'cached_content': cache_name,
-                        'safety_settings': safety_settings,
-                        'response_mime_type': 'application/json'
-                    }
-                )
-            else:
-                # Fallback to standard request
-                full_prompt = instructions_base + "\n\n" + batch_text
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=full_prompt,
-                    config={
-                        'safety_settings': safety_settings,
-                        'response_mime_type': 'application/json'
-                    }
-                )
+            max_retries = 3
+            retry_count = 0
+            response = None
+            
+            while retry_count < max_retries:
+                try:
+                    if cache_name:
+                        response = self.client.models.generate_content(
+                            model=self.model_name,
+                            contents=batch_text,
+                            config={
+                                'cached_content': cache_name,
+                                'safety_settings': safety_settings,
+                                'response_mime_type': 'application/json'
+                            }
+                        )
+                    else:
+                        # Fallback to standard request
+                        full_prompt = instructions_base + "\n\n" + batch_text
+                        response = self.client.models.generate_content(
+                            model=self.model_name,
+                            contents=full_prompt,
+                            config={
+                                'safety_settings': safety_settings,
+                                'response_mime_type': 'application/json'
+                            }
+                        )
+                    # If success, break the retry loop
+                    if response:
+                        break
+                except Exception as e:
+                    msg = str(e).lower()
+                    if ("503" in msg or "unavailable" in msg or "deadline" in msg) and retry_count < max_retries - 1:
+                        retry_count += 1
+                        wait_time = (2 ** retry_count) + (0.5 * retry_count)
+                        print(f"⚠️ AI API Transient Error ({msg[:50]}). Retrying in {wait_time:.1f}s ({retry_count}/{max_retries})...")
+                        time.sleep(wait_time)
+                    else:
+                        print(f"❌ AI Generation Error: {e}")
+                        return []
             
             if not response or not response.text:
                 # Check for safety blocks
@@ -268,7 +287,13 @@ class AIProcessor:
                     print(f"ℹ️ Context caching skipped: Instructions likely too small (< 32k tokens) or model limit. Normal billing applies.")
                     AIProcessor._current_cache_hash = "SKIPPED"
             else:
-                print(f"⚠️ Context Cache Creation Error: {e}")
+                # Group 503 (Unavailable) and other transient API issues as 'skipped' to avoid log noise
+                if "503" in msg or "unavailable" in msg or "deadline" in msg:
+                    if AIProcessor._current_cache_hash != "SKIPPED_API":
+                        print(f"ℹ️ Context caching skipped: Google API busy or unavailable. Falling back to standard calls.")
+                        AIProcessor._current_cache_hash = "SKIPPED_API"
+                else:
+                    print(f"⚠️ Context Cache Creation Error: {e}")
             
             AIProcessor._current_cache_name = None
             return None
