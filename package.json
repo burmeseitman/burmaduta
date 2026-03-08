@@ -1,0 +1,16 @@
+{
+  "name": "burmaduta-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Burma Duta Frontend - Real-time News Map",
+  "scripts": {
+    "build": "mkdir -p dist && cp -rv frontend/* dist/",
+    "deploy": "wrangler deploy"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
