@@ -34,7 +34,7 @@ class AIProcessor:
         if not model_name:
             # Fallback to a safe default ONLY if it's absolutely missing in DB
             print("⚠️ Warning: MODEL_NAME not found in Database. Defaulting to High-performance model.")
-            model_name = "gemini-1.5-flash"
+            model_name = "gemini-2.5-flash-lite"
             
         self.model_name = model_name
         

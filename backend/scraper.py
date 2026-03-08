@@ -20,6 +20,28 @@ ai_lock = asyncio.Lock()
 # 🛡️ STEALTH: Simple cache to avoid redundant get_entity() calls
 ENTITY_CACHE = {}
 
+# 📦 BUFFER: Batching live messages to reduce AI calls/token overhead
+LIVE_BUFFER = []
+BUFFER_LOCK = asyncio.Lock()
+
+def is_likely_relevant(text):
+    """Simple heuristic to filter out spam or non-news content before AI processing."""
+    if not text or len(text) < 20: 
+        return False
+        
+    # Common ignore patterns (spam, ads, simple links)
+    IGNORE_KEYWORDS = [
+        "join our channel", "t.me/", "ဗွီဒီယိုကြည့်ရန်", 
+        "Telegram တွင်", "ကြော်ငြာ", "Link ကိုနှိပ်ပါ"
+    ]
+    for word in IGNORE_KEYWORDS:
+        if word in text:
+            return False
+            
+    # Optional: If you want to ONLY send messages with certain keywords (e.g., location/events)
+    # can be added here once common news terms are identified.
+    return True
+
 def is_quiet_hours():
     """
     Checks if current time in Singapore (UTC+8) is between 2:00 AM and 8:00 AM.
@@ -55,6 +77,11 @@ async def process_messages_batch(messages_batch):
         clean_text = re.sub(r'[\U00010000-\U0010ffff]', '', message_text)
         # Also trim extra whitespace that might be left behind
         message_text = " ".join(clean_text.split())
+
+        # PRE-FILTER: Skip if it's likely not a news event (saves tokens)
+        if not is_likely_relevant(message_text):
+            # print(f"Skipping {message_id}: Irrelevant content or too short.")
+            continue
 
         # Get channel handle (Cached for Stealth)
         try:
@@ -170,21 +197,14 @@ async def handle_new_message(event):
         if channel_handle not in CHANNELS:
             return
             
-        # 🕵️ STEALTH JITTER: Add a random delay (1-4 seconds)
-        await asyncio.sleep(random.uniform(1.2, 3.8))
-
-        # Live updates: process immediately
-        msg_obj = event.message if hasattr(event, 'message') else event
-        if not msg_obj or not hasattr(msg_obj, 'date'):
-             return
-             
-        # Optional: Pre-extract channel handle from the event for efficiency
-        chat = await event.get_chat()
-        channel_handle = getattr(chat, 'username', str(getattr(chat, 'id', 'unknown')))
-        if channel_handle and not channel_handle.startswith('@') and not channel_handle.isdigit():
-             channel_handle = f"@{channel_handle}"
-             
-        await process_messages_batch([msg_obj])
+        # 🕵️ STEALTH JITTER & BUFFER: Batch small live updates together
+        async with BUFFER_LOCK:
+            LIVE_BUFFER.append(msg_obj)
+            # If buffer gets too large, process it early
+            if len(LIVE_BUFFER) >= 5:
+                 batch = list(LIVE_BUFFER)
+                 LIVE_BUFFER.clear()
+                 asyncio.create_task(process_messages_batch(batch))
     except Exception as e:
         print(f"❌ Error in handle_new_message: {e}")
         import traceback
@@ -215,6 +235,25 @@ async def backfill_channel(channel):
             
     except Exception as e:
         print(f"Error backfilling {channel}: {e}")
+
+async def live_buffer_worker():
+    """Background task to empty the LIVE_BUFFER every 60 seconds."""
+    print("📦 Live message buffer worker started (60s flush).")
+    while True:
+        try:
+            await asyncio.sleep(60)
+            batch_to_process = []
+            async with BUFFER_LOCK:
+                if LIVE_BUFFER:
+                    batch_to_process = list(LIVE_BUFFER)
+                    LIVE_BUFFER.clear()
+            
+            if batch_to_process:
+                # print(f"📦 Buffering Complete: Processing {len(batch_to_process)} news items.")
+                await process_messages_batch(batch_to_process)
+        except Exception as e:
+            print(f"❌ Error in buffer worker: {e}")
+            await asyncio.sleep(10)
 
 async def run_morning_scheduler(channels):
     """
@@ -284,8 +323,9 @@ async def main():
     else:
         print("🤫 Quiet hours detected at startup. Skipping initial backfill. Catch-up will start at 8 AM SGT.")
     
-    # Start the morning scheduler in the background
+    # Start the morning scheduler and live buffer worker
     asyncio.create_task(run_morning_scheduler(CHANNELS))
+    asyncio.create_task(live_buffer_worker())
     
     await client.run_until_disconnected()
 
