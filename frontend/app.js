@@ -18,6 +18,8 @@ L.control.zoom({ position: "bottomright" }).addTo(map);
 let allNewsItems = [];
 let currentFilter = "All";
 let regionFilter = "All";
+let searchQuery = "";
+let heatLayer = null;
 const markers = {};
 
 // Helper for local YYYY-MM-DD
@@ -208,6 +210,54 @@ categoryFilterInput.onchange = (e) => {
     updateUI();
 };
 
+const searchQueryInput = document.getElementById("search-query");
+if (searchQueryInput) {
+    searchQueryInput.oninput = (e) => {
+        searchQuery = e.target.value.toLowerCase();
+        updateUI();
+    };
+}
+
+const toggleHeatmapInput = document.getElementById("toggle-heatmap");
+if (toggleHeatmapInput) {
+    toggleHeatmapInput.onchange = (e) => {
+        if (!heatLayer) return;
+        if (e.target.checked) {
+            if (!map.hasLayer(heatLayer)) heatLayer.addTo(map);
+        } else {
+            if (map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
+        }
+    };
+}
+
+const exportCsvBtn = document.getElementById("export-csv");
+if (exportCsvBtn) {
+    exportCsvBtn.onclick = () => {
+        // Get the CURRENTLY FILTERED items using the same logic as UI
+        const selectedDate = dateFilterInput.value || "";
+        const selectedRegion = regionFilterInput.value || "All";
+        const selectedType = categoryFilterInput.value || "All";
+
+        const filtered = allNewsItems.filter(item => {
+            const hasLocation = item.township || item.city || item.region;
+            if (!hasLocation) return false;
+
+            const itemDateStr = item.publish_date || "";
+            const itemDate = itemDateStr.toString().split('T')[0].split(' ')[0];
+            const matchesDate = !selectedDate || itemDate === selectedDate;
+            const matchesReg = matchesLocation(item, selectedRegion);
+            const matchesType = (selectedType === "All" || item.crime_type === selectedType);
+
+            const textToSearch = (item.raw_text || "" + item.summary || "" + item.location_name || "").toLowerCase();
+            const matchesSearch = !searchQuery || textToSearch.includes(searchQuery);
+
+            return matchesDate && matchesReg && matchesType && matchesSearch;
+        });
+
+        exportToCSV(filtered);
+    };
+}
+
 // Timeline Slider Logic
 const timelineSlider = document.getElementById("timeline-slider");
 const timelineDateDisplay = document.getElementById("current-timeline-date");
@@ -357,7 +407,12 @@ function updateUI() {
         const matchesDate = !selectedDate || itemDate === selectedDate;
         const matchesReg = matchesLocation(item, selectedRegion);
         const matchesType = (currentFilter === "All" || item.crime_type === currentFilter);
-        return matchesDate && matchesReg && matchesType;
+
+        // Search Filter
+        const textToSearch = (item.raw_text || "" + item.summary || "" + item.location_name || "").toLowerCase();
+        const matchesSearch = !searchQuery || textToSearch.includes(searchQuery);
+
+        return matchesDate && matchesReg && matchesType && matchesSearch;
     });
 
     const forPieChart = validItems.filter((item) => {
@@ -863,7 +918,77 @@ function updateMapMarkers(items) {
             markers[id].data = item; // Keep data fresh
         }
     });
+
+    // 3. Update Heatmap Layer
+    const points = items
+        .filter(i => i.latitude && i.longitude)
+        .map(i => [parseFloat(i.latitude), parseFloat(i.longitude), 0.8]); // Increased intensity
+
+    if (heatLayer) {
+        heatLayer.setLatLngs(points);
+        const toggleHeatmap = document.getElementById("toggle-heatmap");
+        if (toggleHeatmap && toggleHeatmap.checked && !map.hasLayer(heatLayer)) {
+            heatLayer.addTo(map);
+        }
+    } else {
+        heatLayer = L.heatLayer(points, {
+            radius: 35, // Increased radius
+            blur: 20,
+            maxZoom: 14,
+            minOpacity: 0.4,
+            gradient: { 0.4: 'blue', 0.6: 'lime', 1: 'yellow' }
+        });
+
+        const toggleHeatmap = document.getElementById("toggle-heatmap");
+        if (toggleHeatmap && toggleHeatmap.checked) {
+            heatLayer.addTo(map);
+        }
+    }
 }
+
+function exportToCSV(items) {
+    if (!items || items.length === 0) {
+        alert("ဒေါင်းလုဒ်လုပ်ရန် ဒေတာမရှိပါ။");
+        return;
+    }
+
+    // Define columns to EXCLUDE
+    const exclude = ["channel_handle", "raw_text", "summary", "source_name"];
+
+    // Prepare Headers and rename crime_type to category
+    const firstItem = items[0];
+    const allKeys = Object.keys(firstItem);
+    const headers = allKeys
+        .filter(k => !exclude.includes(k))
+        .map(k => k === "crime_type" ? "category" : k);
+
+    // Create CSV rows
+    const csvRows = [headers.join(",")];
+
+    items.forEach(item => {
+        const row = allKeys
+            .filter(k => !exclude.includes(k))
+            .map(k => {
+                let val = item[k];
+                if (val === null || val === undefined) val = "";
+
+                // Escape commas and quotes
+                const escaped = String(val).replace(/"/g, '""');
+                return `"${escaped}"`;
+            });
+        csvRows.push(row.join(","));
+    });
+
+    const csvContent = "\uFEFF" + csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.setAttribute("href", url);
+    link.setAttribute("download", `burmaduta_export_${getLocalDateString()}.csv`);
+    link.click();
+}
+
 
 function updateNewsAccordion(items) {
     const container = document.getElementById("news-accordion");
