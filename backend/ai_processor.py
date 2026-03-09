@@ -224,7 +224,7 @@ class AIProcessor:
                     if isinstance(value, str):
                         # 2. Convert string-nulls to actual None
                         low_val = value.strip().lower()
-                        if low_val in ['null', 'none', 'n/a', '', 'undefined']:
+                        if low_val in ['null', 'none', 'n/a', '', 'undefined', 'မသိရ', 'မသိရှိရ', 'မသိရှိပါ။']:
                             data[key] = None
                             continue
                         

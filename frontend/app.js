@@ -984,17 +984,29 @@ function updateDangerousTownships() {
     // Filter out "General" category
     const nonGeneralItems = thisMonthItems.filter(i => i.crime_type !== "အထွေထွေ");
 
+    const weightMap = {
+        "စစ်ရေးသတင်း": 5,
+        "မှုခင်းသတင်း": 3,
+        "သဘာဝဘေးအန္တရာယ်": 2,
+        "မတော်တဆဖြစ်မှု": 1
+    };
+
     const counts = {};
+    const noiseFilter = ["မသိရ", "မသိရှိရ", "မသိရှိပါ။"];
+
     nonGeneralItems.forEach(item => {
-        const ts = item.township || item.city || item.region || "မသိရှိရ";
-        if (ts === "မသိရှိရ") return;
+        let ts = item.township || item.city || item.region;
+        if (!ts || noiseFilter.includes(ts.trim())) return;
+
+        const weight = weightMap[item.crime_type] || 1;
 
         // Count tags for this item
         const subCounts = getSubCategoryCounts([item], item.crime_type);
         const totalTags = Object.values(subCounts).reduce((a, b) => a + b, 0);
 
-        // Add to aggregate (minimum 1 if item exists)
-        counts[ts] = (counts[ts] || 0) + (totalTags || 1);
+        // 🚀 ADVANCED SCORE: weight * (totalTags || 1)
+        const score = weight * (totalTags || 1);
+        counts[ts] = (counts[ts] || 0) + score;
     });
 
     const sorted = Object.entries(counts)

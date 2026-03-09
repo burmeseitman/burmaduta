@@ -190,9 +190,8 @@ async def handle_new_message(event):
         if channel_handle and not channel_handle.startswith('@') and not channel_handle.isdigit():
              channel_handle = f"@{channel_handle}"
         
-        # Pull latest channels list from DB
-        CHANNELS_STR = db.get_config("INPUT_CHANNELS", "")
-        CHANNELS = [c.strip() for c in CHANNELS_STR.split(",")]
+        # Pull latest channels list from source_mappings table
+        CHANNELS = db.get_monitored_channels()
         
         if channel_handle not in CHANNELS:
             return
@@ -289,8 +288,10 @@ async def main():
     print("🔄 Fetching Telegram credentials from Supabase...")
     API_ID_STR = db.get_config("API_ID")
     API_HASH = db.get_config("API_HASH")
-    CHANNELS_STR = db.get_config("INPUT_CHANNELS", "@newsfeed")
-    CHANNELS = [c.strip() for c in CHANNELS_STR.split(",")]
+    CHANNELS = db.get_monitored_channels()
+    if not CHANNELS:
+        # Fallback filter for initial state, though normally should be populated
+        CHANNELS = ["@newsfeed"] 
     
     if not API_ID_STR or not API_HASH:
         print("❌ Error: API_ID or API_HASH not found in Supabase (system_config table).")

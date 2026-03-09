@@ -229,7 +229,7 @@ class DBManager:
                         WHERE NOT EXISTS (
                             SELECT 1 FROM news_events 
                             WHERE (channel_handle = %s AND internal_id = %s)
-                            OR (raw_text = %s) -- Exact text deduplication
+                            OR (MD5(raw_text) = MD5(%s) AND raw_text = %s) -- Efficient exact text deduplication using index
                             OR (
                                 crime_type = %s AND event_date = %s::DATE 
                                 AND (
@@ -310,3 +310,18 @@ class DBManager:
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(query)
             return cur.fetchall()
+
+    def get_monitored_channels(self):
+        """Fetches all channel handles from source_mappings table to use as INPUT_CHANNELS."""
+        self._ensure_connection()
+        if not self.conn:
+            return []
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("SELECT handle FROM source_mappings;")
+                rows = cur.fetchall()
+                # Return list of strings, e.g., ['@channel1', '@channel2']
+                return [row[0].strip() for row in rows if row[0]]
+        except Exception as e:
+            print(f"Error fetching monitored channels: {e}")
+            return []
