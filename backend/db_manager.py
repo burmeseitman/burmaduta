@@ -17,7 +17,6 @@ class DBManager:
 
         try:
             self.conn = psycopg2.connect(INTERNAL_STORE_URI)
-            self.create_source_mapping_table() # Ensure mapping table exists
             print("✅ Database connection established.")
         except Exception as e:
             print(f"❌ Database Connection Error: {e}")
@@ -139,11 +138,11 @@ class DBManager:
         else:
             print(f"ℹ️ Migration skipped: sub_category column already exists in {TABLE}.")
 
-    def create_source_mapping_table(self):
-        """Creates the source_mappings table and populates initial values."""
+    def ensure_tables(self):
+        """Creates required tables if they don't exist. Does NOT populate data auto."""
         try:
             with self.conn.cursor() as cur:
-                # 1. Create table
+                # 1. Source Mappings Table
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS source_mappings (
                         handle TEXT PRIMARY KEY,
@@ -151,34 +150,9 @@ class DBManager:
                         updated_at TIMESTAMPTZ DEFAULT NOW()
                     );
                 """)
-                
-                # 2. Populate initial values provided by user
-                mappings = [
-                    ('@khitthitnews', 'Khit Thit'),
-                    ('@elevenmediagroup', 'Verified News Agency'),
-                    ('@peoplespring', 'People Spring'),
-                    ('@bbcnewsburmese', 'BBC Burmese'),
-                    ('@theirrawaddy', 'The Irrawaddy'),
-                    ('@spmnewsagency2019', 'Shwe Phee Myay'),
-                    ('@infohlaing', 'Hlaing Info'),
-                    ('@mizzimatv', 'Mizzima TV'),
-                    ('@dvbburmese', 'DVB Burmese'),
-                    ('@rfaburmese', 'RFA Burmese'),
-                    ('@voaburmese', 'VOA Burmese'),
-                    ('@chandalinn', 'Chan Da Linn')
-                ]
-                
-                for handle, name in mappings:
-                    cur.execute("""
-                        INSERT INTO source_mappings (handle, display_name)
-                        VALUES (%s, %s)
-                        ON CONFLICT (handle) DO NOTHING;
-                    """, (handle, name))
-                
                 self.conn.commit()
-                print("✅ Source mapping table checked/updated.")
         except Exception as e:
-            print(f"❌ Error creating/populating source_mappings: {e}")
+            print(f"❌ Error creating tables: {e}")
             self.conn.rollback()
 
     def get_config(self, key, default=None):
