@@ -271,6 +271,7 @@ class DBManager:
                         data.get('internal_id'),
                         # For the WHERE NOT EXISTS clause (Text check)
                         data.get('raw_text'),
+                        data.get('raw_text'),
                         # For the WHERE NOT EXISTS clause (Semantic check)
                         data.get('crime_type'),
                         data.get('event_date'),
