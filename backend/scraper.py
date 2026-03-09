@@ -199,7 +199,7 @@ async def handle_new_message(event):
             
         # 🕵️ STEALTH JITTER & BUFFER: Batch small live updates together
         async with BUFFER_LOCK:
-            LIVE_BUFFER.append(msg_obj)
+            LIVE_BUFFER.append(event.message)
             # If buffer gets too large, process it early
             if len(LIVE_BUFFER) >= 5:
                  batch = list(LIVE_BUFFER)

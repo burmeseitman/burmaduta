@@ -180,11 +180,28 @@ class AIProcessor:
                 print(f"ℹ️ AI returned empty/null results for {len(news_items)} items (likely didn't match categories).")
                 return []
             
+            # 🛡️ TRUNCATION FIX: If the AI output was truncated, find the last valid JSON array closure
+            if not json_str.endswith(']'):
+                last_bracket = json_str.rfind('}')
+                if last_bracket != -1:
+                    # Closing the JSON array properly
+                    json_str = json_str[:last_bracket+1] + ']'
+                else:
+                    last_list_bracket = json_str.rfind(']')
+                    if last_list_bracket != -1:
+                        json_str = json_str[:last_list_bracket+1]
+            
             try:
                 results = json.loads(json_str)
             except Exception as e:
-                print(f"❌ AI JSON Parse Error: {e}. Raw: {json_str[:200]}...")
-                return []
+                # One last attempt to fix common delimiter errors
+                try:
+                    # Sometimes AI forgets commas between objects if it's rushed/truncated
+                    fixed_str = json_str.replace('}{', '},{')
+                    results = json.loads(fixed_str)
+                except:
+                    print(f"❌ AI JSON Parse Error: {e}. Raw: {json_str[:200]}...")
+                    return []
 
             if isinstance(results, dict): 
                 results = [results]
@@ -220,6 +237,13 @@ class AIProcessor:
 
                 # 🛑 TIME VALIDATION: Ensure event_time is valid for Postgres TIME type
                 event_time = data.get('event_time')
+                event_date = data.get('event_date')
+                
+                # Check event_date
+                if event_date and isinstance(event_date, str):
+                    if not re.match(r'^\d{4}-\d{2}-\d{2}$', event_date):
+                         data['event_date'] = None
+
                 if event_time and isinstance(event_time, str):
                     # Check if it matches HH:mm:ss or HH:mm pattern
                     if not re.match(r'^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$', event_time):
