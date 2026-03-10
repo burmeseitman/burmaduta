@@ -236,29 +236,32 @@ const REGION_COORDINATES = {
 };
 
 // Initialize filters
-dateFilterInput.value = dateFilter;
+if (dateFilterInput) dateFilterInput.value = dateFilter;
 
-dateFilterInput.onchange = (e) => {
-    dateFilter = e.target.value;
-    updateUI();
-};
+if (dateFilterInput) {
+    dateFilterInput.onchange = (e) => {
+        dateFilter = e.target.value;
+        updateUI();
+    };
+}
 
-regionFilterInput.onchange = (e) => {
-    regionFilter = e.target.value;
+if (regionFilterInput) {
+    regionFilterInput.onchange = (e) => {
+        regionFilter = e.target.value;
+        const config = REGION_COORDINATES[regionFilter];
+        if (config) {
+            map.setView(config.center, config.zoom);
+        }
+        updateUI();
+    };
+}
 
-    // Interactive Linking: Zoom to the selected region
-    const config = REGION_COORDINATES[regionFilter];
-    if (config) {
-        map.setView(config.center, config.zoom);
-    }
-
-    updateUI();
-};
-
-categoryFilterInput.onchange = (e) => {
-    currentFilter = e.target.value;
-    updateUI();
-};
+if (categoryFilterInput) {
+    categoryFilterInput.onchange = (e) => {
+        currentFilter = e.target.value;
+        updateUI();
+    };
+}
 
 const searchQueryInput = document.getElementById("search-query");
 if (searchQueryInput) {
@@ -369,15 +372,23 @@ function syncTimelineWithDate(newDate) {
 }
 
 // Sync timeline slider when manual date filter changes
-dateFilterInput.onchange = (e) => {
-    const newDate = e.target.value;
-    dateFilter = newDate;
-    syncTimelineWithDate(newDate);
-    updateUI();
-};
+if (dateFilterInput) {
+    dateFilterInput.onchange = (e) => {
+        const newDate = e.target.value;
+        dateFilter = newDate;
+        syncTimelineWithDate(newDate);
+        updateUI();
+    };
+}
 
 // Start at today on timeline
-if (timelineSlider) updateTimelineDisplay(30);
+if (timelineSlider) {
+    try {
+        updateTimelineDisplay(30);
+    } catch (e) {
+        console.error("Initial timeline update failed:", e);
+    }
+}
 
 async function filterByCategory(cat) {
     categoryFilterInput.value = cat;
@@ -434,12 +445,12 @@ async function fetchNews() {
 }
 
 function updateUI() {
-    const selectedDate = dateFilterInput.value || "";
+    const selectedDate = dateFilterInput ? dateFilterInput.value : dateFilter;
     const displayElement = document.getElementById("date-filter-display");
     if (displayElement) displayElement.innerText = formatDateDisplay(selectedDate);
 
-    const selectedRegion = regionFilterInput.value || "All";
-    const selectedType = categoryFilterInput.value || "All";
+    const selectedRegion = regionFilterInput ? regionFilterInput.value : "All";
+    const selectedType = categoryFilterInput ? categoryFilterInput.value : "All";
 
     // Sync currentFilter variable (used by other functions) with dropdown
     currentFilter = selectedType;
@@ -641,7 +652,13 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
     }
 
     if (!categoryChart) {
-        categoryChart = echarts.init(document.getElementById('categoryChart'));
+        const container = document.getElementById('categoryChart');
+        if (!container) return;
+        if (typeof echarts === 'undefined') {
+            console.error("ECharts not loaded.");
+            return;
+        }
+        categoryChart = echarts.init(container);
         // Add click integration to donut chart
         categoryChart.on('click', (params) => {
             if (params.name) {
@@ -740,7 +757,10 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
     });
 
     if (!timeChart) {
-        timeChart = echarts.init(document.getElementById('timeChart'));
+        const container = document.getElementById('timeChart');
+        if (!container) return;
+        if (typeof echarts === 'undefined') return;
+        timeChart = echarts.init(container);
     }
 
     const timeOption = {
@@ -1210,7 +1230,11 @@ function updateDangerousTownships() {
     }).join("");
 }
 
-// Initial Fetch
-fetchNews();
-setInterval(fetchNews, 30000); // Live refresh every 30 seconds
-if (window.lucide) lucide.createIcons();
+// Initial Execution after DOM is safe
+document.addEventListener('DOMContentLoaded', () => {
+    fetchNews();
+    setInterval(fetchNews, 30000); // Live refresh every 30 seconds
+    if (window.lucide) {
+        try { lucide.createIcons(); } catch (e) { }
+    }
+});
