@@ -19,9 +19,18 @@
     <div id="top-right-stats" class="top-stats-panel"></div>
     <div id="dangerous-townships-container" class="dangerous-townships-panel">
       <div class="news-list-header">
-        <h3 style="color: #eb3b5a; line-height: 1.4;">
-          🚩 အန္တရာယ်ရှိသော မြို့နယ်များ 
-          <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6); margin-top: 4px; padding-left: 24px;">(ယခုလအတွင်း Top 5)</div>
+        <h3 style="color: #eb3b5a; line-height: 1.4">
+          🚩 အန္တရာယ်ရှိသော မြို့နယ်များ
+          <div
+            style="
+              font-size: 0.75rem;
+              color: rgba(255, 255, 255, 0.6);
+              margin-top: 4px;
+              padding-left: 24px;
+            "
+          >
+            (ယခုလအတွင်း Top 5)
+          </div>
         </h3>
       </div>
       <div id="township-list" class="township-list-body">
@@ -69,8 +78,22 @@
     <div class="glass-sidebar">
       <header>
         <div class="header-main">
-          <h1 onclick="window.resetToHomeView();" style="cursor: pointer;" title="Home - Reset View">ဗမာဒူတ</h1>
-          <div class="live-indicator"><span class="dot"></span> တိုက်ရိုက်</div>
+          <h1
+            onclick="window.resetToHomeView()"
+            style="cursor: pointer"
+            title="Home - Reset View"
+          >
+            ဗမာဒူတ
+          </h1>
+          <div class="header-status-wrapper">
+            <div id="weather-widget" class="weather-widget">
+              <span id="weather-icon"></span>
+              <span id="weather-temp">--°C</span>
+            </div>
+            <div class="live-indicator">
+              <span class="dot"></span> တိုက်ရိုက်
+            </div>
+          </div>
         </div>
         <p>အချိန်နှင့်တပြေးညီ သတင်းအချက်အလက်ပြမြေပုံ</p>
       </header>
@@ -160,8 +183,14 @@
     <div class="floating-disclaimer">
       <i data-lucide="info" class="info-icon"></i>
       <div class="disclaimer-content">
-        <p><strong>Credit & Disclaimer:</strong> မူရင်းသတင်းရင်းမြစ်များကို အသိအမှတ်ပြုပါသည်။ ဒေတာများအား AI စနစ်ဖြင့် အကျဉ်းချုပ် ဆန်းစစ်ထားခြင်း ဖြစ်ပါသည်။</p>
-        <p class="en-sub">Data summarized and analyzed by AI. Credit to original sources.</p>
+        <p>
+          <strong>Credit & Disclaimer:</strong> မူရင်းသတင်းရင်းမြစ်များကို
+          အသိအမှတ်ပြုပါသည်။ ဒေတာများအား AI စနစ်ဖြင့် အကျဉ်းချုပ် ဆန်းစစ်ထားခြင်း
+          ဖြစ်ပါသည်။
+        </p>
+        <p class="en-sub">
+          Data summarized and analyzed by AI. Credit to original sources.
+        </p>
       </div>
     </div>
     <script src="app.js"></script>

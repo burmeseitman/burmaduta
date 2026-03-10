@@ -104,6 +104,35 @@ header p {
   opacity: 0.8;
 }
 
+.header-status-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.weather-widget {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--glass-border);
+  color: var(--primary-color);
+  transition: all 0.3s ease;
+}
+
+.weather-widget:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.weather-widget #weather-icon {
+  font-size: 1.1rem;
+}
+
 .live-indicator {
   display: flex;
   align-items: center;
@@ -764,7 +793,7 @@ header p {
 /* Filters Row (Single Line) */
 .filter-row {
   display: grid;
-  grid-template-columns: 1fr 1.6fr 1.4fr; 
+  grid-template-columns: 1fr 1.6fr 1.4fr;
   gap: 10px;
   margin-bottom: 16px;
 }

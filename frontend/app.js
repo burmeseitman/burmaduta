@@ -1,4 +1,49 @@
 const API_BASE_URL = "https://api.burmaduta.com";
+const WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast?latitude=16.8661&longitude=96.1951&current=temperature_2m,weather_code";
+
+// Weather mapping
+const weatherCodeMap = {
+    0: { icon: "☀️", label: "Clear" },
+    1: { icon: "🌤️", label: "Mainly Clear" },
+    2: { icon: "⛅", label: "Partly Cloudy" },
+    3: { icon: "☁️", label: "Overcast" },
+    45: { icon: "🌫️", label: "Fog" },
+    48: { icon: "🌫️", label: "Fog" },
+    51: { icon: "🌦️", label: "Drizzle" },
+    53: { icon: "🌦️", label: "Drizzle" },
+    55: { icon: "🌦️", label: "Drizzle" },
+    61: { icon: "🌧️", label: "Rain" },
+    63: { icon: "🌧️", label: "Rain" },
+    65: { icon: "🌧️", label: "Heavy Rain" },
+    80: { icon: "🌦️", label: "Showers" },
+    81: { icon: "🌦️", label: "Showers" },
+    82: { icon: "🌧️", label: "Violent Showers" },
+    95: { icon: "⛈️", label: "Thunderstorm" },
+};
+
+async function fetchWeather() {
+    try {
+        const response = await fetch(WEATHER_API_URL);
+        const data = await response.json();
+        
+        const temp = Math.round(data.current.temperature_2m);
+        const code = data.current.weather_code;
+        const weather = weatherCodeMap[code] || { icon: "🌡️", label: "Unknown" };
+
+        const tempEl = document.getElementById("weather-temp");
+        const iconEl = document.getElementById("weather-icon");
+
+        if (tempEl) tempEl.innerText = `${temp}°C`;
+        if (iconEl) {
+            iconEl.innerText = weather.icon;
+            iconEl.title = weather.label;
+        }
+    } catch (error) {
+        console.error("Error fetching weather:", error);
+    }
+}
+fetchWeather();
+setInterval(fetchWeather, 30 * 60 * 1000); // Update every 30 mins
 
 
 // Initialize Leaflet Map (Myanmar Centered)
