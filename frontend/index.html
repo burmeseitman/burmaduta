@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Burma Duta | Real-time News Map</title>
+  <title>Burma Duta | Real-Time News Map</title>
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
@@ -59,14 +59,14 @@
       <div class="header-main">
         <h1 onclick="window.resetToHomeView();" style="cursor: pointer;" title="Home - Reset View">ဗမာဒူတ</h1>
         <div class="header-status-wrapper">
-          <div id="weather-widget" class="weather-widget">
-            <span id="weather-icon"></span>
-            <span id="weather-temp">--°C</span>
-          </div>
           <div class="header-actions">
             <button id="export-csv" class="action-btn" title="Export to CSV">
               <i data-lucide="download"></i>
             </button>
+            <div id="weather-widget" class="weather-widget">
+              <span id="weather-icon"></span>
+              <span id="weather-temp">--°C</span>
+            </div>
             <div class="live-indicator"><span class="dot"></span> တိုက်ရိုက်</div>
           </div>
         </div>
@@ -155,6 +155,10 @@
     </div>
     <!-- Close sidebar-scroll-content -->
     <footer>
+      <div class="footer-disclaimer">
+        <p><strong>Credit & Disclaimer:</strong> မူရင်းသတင်းရင်းမြစ်များကို အသိအမှတ်ပြုပါသည်။ ဒေတာများအား AI စနစ်ဖြင့် အကျဉ်းချုပ် ဆန်းစစ်ထားခြင်း ဖြစ်ပါသည်။</p>
+        <p class="en-sub">Data summarized and analyzed by AI. Credit to original sources.</p>
+      </div>
       <p>Powered by AI Intelligence & OpenStreetMap</p>
     </footer>
   </div>
@@ -168,13 +172,6 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <!-- Leaflet Heatmap Plugin -->
   <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-  <div class="floating-disclaimer">
-    <i data-lucide="info" class="info-icon"></i>
-    <div class="disclaimer-content">
-      <p><strong>Credit & Disclaimer:</strong> မူရင်းသတင်းရင်းမြစ်များကို အသိအမှတ်ပြုပါသည်။ ဒေတာများအား AI စနစ်ဖြင့် အကျဉ်းချုပ် ဆန်းစစ်ထားခြင်း ဖြစ်ပါသည်။</p>
-      <p class="en-sub">Data summarized and analyzed by AI. Credit to original sources.</p>
-    </div>
-  </div>
   <script src="app.js"></script>
 </body>
 

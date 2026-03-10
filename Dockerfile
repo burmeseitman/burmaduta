@@ -14,6 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Create a non-root user for security
+RUN groupadd -r appgroup && useradd -r -g appgroup -d /app -s /sbin/nologin appuser
+
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -21,6 +24,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY backend ./backend
 COPY frontend ./frontend
+
+# Ensure the appuser owns the app directory
+RUN chown -R appuser:appgroup /app
+
+# Switch to non-root user
+USER appuser
 
 # Expose API port
 EXPOSE 8081

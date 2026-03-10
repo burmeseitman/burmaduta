@@ -9,6 +9,7 @@ ENV/
 # Secrets
 .env
 *.session
+sessions/
 
 # IDE
 .vscode/

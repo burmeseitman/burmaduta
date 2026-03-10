@@ -2,13 +2,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from db_manager import DBManager
+from dotenv import load_dotenv
 import uvicorn
 import os
+import time
+
+# Load environment variables
+load_dotenv()
 
 app = FastAPI()
 
-import os
-
+# Fetch Allowed Origins from ENV
 allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "*")
 allowed_origins = [o.strip() for o in allowed_origins_str.split(",")] if allowed_origins_str != "*" else ["*"]
 

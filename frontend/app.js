@@ -1,24 +1,26 @@
-const API_BASE_URL = "https://api.burmaduta.com";
-const WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast?latitude=16.8661&longitude=96.1951&current=temperature_2m,weather_code";
+const API_BASE_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
+    ? "http://localhost:8081" 
+    : "https://api.burmaduta.com";
+const WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast?latitude=16.8661&longitude=96.1951&current=temperature_2m,weather_code,is_day";
 
 // Weather mapping
 const weatherCodeMap = {
-    0: { icon: "☀️", label: "Clear" },
-    1: { icon: "🌤️", label: "Mainly Clear" },
-    2: { icon: "⛅", label: "Partly Cloudy" },
-    3: { icon: "☁️", label: "Overcast" },
-    45: { icon: "🌫️", label: "Fog" },
-    48: { icon: "🌫️", label: "Fog" },
-    51: { icon: "🌦️", label: "Drizzle" },
-    53: { icon: "🌦️", label: "Drizzle" },
-    55: { icon: "🌦️", label: "Drizzle" },
-    61: { icon: "🌧️", label: "Rain" },
-    63: { icon: "🌧️", label: "Rain" },
-    65: { icon: "🌧️", label: "Heavy Rain" },
-    80: { icon: "🌦️", label: "Showers" },
-    81: { icon: "🌦️", label: "Showers" },
-    82: { icon: "🌧️", label: "Violent Showers" },
-    95: { icon: "⛈️", label: "Thunderstorm" },
+    0: { icon: "☀️", night: "🌙", label: "Clear" },
+    1: { icon: "🌤️", night: "🌙", label: "Mainly Clear" },
+    2: { icon: "⛅", night: "☁️", label: "Partly Cloudy" },
+    3: { icon: "☁️", night: "☁️", label: "Overcast" },
+    45: { icon: "🌫️", night: "🌫️", label: "Fog" },
+    48: { icon: "🌫️", night: "🌫️", label: "Fog" },
+    51: { icon: "🌦️", night: "🌧️", label: "Drizzle" },
+    53: { icon: "🌦️", night: "🌧️", label: "Drizzle" },
+    55: { icon: "🌦️", night: "🌧️", label: "Drizzle" },
+    61: { icon: "🌧️", night: "🌧️", label: "Rain" },
+    63: { icon: "🌧️", night: "🌧️", label: "Rain" },
+    65: { icon: "🌧️", night: "🌧️", label: "Heavy Rain" },
+    80: { icon: "🌦️", night: "🌧️", label: "Showers" },
+    81: { icon: "🌦️", night: "🌧️", label: "Showers" },
+    82: { icon: "🌧️", night: "🌧️", label: "Violent Showers" },
+    95: { icon: "⛈️", night: "⛈️", label: "Thunderstorm" },
 };
 
 async function fetchWeather() {
@@ -28,14 +30,17 @@ async function fetchWeather() {
         
         const temp = Math.round(data.current.temperature_2m);
         const code = data.current.weather_code;
-        const weather = weatherCodeMap[code] || { icon: "🌡️", label: "Unknown" };
+        const isDay = data.current.is_day; // 1 for day, 0 for night
+        
+        const weather = weatherCodeMap[code] || { icon: "🌡️", night: "🌡️", label: "Unknown" };
+        const displayIcon = isDay === 1 ? weather.icon : weather.night;
 
         const tempEl = document.getElementById("weather-temp");
         const iconEl = document.getElementById("weather-icon");
 
         if (tempEl) tempEl.innerText = `${temp}°C`;
         if (iconEl) {
-            iconEl.innerText = weather.icon;
+            iconEl.innerText = displayIcon;
             iconEl.title = weather.label;
         }
     } catch (error) {

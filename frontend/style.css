@@ -1335,10 +1335,40 @@ header p {
 }
 
 footer {
-  margin-top: 20px;
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
   font-size: 0.7rem;
   text-align: center;
   color: var(--text-muted);
+}
+
+.footer-disclaimer {
+  margin-bottom: 12px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+}
+
+.footer-disclaimer p {
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 4px;
+}
+
+.footer-disclaimer strong {
+  color: var(--primary-color);
+  font-weight: 700;
+}
+
+.footer-disclaimer .en-sub {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-bottom: 0;
 }
 
 /* Customizing Leaflet Tooltips & Markers */
@@ -1547,66 +1577,4 @@ footer {
     width: 95vw;
     padding: 12px 16px;
   }
-}
-
-/* Floating Disclaimer Right Side - Below Event List */
-.floating-disclaimer {
-  position: absolute;
-  bottom: 24px;
-  right: 84px;
-  left: auto;
-  z-index: 2000;
-  background: var(--glass-bg);
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
-  border: 1px solid var(--glass-border);
-  border-radius: 20px;
-  /* Aligned with News List format */
-  padding: 16px 20px;
-  /* Consistent with news-list padding */
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  width: 280px;
-  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
-  /* Consistent shadow */
-  animation: slideInUp 1.2s cubic-bezier(0.16, 1, 0.3, 1);
-  pointer-events: none;
-}
-
-.floating-disclaimer .info-icon {
-  width: 14px;
-  height: 14px;
-  color: var(--primary-color);
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.disclaimer-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.disclaimer-content strong {
-  color: var(--primary-color);
-  font-weight: 800;
-  text-transform: uppercase;
-  font-size: 0.6rem;
-  letter-spacing: 0.5px;
-  display: block;
-  margin-bottom: 2px;
-}
-
-.disclaimer-content p {
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: #fff;
-  margin: 0;
-}
-
-.disclaimer-content .en-sub {
-  font-size: 0.65rem;
-  color: var(--text-muted);
-  font-style: italic;
 }
