@@ -14,25 +14,27 @@
 <body>
   <div id="map"></div>
   <div id="top-right-stats" class="top-stats-panel"></div>
-  <div id="dangerous-townships-container" class="dangerous-townships-panel">
-    <div class="news-list-header">
-      <h3 style="color: #eb3b5a; line-height: 1.4;">
-        🚩 အန္တရာယ်ရှိသော မြို့နယ်များ
-        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6); margin-top: 4px; padding-left: 24px;">(ယခုလအတွင်း Top 5)</div>
-      </h3>
+  <div class="side-panels-vertical-stack">
+    <div id="dangerous-townships-container" class="dangerous-townships-panel">
+      <div class="news-list-header">
+        <h3 style="color: #eb3b5a; line-height: 1.4;">
+          🚩 အန္တရာယ်ရှိသော မြို့နယ်များ
+          <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6); margin-top: 4px; padding-left: 24px;">(ယခုလအတွင်း Top 5)</div>
+        </h3>
+      </div>
+      <div id="township-list" class="township-list-body">
+        <!-- Township items injected here -->
+      </div>
     </div>
-    <div id="township-list" class="township-list-body">
-      <!-- Township items injected here -->
-    </div>
-  </div>
 
-  <div id="news-list-container" class="news-list-panel">
-    <div class="news-list-header">
-      <h3>ဖြစ်စဉ်မှတ်တမ်းများ</h3>
-      <span id="news-count-badge">0</span>
-    </div>
-    <div id="news-accordion" class="accordion-body">
-      <!-- News items will be injected here -->
+    <div id="news-list-container" class="news-list-panel">
+      <div class="news-list-header">
+        <h3>ဖြစ်စဉ်မှတ်တမ်းများ</h3>
+        <span id="news-count-badge">0</span>
+      </div>
+      <div id="news-accordion" class="accordion-body">
+        <!-- News items will be injected here -->
+      </div>
     </div>
   </div>
 

@@ -545,28 +545,35 @@ header p {
   border-radius: 4px;
 }
 
-.news-list-panel {
+/* Vertical Sidebar Panels Stack */
+.side-panels-vertical-stack {
   position: absolute;
-  bottom: 155px;
-  /* Moved up slightly for better vertical balance */
-  /* Adjusted for breathing room from top */
+  top: 125px; /* Below Top Stats Cards */
   right: 24px;
   width: 340px;
-  max-height: 35vh;
-  /* Slightly reduced height to prevent hitting top stats */
-  /* Responsive height */
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 1000;
+  max-height: calc(100vh - 125px - 150px); /* Leave room for timeline at bottom */
+  pointer-events: none; /* Let clicks pass to map if not on panels */
+  animation: slideInUp 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.news-list-panel {
+  position: relative;
+  width: 100%;
+  max-height: 45vh;
+  pointer-events: auto;
   background: var(--glass-bg);
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
   border: 1px solid var(--glass-border);
   border-radius: 20px;
-  z-index: 1000;
-  /* Lower than top-stats-panel */
   display: flex;
   flex-direction: column;
   box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
   overflow: hidden;
-  animation: slideInUp 1s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes slideInUp {
@@ -608,13 +615,10 @@ header p {
 
 /* Dangerous Townships Panel */
 .dangerous-townships-panel {
-  position: absolute;
-  bottom: calc(155px + 35vh + 15px);
-  /* Adjusted relative to news list at 155px */
-  right: 24px;
-  width: 340px;
-  max-height: 40vh;
-  /* Increased to fill gap and meet categories naturally */
+  position: relative;
+  width: 100%;
+  max-height: 35vh;
+  pointer-events: auto;
   display: flex;
   flex-direction: column;
   background: var(--glass-bg);
@@ -622,10 +626,8 @@ header p {
   -webkit-backdrop-filter: blur(40px);
   border: 1px solid var(--glass-border);
   border-radius: 20px;
-  z-index: 1000;
   box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
   overflow: hidden;
-  animation: slideInUp 1s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .township-list-body {
@@ -635,6 +637,40 @@ header p {
   gap: 12px;
   overflow-y: auto;
   scrollbar-width: thin;
+  scrollbar-color: transparent transparent; /* Hide by default in Firefox */
+  transition: scrollbar-color 0.3s ease;
+}
+
+.township-list-body:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent; /* Show on hover in Firefox */
+}
+
+/* Stylish Scrollbars for Side Panels - Hover to Reveal */
+.township-list-body::-webkit-scrollbar,
+.accordion-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.township-list-body::-webkit-scrollbar-track,
+.accordion-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.township-list-body::-webkit-scrollbar-thumb,
+.accordion-body::-webkit-scrollbar-thumb {
+  background: transparent; /* Invisible by default */
+  border-radius: 10px;
+  transition: background 0.3s ease;
+}
+
+.township-list-body:hover::-webkit-scrollbar-thumb,
+.accordion-body:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25); /* Elegant reveal on hover */
+}
+
+.township-list-body::-webkit-scrollbar-thumb:hover,
+.accordion-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.45); /* Highlight when directly interacting with scrollbar */
 }
 
 .township-stat-item {
@@ -682,7 +718,12 @@ header p {
 .accordion-body {
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s ease;
+}
+
+.accordion-body:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 .accordion-item {
@@ -1441,6 +1482,10 @@ footer {
 
   .top-stat-card {
     min-width: 130px;
+  }
+
+  .side-panels-vertical-stack {
+    display: none; /* Hide these panels on mobile to avoid clutter */
   }
 }
 
