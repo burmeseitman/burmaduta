@@ -1,7 +1,7 @@
-telethon
-google-genai
-psycopg2-binary
-fastapi
-uvicorn
-python-dotenv
-requests
+telethon==1.42.0
+google-genai==1.66.0
+psycopg2-binary==2.9.11
+fastapi==0.135.1
+uvicorn==0.41.0
+python-dotenv==1.0.1
+requests==2.32.3

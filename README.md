@@ -17,7 +17,10 @@ Burma Duta is a sophisticated news intelligence platform designed to monitor pub
 -   📍 **Intelligent Geospatial Mapping**: Automatically geocodes incident locations using both AI logic and fallback OpenStreetMap (Nominatim) integration.
 -   📊 **Interactive Narrative Dashboard**: Professional-grade visualizations using ECharts, including temporal trends, category distributions, and correlation analysis (e.g., IDP vs. Conflict).
 -   🔄 **Optimized AI Processing**: Features context caching for batch processing, significantly reducing latency and operational costs while maintaining high extraction accuracy.
--   🛡️ **Decoupled & Secure Architecture**: Built with a modular approach (FastAPI + Vanilla JS + PostgreSQL), ensuring easy scaling and secure deployment.
+-   🛡️ **Decoupled & Secure Architecture**: Built with a modular approach (FastAPI + Vanilla JS + PostgreSQL), featuring hardened Docker configurations with non-root execution.
+-   🗺️ **Interactive Heatmap Layer**: Real-time visualization of incident density to identify regional hotspots.
+-   🔍 **Advanced Keyword Search**: Instant searching across incident logs and locations for rapid data retrieval.
+-   📥 **Research Data Export**: Clean CSV export of filtered data with automated column filtering for privacy.
 -   🐳 **Automated Deployment**: One-command setup script for cloud environments with full Docker & Docker Compose support.
 
 ## 🛠️ Technology Stack
@@ -28,6 +31,7 @@ Burma Duta is a sophisticated news intelligence platform designed to monitor pub
   <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript">
   <img src="https://img.shields.io/badge/Leaflet-199903?style=for-the-badge&logo=leaflet&logoColor=white" alt="Leaflet">
+  <img src="https://img.shields.io/badge/Leaflet_Heat-FFCC00?style=for-the-badge&logo=leaflet&logoColor=black" alt="Leaflet Heatmap">
   <img src="https://img.shields.io/badge/ECharts-AA0000?style=for-the-badge&logo=apache-echarts&logoColor=white" alt="ECharts">
   <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
   <img src="https://img.shields.io/badge/Google_Gemini-8E75B2?style=for-the-badge&logo=google-gemini&logoColor=white" alt="Google Gemini AI">

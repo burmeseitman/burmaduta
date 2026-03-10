@@ -17,7 +17,6 @@ class DBManager:
 
         try:
             self.conn = psycopg2.connect(INTERNAL_STORE_URI)
-            self.create_source_mapping_table() # Ensure mapping table exists
             print("✅ Database connection established.")
         except Exception as e:
             print(f"❌ Database Connection Error: {e}")
@@ -139,11 +138,11 @@ class DBManager:
         else:
             print(f"ℹ️ Migration skipped: sub_category column already exists in {TABLE}.")
 
-    def create_source_mapping_table(self):
-        """Creates the source_mappings table and populates initial values."""
+    def ensure_tables(self):
+        """Creates required tables if they don't exist. Does NOT populate data auto."""
         try:
             with self.conn.cursor() as cur:
-                # 1. Create table
+                # 1. Source Mappings Table
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS source_mappings (
                         handle TEXT PRIMARY KEY,
@@ -151,34 +150,9 @@ class DBManager:
                         updated_at TIMESTAMPTZ DEFAULT NOW()
                     );
                 """)
-                
-                # 2. Populate initial values provided by user
-                mappings = [
-                    ('@khitthitnews', 'Khit Thit'),
-                    ('@elevenmediagroup', 'Verified News Agency'),
-                    ('@peoplespring', 'People Spring'),
-                    ('@bbcnewsburmese', 'BBC Burmese'),
-                    ('@theirrawaddy', 'The Irrawaddy'),
-                    ('@spmnewsagency2019', 'Shwe Phee Myay'),
-                    ('@infohlaing', 'Hlaing Info'),
-                    ('@mizzimatv', 'Mizzima TV'),
-                    ('@dvbburmese', 'DVB Burmese'),
-                    ('@rfaburmese', 'RFA Burmese'),
-                    ('@voaburmese', 'VOA Burmese'),
-                    ('@chandalinn', 'Chan Da Linn')
-                ]
-                
-                for handle, name in mappings:
-                    cur.execute("""
-                        INSERT INTO source_mappings (handle, display_name)
-                        VALUES (%s, %s)
-                        ON CONFLICT (handle) DO NOTHING;
-                    """, (handle, name))
-                
                 self.conn.commit()
-                print("✅ Source mapping table checked/updated.")
         except Exception as e:
-            print(f"❌ Error creating/populating source_mappings: {e}")
+            print(f"❌ Error creating tables: {e}")
             self.conn.rollback()
 
     def get_config(self, key, default=None):
@@ -255,7 +229,7 @@ class DBManager:
                         WHERE NOT EXISTS (
                             SELECT 1 FROM news_events 
                             WHERE (channel_handle = %s AND internal_id = %s)
-                            OR (raw_text = %s) -- Exact text deduplication
+                            OR (MD5(raw_text) = MD5(%s) AND raw_text = %s) -- Efficient exact text deduplication using index
                             OR (
                                 crime_type = %s AND event_date = %s::DATE 
                                 AND (
@@ -297,6 +271,7 @@ class DBManager:
                         data.get('internal_id'),
                         # For the WHERE NOT EXISTS clause (Text check)
                         data.get('raw_text'),
+                        data.get('raw_text'),
                         # For the WHERE NOT EXISTS clause (Semantic check)
                         data.get('crime_type'),
                         data.get('event_date'),
@@ -336,3 +311,18 @@ class DBManager:
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(query)
             return cur.fetchall()
+
+    def get_monitored_channels(self):
+        """Fetches all channel handles from source_mappings table to use as INPUT_CHANNELS."""
+        self._ensure_connection()
+        if not self.conn:
+            return []
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("SELECT handle FROM source_mappings;")
+                rows = cur.fetchall()
+                # Return list of strings, e.g., ['@channel1', '@channel2']
+                return [row[0].strip() for row in rows if row[0]]
+        except Exception as e:
+            print(f"Error fetching monitored channels: {e}")
+            return []

@@ -35,7 +35,8 @@ body {
   position: absolute;
   top: 20px;
   left: 20px;
-  width: 540px; /* Increased from 480px */
+  width: 540px;
+  /* Increased from 480px */
   max-width: calc(100vw - 40px);
   max-height: calc(100vh - 40px);
   background: var(--glass-bg);
@@ -66,17 +67,156 @@ body {
 
 .sidebar-scroll-content {
   overflow-y: auto;
-  /* Allow scrolling if it overflows, but we'll hide the bar */
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
   -ms-overflow-style: none;
   flex: 1;
   display: flex;
   flex-direction: column;
+  transition: scrollbar-color 0.3s ease;
+}
+
+/* Show scrollbar on hover */
+.glass-sidebar:hover .sidebar-scroll-content {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 .sidebar-scroll-content::-webkit-scrollbar {
-  display: none;
-  /* Chrome, Safari and Opera */
+  width: 6px;
+}
+
+.sidebar-scroll-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll-content::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 10px;
+}
+
+.glass-sidebar:hover .sidebar-scroll-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.sidebar-scroll-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Search & Settings Row */
+.search-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+
+.search-box input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 12px 16px 12px 42px;
+  color: #fff;
+  font-size: 0.9rem;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.search-box input:focus {
+  border-color: var(--primary-color);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 15px rgba(247, 183, 49, 0.1);
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+}
+
+.toggle-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 8px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--glass-border);
+}
+
+.toggle-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Switch Styling */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 18px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.1);
+  transition: .3s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 12px;
+  width: 12px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #fff;
+  transition: .3s;
+}
+
+input:checked+.slider {
+  background-color: var(--primary-color);
+}
+
+input:focus+.slider {
+  box-shadow: 0 0 1px var(--primary-color);
+}
+
+input:checked+.slider:before {
+  transform: translateX(14px);
+}
+
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
 }
 
 .header-main {
@@ -131,6 +271,38 @@ header p {
 
 .weather-widget #weather-icon {
   font-size: 1.1rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.action-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.action-btn:hover {
+  background: var(--primary-color);
+  color: var(--bg-dark);
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.action-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .live-indicator {
@@ -245,8 +417,10 @@ header p {
 /* Top Stats Floating Panel */
 .top-stats-panel {
   position: absolute;
-  top: 10px; /* Reduced from 20px to accommodate padding-top */
-  padding-top: 10px; /* Added to provide space for hover translateY(-4px) */
+  top: 10px;
+  /* Reduced from 20px to accommodate padding-top */
+  padding-top: 10px;
+  /* Added to provide space for hover translateY(-4px) */
   right: 24px;
   display: flex;
   flex-direction: row;
@@ -257,7 +431,8 @@ header p {
   max-width: calc(100% - 400px);
   /* Adjust based on sidebar */
   overflow-x: auto;
-  padding-bottom: 40px; /* Increased to avoid clipping large expanded cards */
+  padding-bottom: 40px;
+  /* Increased to avoid clipping large expanded cards */
   scrollbar-width: none;
 }
 
@@ -372,12 +547,13 @@ header p {
 
 .news-list-panel {
   position: absolute;
-  bottom: 100px;
-  /* Offset to clear zoom controls */
+  bottom: 155px;
+  /* Moved up slightly for better vertical balance */
+  /* Adjusted for breathing room from top */
   right: 24px;
   width: 340px;
-  /* Slightly narrower */
-  max-height: 40vh;
+  max-height: 35vh;
+  /* Slightly reduced height to prevent hitting top stats */
   /* Responsive height */
   background: var(--glass-bg);
   backdrop-filter: blur(40px);
@@ -433,9 +609,14 @@ header p {
 /* Dangerous Townships Panel */
 .dangerous-townships-panel {
   position: absolute;
-  bottom: calc(100px + 40vh + 12px); /* Positioned above news-list-panel */
+  bottom: calc(155px + 35vh + 15px);
+  /* Adjusted relative to news list at 155px */
   right: 24px;
   width: 340px;
+  max-height: 40vh;
+  /* Increased to fill gap and meet categories naturally */
+  display: flex;
+  flex-direction: column;
   background: var(--glass-bg);
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
@@ -452,6 +633,8 @@ header p {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .township-stat-item {
@@ -552,10 +735,12 @@ header p {
 }
 
 .accordion-item.expanded .accordion-content {
-  max-height: 800px; /* Increased from 300px to avoid clipping */
+  max-height: 800px;
+  /* Increased from 300px to avoid clipping */
   opacity: 1;
   padding-bottom: 24px;
-  overflow-y: auto; /* Added extra safety for extremely long summaries */
+  overflow-y: auto;
+  /* Added extra safety for extremely long summaries */
   scrollbar-width: thin;
 }
 
@@ -720,12 +905,14 @@ header p {
 }
 
 .top-stat-card.expanded .sub-counts {
-  max-height: 600px; /* Increased from 200px to fit more items */
+  max-height: 600px;
+  /* Increased from 200px to fit more items */
   opacity: 1;
   margin-top: 8px;
   padding-top: 8px;
   border-top-width: 1px;
-  overflow-y: auto; /* Added for extra safety if list is massive */
+  overflow-y: auto;
+  /* Added for extra safety if list is massive */
   scrollbar-width: thin;
 }
 
@@ -751,7 +938,8 @@ header p {
   transform: translateY(-4px);
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.2);
-  z-index: 1200; /* Ensure it stays above any other potentially overlapping layers */
+  z-index: 1200;
+  /* Ensure it stays above any other potentially overlapping layers */
 }
 
 .top-stat-card .icon-box {
@@ -828,7 +1016,8 @@ header p {
   /* Fixed height for perfect alignment */
   outline: none;
   font-family: inherit;
-  font-size: 0.78rem; /* Reduced from 0.85rem */
+  font-size: 0.78rem;
+  /* Reduced from 0.85rem */
   cursor: pointer;
   transition: 0.3s;
   width: 100%;
@@ -868,17 +1057,20 @@ header p {
 }
 
 .calendar-icon {
-  width: 14px; /* Reduced from 16px */
+  width: 14px;
+  /* Reduced from 16px */
   height: 14px;
   color: var(--primary-color);
-  margin-right: 6px; /* Reduced from 10px */
+  margin-right: 6px;
+  /* Reduced from 10px */
   z-index: 1;
   pointer-events: none;
 }
 
 #date-filter-display {
   color: white;
-  font-size: 0.78rem; /* Consistent with selects */
+  font-size: 0.78rem;
+  /* Consistent with selects */
   font-weight: 700;
   z-index: 1;
   pointer-events: none;
@@ -929,13 +1121,15 @@ header p {
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   color: #fff;
-  font-size: 0.78rem; /* Reduced from 0.95rem */
+  font-size: 0.78rem;
+  /* Reduced from 0.95rem */
   padding: 10px 14px;
   padding-right: 40px;
   cursor: pointer;
   transition: all 0.3s ease;
   width: 100%;
-  font-weight: 500; /* Medium weight */
+  font-weight: 500;
+  /* Medium weight */
 }
 
 .filter-group select:hover {
@@ -1335,7 +1529,8 @@ footer {
   border: 4px solid #1a1a1f;
   box-shadow: 0 0 15px rgba(247, 183, 49, 0.5);
   cursor: pointer;
-  margin-top: -8px; /* Correct alignment for custom track */
+  margin-top: -8px;
+  /* Correct alignment for custom track */
   transition: all 0.3s;
 }
 
@@ -1347,30 +1542,34 @@ footer {
 /* Mobile Tweak */
 @media (max-width: 768px) {
   .timeline-panel {
-    bottom: 140px; /* Above news list */
+    bottom: 140px;
+    /* Above news list */
     width: 95vw;
     padding: 12px 16px;
   }
 }
 
-/* Floating Disclaimer Bottom-Left */
+/* Floating Disclaimer Right Side - Below Event List */
 .floating-disclaimer {
   position: absolute;
   bottom: 24px;
-  left: 24px;
+  right: 84px;
+  left: auto;
   z-index: 2000;
-  background: rgba(10, 10, 11, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: var(--glass-bg);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
   border: 1px solid var(--glass-border);
-  border-left: 3px solid var(--primary-color);
-  border-radius: 12px;
-  padding: 10px 14px;
+  border-radius: 20px;
+  /* Aligned with News List format */
+  padding: 16px 20px;
+  /* Consistent with news-list padding */
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  max-width: 340px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  width: 280px;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
+  /* Consistent shadow */
   animation: slideInUp 1.2s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
 }
@@ -1400,25 +1599,14 @@ footer {
 }
 
 .disclaimer-content p {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   line-height: 1.4;
-  color: rgba(255, 255, 255, 0.9);
+  color: #fff;
   margin: 0;
 }
 
 .disclaimer-content .en-sub {
-  font-size: 0.58rem;
-  color: rgba(255, 255, 255, 0.5);
-  font-weight: 500;
-}
-
-/* Mobile Tweak for Disclaimer */
-@media (max-width: 768px) {
-  .floating-disclaimer {
-    bottom: 20px;
-    left: 10px;
-    right: 10px;
-    max-width: none;
-    z-index: 10;
-  }
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-style: italic;
 }
