@@ -249,6 +249,24 @@ class AIProcessor:
                     if not re.match(r'^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$', event_time):
                         data['event_time'] = None
 
+                # 🛑 LOCATION GUARD: Only accept results within Myanmar
+                # Discard news from foreign locations (like Bangkok, Thailand, etc.)
+                region = str(data.get('region') or '').lower()
+                township = str(data.get('township') or '').lower()
+                city = str(data.get('city') or '').lower()
+                location_name = str(data.get('location_name') or '').lower()
+                
+                FOREIGN_KEYWORDS = [
+                    'bangkok', 'thailand', 'ဘန်ကောက်', 'ထိုင်း', 'မလေးရှား', 'malaysia',
+                    'india', 'china', 'laos', 'cambodia', 'vietnam', 'bangladesh',
+                    'တရုတ်', 'အိန္ဒိယ', 'ဘင်္ဂလားဒေ့ရှ်'
+                ]
+                
+                location_full = f"{region} {township} {city} {location_name}"
+                if any(kw in location_full for kw in FOREIGN_KEYWORDS):
+                    # print(f"Skipping non-Myanmar news item: {location_full}")
+                    continue
+
                 # If AI missed lat/lon, try Nominatim
                 if not data.get('latitude') or not data.get('longitude'):
                     if data.get('location_name'):

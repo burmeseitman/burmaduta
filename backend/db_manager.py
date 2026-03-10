@@ -214,10 +214,25 @@ class DBManager:
         if not self.conn:
             return 0
             
+        def is_valid_date(date_str):
+            if not date_str: return False
+            try:
+                from datetime import datetime
+                datetime.strptime(str(date_str), '%Y-%m-%d')
+                return True
+            except:
+                return False
+
         inserted_count = 0
         try:
             with self.conn.cursor() as cur:
                 for data in news_items:
+                    # Validate event_date before insertion
+                    event_date = data.get('event_date')
+                    if not is_valid_date(event_date):
+                        # print(f"⚠️ Invalid event_date detected: {event_date}. Setting to None.")
+                        data['event_date'] = None
+
                     query = """
                         INSERT INTO news_events (
                             channel_handle, internal_id, raw_text, summary, crime_type, sub_category,
@@ -231,7 +246,7 @@ class DBManager:
                             WHERE (channel_handle = %s AND internal_id = %s)
                             OR (MD5(raw_text) = MD5(%s) AND raw_text = %s) -- Efficient exact text deduplication using index
                             OR (
-                                crime_type = %s AND event_date = %s::DATE 
+                                crime_type = %s AND (event_date = %s::DATE OR %s::DATE IS NULL) 
                                 AND (
                                     (COALESCE(city, '') = COALESCE(%s, '') AND COALESCE(township, '') = COALESCE(%s, ''))
                                     OR (COALESCE(location_name, '') = COALESCE(%s, ''))
@@ -275,6 +290,7 @@ class DBManager:
                         # For the WHERE NOT EXISTS clause (Semantic check)
                         data.get('crime_type'),
                         data.get('event_date'),
+                        data.get('event_date'), # New parameter for NULL check
                         data.get('city'),
                         data.get('township'),
                         data.get('location_name'),
