@@ -92,13 +92,18 @@ class DBManager:
             cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_township ON {TABLE} (township);")
             cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_city ON {TABLE} (city);")
             cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_channel_handle ON {TABLE} (channel_handle);")
+            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_channel_handle_lower ON {TABLE} (LOWER(channel_handle));")
             cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_created_at ON {TABLE} (created_at DESC);")
             
-            # 4. Content Uniqueness Index (MD5-based to handle large text)
+            # 4. Source Mappings Indexes
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_source_mappings_handle_lower ON source_mappings (LOWER(handle));")
+
+            # 5. Content Uniqueness Index (MD5-based to handle large text)
             cur.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{TABLE}_raw_text_unique ON {TABLE} (MD5(raw_text));")
             
             self.conn.commit()
             print(f"✅ Optimization and Unique indexes ensured for {TABLE}.")
+
 
         # 4. Migrations (Independent transactions to avoid aborted state)
         def check_col(col):
@@ -314,19 +319,39 @@ class DBManager:
         """Single insert wrapper around batch insert."""
         return self.insert_news_batch([data]) > 0
 
-    def get_all_news(self):
+    def get_all_news(self, include_raw=False, days=90):
         self._ensure_connection()
         if not self.conn:
             return []
-        query = """
-            SELECT n.*, COALESCE(s.display_name, n.channel_handle) as source_name
+
+        # Define all columns EXCEPT large fields like raw_text by default
+        columns = [
+            "n.id", "n.channel_handle", "n.internal_id", "n.summary", "n.crime_type",
+            "n.sub_category", "n.publish_date", "n.publish_time", "n.event_date",
+            "n.event_time", "n.region", "n.township", "n.city", "n.location_name",
+            "n.latitude", "n.longitude", "n.created_at"
+        ]
+        if include_raw:
+            columns.append("n.raw_text")
+
+        columns_str = ", ".join(columns)
+        
+        # Use simple WHERE for date filtering if days is provided
+        where_clause = ""
+        if days:
+            where_clause = f"WHERE n.created_at >= NOW() - INTERVAL '{days} days'"
+
+        query = f"""
+            SELECT {columns_str}, COALESCE(s.display_name, n.channel_handle) as source_name
             FROM news_events n
             LEFT JOIN source_mappings s ON LOWER(n.channel_handle) = LOWER(s.handle)
+            {where_clause}
             ORDER BY n.created_at DESC;
         """
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(query)
             return cur.fetchall()
+
 
     def get_monitored_channels(self):
         """Fetches all channel handles from source_mappings table to use as INPUT_CHANNELS."""

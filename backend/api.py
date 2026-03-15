@@ -29,17 +29,22 @@ db = DBManager()
 import time
 
 CACHE_TTL = 30  # Cache duration in seconds
-news_cache = {"data": None, "timestamp": 0}
+news_cache = {} # Initialize as an empty dictionary to hold multiple cache keys
 
 @app.get("/api/news")
-async def get_news():
+async def get_news(days: int = 90):
     current_time = time.time()
-    # Check if cache is empty or expired
-    if news_cache["data"] is None or (current_time - news_cache["timestamp"]) > CACHE_TTL:
-        print("🔄 Fetching fresh news from database...")
-        news_cache["data"] = db.get_all_news()
-        news_cache["timestamp"] = current_time
-    return news_cache["data"]
+    
+    # Simple cache key
+    cache_key = f"news_{days}"
+    
+    # Initialize cache for this key if it doesn't exist
+    if cache_key not in news_cache or news_cache[cache_key] is None or (current_time - news_cache[cache_key].get("timestamp", 0)) > CACHE_TTL:
+        print(f"🔄 Fetching fresh news ({days} days) from database...")
+        data = db.get_all_news(days=days)
+        news_cache[cache_key] = {"data": data, "timestamp": current_time}
+        
+    return news_cache[cache_key]["data"]
 
 # Serve Frontend Files
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
