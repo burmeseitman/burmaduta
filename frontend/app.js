@@ -71,6 +71,7 @@ let regionFilter = "All";
 let searchQuery = "";
 let heatLayer = null;
 const markers = {};
+let firstLoadComplete = false;
 
 // Helper for local YYYY-MM-DD
 function getLocalDateString() {
@@ -435,12 +436,30 @@ async function fetchNews() {
         updateUI();
         if (window.lucide) lucide.createIcons();
 
+        // 🚀 Hide loading animation on first successful load
+        if (!firstLoadComplete) {
+            const loader = document.getElementById("loading-overlay");
+            if (loader) {
+                loader.classList.add("fade-out");
+                setTimeout(() => {
+                    loader.style.display = "none";
+                }, 800); // Match transition duration
+            }
+            firstLoadComplete = true;
+        }
+
         // Ensure charts resize to fill containers after initial data render
         setTimeout(() => {
             window.dispatchEvent(new Event('resize'));
         }, 500);
     } catch (error) {
         console.error("Error fetching news:", error);
+        // Ensure loader is hidden even on error to prevent being "frozen"
+        const loader = document.getElementById("loading-overlay");
+        if (loader) {
+            loader.classList.add("fade-out");
+            setTimeout(() => { loader.style.display = "none"; }, 800);
+        }
     }
 }
 
