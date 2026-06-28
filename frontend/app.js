@@ -960,11 +960,23 @@ function updateMapMarkers(items) {
             let customIconHtml = '';
             
             if (isAircraft) {
+                let rotation = 0; // Default if no heading
+                if (item.heading && item.heading.toLowerCase() !== 'null') {
+                    const h = item.heading.toLowerCase().trim().replace(" ", "");
+                    // The ✈️ emoji points North-East (45deg) by default on most OS.
+                    // So we adjust: North = -45, East = 45, etc.
+                    const rotMap = {
+                        "north": -45, "south": 135, "east": 45, "west": 225,
+                        "northeast": 0, "northwest": -90, "southeast": 90, "southwest": 180
+                    };
+                    if (rotMap[h] !== undefined) rotation = rotMap[h];
+                }
+
                 customIconHtml = `
                 <div class="map-marker-container radar-container" style="width:30px; height:30px;">
                     <div class="radar-ping"></div>
                     <div style="background-color:#c0392b; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid #fff; font-size:16px; position:relative; z-index:2; box-shadow: 0 0 15px rgba(192, 57, 43, 0.8);">
-                        ✈️
+                        <span style="transform: rotate(${rotation}deg); display: inline-block;">✈️</span>
                     </div>
                 </div>`;
             } else {
