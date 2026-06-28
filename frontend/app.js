@@ -1312,7 +1312,7 @@ function updateDangerousTownships() {
             <div class="township-stat-item">
                 <div class="township-info-row">
                     <span class="township-name">${escapeHTML(name)}</span>
-                    <span class="township-count">${count}</span>
+                    <span class="township-count">${count} <span style="font-size:0.6em; opacity:0.7; font-weight:normal;">မှတ်</span></span>
                 </div>
                 <div class="danger-bar-container">
                     <div class="danger-bar-fill" style="width: ${perc}%"></div>
