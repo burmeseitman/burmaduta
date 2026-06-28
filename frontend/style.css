@@ -1699,3 +1699,48 @@ footer {
     padding: 12px 16px;
   }
 }
+
+/* --- Airstrike Radar Animations --- */
+.radar-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.radar-ping {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: rgba(192, 57, 43, 0.4);
+  animation: radar-pulse 2s infinite ease-out;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes radar-pulse {
+  0% {
+    width: 30px;
+    height: 30px;
+    opacity: 1;
+  }
+  100% {
+    width: 100px;
+    height: 100px;
+    opacity: 0;
+  }
+}
+
+.flight-path-animated {
+  animation: dash-flow 20s linear infinite;
+}
+
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -100;
+  }
+}

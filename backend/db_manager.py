@@ -69,6 +69,8 @@ class DBManager:
                     location_name VARCHAR(255),
                     latitude FLOAT8,
                     longitude FLOAT8,
+                    heading VARCHAR(50),
+                    target_location VARCHAR(255),
                     created_at TIMESTAMPTZ DEFAULT NOW(),
                     UNIQUE(channel_handle, internal_id)
                 );
@@ -142,6 +144,19 @@ class DBManager:
                 print(f"❌ Migration failed: Adding sub_category column to {TABLE}. Error: {e}")
         else:
             print(f"ℹ️ Migration skipped: sub_category column already exists in {TABLE}.")
+
+        # Add heading and target_location
+        if not check_col('heading'):
+            try:
+                with self.conn.cursor() as cur:
+                    print(f"🔄 Migration: Adding heading and target_location columns to {TABLE}...")
+                    cur.execute(f"ALTER TABLE {TABLE} ADD COLUMN heading VARCHAR(50);")
+                    cur.execute(f"ALTER TABLE {TABLE} ADD COLUMN target_location VARCHAR(255);")
+                    self.conn.commit()
+                    print(f"✅ Migration successful: Added heading and target_location columns to {TABLE}.")
+            except Exception as e:
+                self.conn.rollback()
+                print(f"❌ Migration failed: Adding heading/target_location columns to {TABLE}. Error: {e}")
 
     def ensure_tables(self):
         """Creates required tables if they don't exist. Does NOT populate data auto."""
@@ -243,9 +258,10 @@ class DBManager:
                             channel_handle, internal_id, raw_text, summary, crime_type, sub_category,
                             publish_date, publish_time, event_date, event_time, 
                             region, township, city,
-                            location_name, latitude, longitude
+                            location_name, latitude, longitude,
+                            heading, target_location
                         ) 
-                        SELECT %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        SELECT %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                         WHERE NOT EXISTS (
                             SELECT 1 FROM news_events 
                             WHERE (channel_handle = %s AND internal_id = %s)
@@ -286,6 +302,8 @@ class DBManager:
                         data.get('location_name'),
                         data.get('latitude'),
                         data.get('longitude'),
+                        data.get('heading'),
+                        data.get('target_location'),
                         # For the WHERE NOT EXISTS clause (ID check)
                         data.get('channel_handle'),
                         data.get('internal_id'),
@@ -339,7 +357,7 @@ class DBManager:
             "n.id", "n.channel_handle", "n.internal_id", "n.summary", "n.crime_type",
             "n.sub_category", "n.publish_date", "n.publish_time", "n.event_date",
             "n.event_time", "n.region", "n.township", "n.city", "n.location_name",
-            "n.latitude", "n.longitude", "n.created_at"
+            "n.latitude", "n.longitude", "n.heading", "n.target_location", "n.created_at"
         ]
         if include_raw:
             columns.append("n.raw_text")

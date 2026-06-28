@@ -945,6 +945,7 @@ function updateMapMarkers(items) {
     Object.keys(markers).forEach(id => {
         if (!newItemsMap.has(id)) {
             if (markers[id].marker) map.removeLayer(markers[id].marker);
+            if (markers[id].flightLine) map.removeLayer(markers[id].flightLine);
             delete markers[id];
         }
     });
@@ -955,17 +956,32 @@ function updateMapMarkers(items) {
             const color = typeColors[item.crime_type] || typeColors["Other"];
             const icon = typeIcons[item.crime_type] || typeIcons["Other"];
 
-            const customIcon = L.divIcon({
-                html: `
+            let isAircraft = item.sub_category && item.sub_category.includes("လေကြောင်း");
+            let customIconHtml = '';
+            
+            if (isAircraft) {
+                customIconHtml = `
+                <div class="map-marker-container radar-container" style="width:30px; height:30px;">
+                    <div class="radar-ping"></div>
+                    <div style="background-color:#c0392b; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid #fff; font-size:16px; position:relative; z-index:2; box-shadow: 0 0 15px rgba(192, 57, 43, 0.8);">
+                        ✈️
+                    </div>
+                </div>`;
+            } else {
+                customIconHtml = `
                 <div class="map-marker-container" style="width:22px; height:22px;">
                     <div class="pulse-ring" style="background-color:${color};"></div>
                     <div style="background-color:${color}; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1.5px solid #fff; font-size:12px; position:relative; z-index:2;">
                         ${icon}
                     </div>
-                </div>`,
+                </div>`;
+            }
+
+            const customIcon = L.divIcon({
+                html: customIconHtml,
                 className: "custom-div-icon",
-                iconSize: [22, 22],
-                iconAnchor: [11, 11],
+                iconSize: isAircraft ? [30, 30] : [22, 22],
+                iconAnchor: isAircraft ? [15, 15] : [11, 11],
             });
 
             const marker = L.marker([item.latitude, item.longitude], {
@@ -1002,7 +1018,32 @@ function updateMapMarkers(items) {
                 { maxWidth: 250, autoPan: true }
             );
 
-            markers[id] = { marker, data: item };
+            // Add heading arrow line if aircraft
+            let flightLine = null;
+            if (isAircraft && item.heading && item.heading.toLowerCase() !== 'null') {
+                const h = item.heading.toLowerCase().trim().replace(" ", "");
+                const headingMap = {
+                    "north": [1, 0], "south": [-1, 0], "east": [0, 1], "west": [0, -1],
+                    "northeast": [1, 1], "northwest": [1, -1], "southeast": [-1, 1], "southwest": [-1, -1]
+                };
+                const dir = headingMap[h] || [0,0];
+                if (dir[0] !== 0 || dir[1] !== 0) {
+                    const destLat = item.latitude + (dir[0] * 0.3); // approx distance
+                    const destLng = item.longitude + (dir[1] * 0.3);
+                    flightLine = L.polyline([
+                        [item.latitude, item.longitude],
+                        [destLat, destLng]
+                    ], {
+                        color: '#ff4757',
+                        weight: 3,
+                        opacity: 0.8,
+                        dashArray: '5, 10',
+                        className: 'flight-path-animated'
+                    }).addTo(map);
+                }
+            }
+
+            markers[id] = { marker, flightLine, data: item };
         } else {
             markers[id].data = item; // Keep data fresh
         }

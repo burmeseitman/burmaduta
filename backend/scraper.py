@@ -161,7 +161,9 @@ async def process_messages_batch(messages_batch):
                 'location_name': parsed_data.get('location_name'),
                 'latitude': parsed_data.get('latitude'),
                 'longitude': parsed_data.get('longitude'),
-                'sub_category': parsed_data.get('sub_category')
+                'sub_category': parsed_data.get('sub_category'),
+                'heading': parsed_data.get('heading'),
+                'target_location': parsed_data.get('target_location')
             })
 
         # 4. Save to database in BATCH
