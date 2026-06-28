@@ -53,9 +53,9 @@ echo "🛡️ Configuring Firewall..."
 sudo ufw allow ssh
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
-sudo ufw allow 8081/tcp
+# NOTE: Port 8081 is intentionally NOT exposed. API is behind Caddy reverse proxy.
 sudo ufw --force enable
-echo "✅ Firewall configured (SSH & Port 8081 open)."
+echo "✅ Firewall configured (SSH, HTTP/80, HTTPS/443 only)."
 
 echo ""
 echo "===================================================="

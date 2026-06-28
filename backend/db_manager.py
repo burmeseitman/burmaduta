@@ -324,6 +324,16 @@ class DBManager:
         if not self.conn:
             return []
 
+        # Defense-in-depth: ensure days is a safe integer
+        try:
+            days = int(days)
+            if days < 1:
+                days = 1
+            elif days > 365:
+                days = 365
+        except (ValueError, TypeError):
+            days = 90
+
         # Define all columns EXCEPT large fields like raw_text by default
         columns = [
             "n.id", "n.channel_handle", "n.internal_id", "n.summary", "n.crime_type",
@@ -336,10 +346,12 @@ class DBManager:
 
         columns_str = ", ".join(columns)
         
-        # Use simple WHERE for date filtering if days is provided
+        # SECURITY FIX: Use parameterized query instead of f-string interpolation
+        params = []
         where_clause = ""
         if days:
-            where_clause = f"WHERE n.created_at >= NOW() - INTERVAL '{days} days'"
+            where_clause = "WHERE n.created_at >= NOW() - INTERVAL %s"
+            params.append(f"{days} days")
 
         query = f"""
             SELECT {columns_str}, COALESCE(s.display_name, n.channel_handle) as source_name
@@ -349,7 +361,7 @@ class DBManager:
             ORDER BY n.created_at DESC;
         """
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(query)
+            cur.execute(query, params if params else None)
             return cur.fetchall()
 
 
