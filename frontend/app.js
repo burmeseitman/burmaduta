@@ -71,6 +71,11 @@ let regionFilter = "All";
 let searchQuery = "";
 let heatLayer = null;
 const markers = {};
+const markerClusterGroup = L.markerClusterGroup({
+    maxClusterRadius: 40,
+    disableClusteringAtZoom: 15
+});
+markerClusterGroup.addTo(map);
 let firstLoadComplete = false;
 
 // Helper for local YYYY-MM-DD
@@ -965,7 +970,7 @@ function updateMapMarkers(items) {
     // 1. Remove markers that are no longer in the filtered list
     Object.keys(markers).forEach(id => {
         if (!newItemsMap.has(id)) {
-            if (markers[id].marker) map.removeLayer(markers[id].marker);
+            if (markers[id].marker) markerClusterGroup.removeLayer(markers[id].marker);
             if (markers[id].flightLine) map.removeLayer(markers[id].flightLine);
             delete markers[id];
         }
@@ -977,8 +982,9 @@ function updateMapMarkers(items) {
             const color = typeColors[item.crime_type] || typeColors["Other"];
             const icon = typeIcons[item.crime_type] || typeIcons["Other"];
 
-            let isAirstrike = item.sub_category && (item.sub_category.includes("လေကြောင်းတိုက်ခိုက်မှု") || item.sub_category === "လေကြောင်း");
-            let isAirAlert = item.sub_category && item.sub_category.includes("လေယာဉ်သတိပေးချက်");
+            // Strictly identify Airstrikes, fall back old 'လေကြောင်း' data to Air Alerts (Orange)
+            let isAirstrike = item.sub_category && item.sub_category.includes("လေကြောင်းတိုက်ခိုက်မှု");
+            let isAirAlert = item.sub_category && (item.sub_category.includes("လေယာဉ်သတိပေးချက်") || item.sub_category.includes("လေကြောင်းသတိပေးချက်") || item.sub_category === "လေကြောင်း" || item.sub_category.includes("လေယာဉ်"));
             let isAircraft = isAirstrike || isAirAlert;
             let customIconHtml = '';
             
@@ -1024,7 +1030,8 @@ function updateMapMarkers(items) {
             const marker = L.marker([item.latitude, item.longitude], {
                 icon: customIcon,
                 riseOnHover: true // Improves visibility depth
-            }).addTo(map);
+            });
+            markerClusterGroup.addLayer(marker);
 
             // SYNC: When marker popup opens, expand accordion
             marker.on('popupopen', () => {
@@ -1074,7 +1081,7 @@ function updateMapMarkers(items) {
                     ], {
                         color: lineColor,
                         weight: 3,
-                        opacity: 0.8,
+                        opacity: 0.3,
                         dashArray: '5, 10',
                         className: 'flight-path-animated'
                     }).addTo(map);
