@@ -1,27 +1,11 @@
 services:
-  # Reverse Proxy (HTTPS termination)
-  caddy:
-    image: caddy:2-alpine
-    container_name: burmaduta-proxy
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - api
-
-  # Backend API Service (internal only, not exposed to host)
+  # Backend API Service
   api:
     build: .
     container_name: burmaduta-api
     restart: always
-    # NOTE: No 'ports' mapping — only accessible via Caddy reverse proxy
-    expose:
-      - "8081"
+    ports:
+      - "8081:8081"
     environment:
       INTERNAL_STORE_URI: ${INTERNAL_STORE_URI}
       MODEL_NAME: ${MODEL_NAME:-gemini-2.5-flash-lite}
@@ -43,7 +27,3 @@ services:
     volumes:
       # Persistent session directory for Telegram login
       - ./sessions:/app/sessions
-
-volumes:
-  caddy_data:
-  caddy_config:
