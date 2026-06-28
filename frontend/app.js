@@ -404,8 +404,8 @@ async function filterByCategory(cat) {
 
 async function fetchNews() {
     try {
-        // Fetch 30 days to match timeline slider and charts
-        const endpoint = `${API_BASE_URL}/api/news?days=30`;
+        // Fetch 90 days to match the newly upgraded server and clustering
+        const endpoint = `${API_BASE_URL}/api/news?days=90`;
         const response = await fetch(endpoint);
         const data = await response.json();
 
