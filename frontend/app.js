@@ -973,9 +973,9 @@ function updateMapMarkers(items) {
                 }
 
                 customIconHtml = `
-                <div class="map-marker-container radar-container" style="width:30px; height:30px;">
+                <div class="map-marker-container radar-container" style="width:22px; height:22px;">
                     <div class="radar-ping"></div>
-                    <div style="background-color:#c0392b; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid #fff; font-size:16px; position:relative; z-index:2; box-shadow: 0 0 15px rgba(192, 57, 43, 0.8);">
+                    <div style="background-color:#c0392b; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1.5px solid #fff; font-size:12px; position:relative; z-index:2; box-shadow: 0 0 10px rgba(192, 57, 43, 0.8);">
                         <span style="transform: rotate(${rotation}deg); display: inline-block;">✈️</span>
                     </div>
                 </div>`;
@@ -992,8 +992,8 @@ function updateMapMarkers(items) {
             const customIcon = L.divIcon({
                 html: customIconHtml,
                 className: "custom-div-icon",
-                iconSize: isAircraft ? [30, 30] : [22, 22],
-                iconAnchor: isAircraft ? [15, 15] : [11, 11],
+                iconSize: [22, 22],
+                iconAnchor: [11, 11],
             });
 
             const marker = L.marker([item.latitude, item.longitude], {
