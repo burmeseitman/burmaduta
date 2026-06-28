@@ -399,7 +399,8 @@ async function filterByCategory(cat) {
 
 async function fetchNews() {
     try {
-        const endpoint = `${API_BASE_URL}/api/news`;
+        // Fetch only 7 days of data by default to optimize loading speed
+        const endpoint = `${API_BASE_URL}/api/news?days=7`;
         const response = await fetch(endpoint);
         const data = await response.json();
 

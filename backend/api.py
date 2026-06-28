@@ -57,7 +57,7 @@ def _evict_oldest_cache():
 
 @app.get("/api/news")
 @limiter.limit("30/minute")
-async def get_news(request: Request, days: int = Query(default=90, ge=1, le=365)):
+async def get_news(request: Request, days: int = Query(default=7, ge=1, le=365)):
     """Fetch news events. Rate limited to 30 requests/minute per IP."""
     current_time = time.time()
     
