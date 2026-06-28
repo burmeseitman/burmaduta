@@ -144,7 +144,20 @@ async def process_messages_batch(messages_batch):
                 
             msg_obj = orig['msg_obj']
             publish_dt = msg_obj.date
-            
+            def safe_float(val):
+                if val is None: return None
+                if isinstance(val, (int, float)): return float(val)
+                if isinstance(val, list) and len(val) > 0: val = val[0]
+                # Handle Burmese comma or standard comma separation
+                val_str = str(val).replace('၊', ',')
+                parts = val_str.split(',')
+                if parts:
+                    try:
+                        return float(parts[0].strip())
+                    except ValueError:
+                        pass
+                return None
+
             save_list.append({
                 'channel_handle': orig['channel_handle'],
                 'internal_id': orig['id'],
@@ -159,8 +172,8 @@ async def process_messages_batch(messages_batch):
                 'township': parsed_data.get('township'),
                 'city': parsed_data.get('city'),
                 'location_name': parsed_data.get('location_name'),
-                'latitude': parsed_data.get('latitude'),
-                'longitude': parsed_data.get('longitude'),
+                'latitude': safe_float(parsed_data.get('latitude')),
+                'longitude': safe_float(parsed_data.get('longitude')),
                 'sub_category': parsed_data.get('sub_category'),
                 'heading': parsed_data.get('heading'),
                 'target_location': parsed_data.get('target_location')
