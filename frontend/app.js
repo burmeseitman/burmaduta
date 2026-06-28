@@ -422,22 +422,9 @@ async function fetchNews() {
 
             return { ...item, crime_type: finalType };
         });
-        // If first fetch and no news for today, default to the latest date available
+        // Always strictly show current day on load, even if it has 0 news.
         const todayStr = getLocalDateString();
-        const hasTodayNews = allNewsItems.some(item => {
-            const itemDateStr = item.publish_date || "";
-            return itemDateStr.toString().startsWith(todayStr);
-        });
-
-        if (allNewsItems.length > 0 && !hasTodayNews && dateFilter === todayStr) {
-            const dates = allNewsItems.map(i => i.publish_date).filter(Boolean);
-            if (dates.length > 0) {
-                const maxDate = dates.sort().reverse()[0].split('T')[0].split(' ')[0];
-                dateFilter = maxDate;
-                dateFilterInput.value = maxDate;
-                syncTimelineWithDate(maxDate);
-            }
-        }
+        syncTimelineWithDate(todayStr);
 
         updateUI();
         if (window.lucide) lucide.createIcons();
