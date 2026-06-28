@@ -934,8 +934,28 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
 }
 
 function updateMapMarkers(items) {
-    const newItemsMap = new Map();
+    // Basic deduplication for aircraft alerts
+    const dedupedItems = [];
+    const seenAircraft = new Set();
+
     items.forEach(item => {
+        let isAircraft = item.sub_category && (item.sub_category.includes("လေကြောင်း") || item.sub_category.includes("လေယာဉ်"));
+        if (isAircraft && item.latitude && item.longitude) {
+            // Group by Date, Heading, and approximate Location (2 decimal places ~ 1km radius)
+            const latKey = parseFloat(item.latitude).toFixed(2);
+            const lngKey = parseFloat(item.longitude).toFixed(2);
+            const key = `${item.event_date}_${latKey}_${lngKey}_${item.heading}`;
+            if (!seenAircraft.has(key)) {
+                seenAircraft.add(key);
+                dedupedItems.push(item);
+            }
+        } else {
+            dedupedItems.push(item);
+        }
+    });
+
+    const newItemsMap = new Map();
+    dedupedItems.forEach(item => {
         if (item.latitude && item.longitude) {
             newItemsMap.set(String(item.id), item);
         }
@@ -956,15 +976,15 @@ function updateMapMarkers(items) {
             const color = typeColors[item.crime_type] || typeColors["Other"];
             const icon = typeIcons[item.crime_type] || typeIcons["Other"];
 
-            let isAircraft = item.sub_category && item.sub_category.includes("လေကြောင်း");
+            let isAirstrike = item.sub_category && (item.sub_category.includes("လေကြောင်းတိုက်ခိုက်မှု") || item.sub_category === "လေကြောင်း");
+            let isAirAlert = item.sub_category && item.sub_category.includes("လေယာဉ်သတိပေးချက်");
+            let isAircraft = isAirstrike || isAirAlert;
             let customIconHtml = '';
             
             if (isAircraft) {
                 let rotation = 0; // Default if no heading
                 if (item.heading && item.heading.toLowerCase() !== 'null') {
                     const h = item.heading.toLowerCase().trim().replace(" ", "");
-                    // The ✈️ emoji points North-East (45deg) by default on most OS.
-                    // So we adjust: North = -45, East = 45, etc.
                     const rotMap = {
                         "north": -45, "south": 135, "east": 45, "west": 225,
                         "northeast": 0, "northwest": -90, "southeast": 90, "southwest": 180
@@ -972,10 +992,14 @@ function updateMapMarkers(items) {
                     if (rotMap[h] !== undefined) rotation = rotMap[h];
                 }
 
+                const radarClass = isAirAlert ? "radar-ping alert" : "radar-ping";
+                const bgColor = isAirAlert ? "#f39c12" : "#c0392b";
+                const shadowColor = isAirAlert ? "rgba(243, 156, 18, 0.8)" : "rgba(192, 57, 43, 0.8)";
+
                 customIconHtml = `
                 <div class="map-marker-container radar-container" style="width:22px; height:22px;">
-                    <div class="radar-ping"></div>
-                    <div style="background-color:#c0392b; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1.5px solid #fff; font-size:12px; position:relative; z-index:2; box-shadow: 0 0 10px rgba(192, 57, 43, 0.8);">
+                    <div class="${radarClass}"></div>
+                    <div style="background-color:${bgColor}; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1.5px solid #fff; font-size:12px; position:relative; z-index:2; box-shadow: 0 0 10px ${shadowColor};">
                         <span style="transform: rotate(${rotation}deg); display: inline-block;">✈️</span>
                     </div>
                 </div>`;
@@ -1042,11 +1066,12 @@ function updateMapMarkers(items) {
                 if (dir[0] !== 0 || dir[1] !== 0) {
                     const destLat = item.latitude + (dir[0] * 0.3); // approx distance
                     const destLng = item.longitude + (dir[1] * 0.3);
+                    const lineColor = isAirAlert ? '#f39c12' : '#ff4757';
                     flightLine = L.polyline([
                         [item.latitude, item.longitude],
                         [destLat, destLng]
                     ], {
-                        color: '#ff4757',
+                        color: lineColor,
                         weight: 3,
                         opacity: 0.8,
                         dashArray: '5, 10',

@@ -1722,6 +1722,10 @@ footer {
   z-index: 1;
 }
 
+.radar-ping.alert {
+  background-color: rgba(243, 156, 18, 0.4); /* Orange */
+}
+
 @keyframes radar-pulse {
   0% {
     width: 30px;
