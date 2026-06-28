@@ -18,6 +18,9 @@ class DBManager:
         try:
             self.conn = psycopg2.connect(INTERNAL_STORE_URI)
             print("✅ Database connection established.")
+            # Automatically run migrations and ensure tables exist
+            self.create_table()
+            self.ensure_tables()
         except Exception as e:
             print(f"❌ Database Connection Error: {e}")
             # We don't raise here to allow the object to exist, 
