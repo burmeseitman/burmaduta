@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Burma Duta | Mobile App</title>
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <!-- MarkerCluster CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+  
+  <link rel="stylesheet" href="mobile.css" />
+</head>
+<body>
+  <!-- Map Container -->
+  <div id="map"></div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="loader"></div>
+  </div>
+
+  <!-- Floating Header UI -->
+  <div class="floating-header">
+    <div class="header-top">
+      <h1 class="logo">ဗမာဒူတ</h1>
+      <div id="weather-widget" class="weather-widget">
+        <span id="weather-icon">🌡️</span>
+        <span id="weather-temp">--°C</span>
+      </div>
+    </div>
+    
+    <div class="search-container">
+      <div class="search-icon">🔍</div>
+      <input type="text" id="search-input" placeholder="Search incidents or locations..." />
+      <button id="clear-search" style="display: none;">✕</button>
+    </div>
+
+    <!-- Category Chips (Horizontal Scroll) -->
+    <div class="chips-container">
+      <button class="chip modal-chip" id="region-chip">
+        <span>🗺️</span> <span id="region-chip-text" class="chip-active-text">ပြည်နယ်/တိုင်း</span> <span>▼</span>
+      </button>
+      <button class="chip modal-chip" id="date-chip">
+        <span>📅</span> <span id="date-chip-text" class="chip-active-text">Date</span> <span>▼</span>
+      </button>
+      <div class="chip-divider"></div>
+      <button class="chip cat-chip active" data-category="All"><span>သတင်း</span></button>
+      <button class="chip cat-chip" data-category="စစ်ရေးသတင်း"><span>စစ်ရေးသတင်း</span></button>
+      <button class="chip cat-chip" data-category="မှုခင်းသတင်း"><span>မှုခင်းသတင်း</span></button>
+      <button class="chip cat-chip" data-category="မတော်တဆဖြစ်မှု"><span>မတော်တဆဖြစ်မှု</span></button>
+      <button class="chip cat-chip" data-category="သဘာဝဘေးအန္တရာယ်"><span>သဘာဝဘေးအန္တရာယ်</span></button>
+      <button class="chip cat-chip" data-category="အထွေထွေ"><span>အထွေထွေ</span></button>
+    </div>
+  </div>
+
+  <!-- Alert Card (Hidden by default) -->
+  <div id="alert-card" class="alert-card hidden">
+    <div class="alert-header">
+      <h3 id="alert-title">⚠️ သတိပေးချက်</h3>
+      <div class="pulse-indicator"></div>
+    </div>
+    <p id="alert-desc" class="alert-desc">Description goes here</p>
+    <div class="alert-footer">
+      <span id="alert-time" class="alert-time">Time</span>
+      <span class="alert-read-more">READ FULL ALERT</span>
+    </div>
+  </div>
+
+  <!-- Recenter Button -->
+  <button id="recenter-btn" class="recenter-btn">🎯</button>
+
+  <!-- Modals for Region and Date -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-title">Select</h3>
+        <button id="close-modal">✕</button>
+      </div>
+      <div id="modal-body" class="modal-body">
+        <!-- Options injected here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+  <script src="mobile.js"></script>
+</body>
+</html>
