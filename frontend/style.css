@@ -52,14 +52,44 @@ body {
   gap: 24px;
 }
 
-.loader {
-  width: 64px;
-  height: 64px;
-  border: 4px solid rgba(247, 183, 49, 0.1);
-  border-top-color: var(--primary-color);
+.radar-spinner {
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
-  animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  box-shadow: 0 0 30px rgba(247, 183, 49, 0.15);
+  position: relative;
+  border: 1px solid rgba(247, 183, 49, 0.3);
+  box-shadow: 0 0 20px rgba(247, 183, 49, 0.15);
+  background: 
+    linear-gradient(90deg, transparent 49%, rgba(247, 183, 49, 0.2) 50%, transparent 51%),
+    linear-gradient(0deg, transparent 49%, rgba(247, 183, 49, 0.2) 50%, transparent 51%),
+    radial-gradient(circle, transparent 39%, rgba(247, 183, 49, 0.2) 40%, transparent 41%),
+    radial-gradient(circle, rgba(247, 183, 49, 0.05) 0%, transparent 70%);
+}
+
+.radar-spinner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 70%, rgba(247, 183, 49, 0.6) 100%);
+  animation: radar-sweep 2s linear infinite;
+}
+
+.radar-spinner::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  background: #f7b731;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #f7b731, 0 0 20px #f7b731;
+}
+
+@keyframes radar-sweep {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 @keyframes spin {
