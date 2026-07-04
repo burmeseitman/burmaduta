@@ -11,7 +11,7 @@ let filteredNews = [];
 let currentFilters = {
   region: 'All',
   category: 'All',
-  date: getLocalDateString(),
+  date: '', // Show all by default
   search: ''
 };
 
@@ -49,13 +49,14 @@ function getLocalDateString() {
 }
 
 function formatShortDate(dateStr) {
+  if (!dateStr) return 'ရက်စွဲ (အားလုံး)';
   const d = new Date(dateStr);
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 function getLast30Days() {
-  const days = [];
+  const days = ['']; // Empty string for 'All'
   for (let i = 0; i < 30; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
