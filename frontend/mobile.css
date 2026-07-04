@@ -86,17 +86,41 @@ body, html {
   font-weight: 600;
 }
 
-/* Search Bar */
+/* --- Search --- */
+.search-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+  padding: 0 15px;
+  align-items: center;
+}
 .search-container {
+  flex: 1;
+  position: relative;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  height: 44px;
   display: flex;
   align-items: center;
-  background: rgba(25, 25, 30, 0.75);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 25px;
-  margin: 0 16px 12px;
-  height: 45px;
   padding: 0 16px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+.heatmap-btn {
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.heatmap-btn.active {
+  background: rgba(247, 183, 49, 0.2);
+  border-color: #f7b731;
 }
 
 .search-icon {

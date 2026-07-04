@@ -5,6 +5,7 @@ const API_URL = `${API_BASE_URL}/api/news`;
 
 let map;
 let markers;
+let heatLayer = null;
 let allNews = [];
 let filteredNews = [];
 
@@ -21,6 +22,7 @@ const alertCard = document.getElementById('alert-card');
 const recenterBtn = document.getElementById('recenter-btn');
 const searchInput = document.getElementById('search-input');
 const clearSearchBtn = document.getElementById('clear-search');
+const heatmapToggleBtn = document.getElementById('heatmap-toggle');
 
 const modalOverlay = document.getElementById('modal-overlay');
 const modalTitle = document.getElementById('modal-title');
@@ -82,7 +84,7 @@ function initMap() {
     iconCreateFunction: function (cluster) {
       const count = cluster.getChildCount();
       return L.divIcon({
-        html: `<div style="background-color: rgba(247, 183, 49, 0.9); color: #000; border-radius: 50%; padding: 8px; font-weight: bold; text-align: center;">${count}</div>`,
+        html: `<div style="background-color: rgba(247, 183, 49, 0.9); color: #000; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: bold;">${count}</div>`,
         className: 'custom-cluster-icon',
         iconSize: L.point(40, 40)
       });
@@ -173,6 +175,23 @@ function renderMap() {
       .bindPopup(popupContent)
       .addTo(markers);
   });
+
+  if (heatmapToggleBtn.classList.contains('active')) {
+    if (heatLayer) map.removeLayer(heatLayer);
+    const heatData = filteredNews.map(i => [i.latitude, i.longitude, 1]);
+    heatLayer = L.heatLayer(heatData, {
+      radius: 25,
+      blur: 15,
+      maxZoom: 10,
+      gradient: { 0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1.0: 'red' }
+    });
+    map.addLayer(heatLayer);
+  } else {
+    if (heatLayer) {
+      map.removeLayer(heatLayer);
+      heatLayer = null;
+    }
+  }
 }
 
 function checkAlerts() {
@@ -211,6 +230,11 @@ clearSearchBtn.addEventListener('click', () => {
   currentFilters.search = '';
   clearSearchBtn.style.display = 'none';
   applyFilters();
+});
+
+heatmapToggleBtn.addEventListener('click', () => {
+  heatmapToggleBtn.classList.toggle('active');
+  renderMap();
 });
 
 recenterBtn.addEventListener('click', () => {
