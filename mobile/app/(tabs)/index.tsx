@@ -1,9 +1,12 @@
-import React, { useRef, useMemo } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import MapView, { Marker, Callout, PROVIDER_DEFAULT } from 'react-native-maps';
+import React, { useRef } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text, KeyboardAvoidingView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useNews } from '../../hooks/useNews';
 import { useFilters } from '../../hooks/useFilters';
-import FilterBar from '../../components/FilterBar';
+import SearchBar from '../../components/SearchBar';
+import CategoryChips from '../../components/CategoryChips';
+import AlertCard from '../../components/AlertCard';
 import LoadingScreen from '../../components/LoadingScreen';
 import WeatherWidget from '../../components/WeatherWidget';
 import { MYANMAR_CENTER, MYANMAR_DELTA } from '../../constants/regions';
@@ -26,6 +29,7 @@ export default function MapScreen() {
     setRegion,
     setCategory,
     setDate,
+    setSearchQuery,
     mappableNews,
   } = useFilters(news);
 
@@ -36,29 +40,19 @@ export default function MapScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <Text style={styles.logo}>Burma Duta</Text>
-          <WeatherWidget />
-        </View>
-        <FilterBar
-          filters={filters}
-          onRegionChange={setRegion}
-          onCategoryChange={setCategory}
-          onDateChange={setDate}
-        />
-      </View>
-
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      {/* The Map spans the entire background */}
       <MapView
         ref={mapRef}
-        provider={PROVIDER_DEFAULT}
+        provider={PROVIDER_GOOGLE}
         style={styles.map}
         initialRegion={{
           ...MYANMAR_CENTER,
           ...MYANMAR_DELTA,
         }}
-        customMapStyle={mapCustomStyle}
         pitchEnabled={true}
         rotateEnabled={true}
         zoomEnabled={true}
@@ -80,14 +74,38 @@ export default function MapScreen() {
           </Marker>
         ))}
       </MapView>
+
+      {/* Floating Header UI */}
+      <SafeAreaView style={styles.floatingHeader}>
+        <View style={styles.headerTop}>
+          <Text style={styles.logo}>ဗမာဒူတ</Text>
+          <WeatherWidget />
+        </View>
+        <SearchBar 
+          value={filters.searchQuery} 
+          onChangeText={setSearchQuery} 
+        />
+        <CategoryChips
+          selectedCategory={filters.category}
+          onCategoryChange={setCategory}
+          selectedRegion={filters.region}
+          onRegionChange={setRegion}
+          selectedDate={filters.date}
+          onDateChange={setDate}
+        />
+      </SafeAreaView>
       
+      {/* Bottom Alert Card */}
+      <AlertCard news={mappableNews} />
+
+      {/* Recenter Button */}
       <TouchableOpacity 
         style={styles.recenterBtn}
         onPress={() => mapRef.current?.animateToRegion({ ...MYANMAR_CENTER, ...MYANMAR_DELTA }, 1000)}
       >
         <Text style={styles.recenterIcon}>🎯</Text>
       </TouchableOpacity>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -96,32 +114,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a0b',
   },
-  header: {
-    paddingTop: 50,
-    backgroundColor: 'rgba(10, 10, 11, 0.9)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  floatingHeader: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     zIndex: 10,
+    paddingTop: Platform.OS === 'android' ? 40 : 0,
+    paddingBottom: 16,
+    backgroundColor: 'rgba(10, 10, 11, 0.4)',
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    paddingHorizontal: 20,
+    marginBottom: 12,
   },
   logo: {
     fontSize: 22,
     fontWeight: '800',
     color: '#f7b731',
     letterSpacing: 1,
-  },
-  map: {
-    flex: 1,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   callout: {
     backgroundColor: 'rgba(20, 20, 25, 0.95)',
@@ -148,7 +168,7 @@ const styles = StyleSheet.create({
   },
   recenterBtn: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 180, // Moved up to not conflict with AlertCard
     right: 20,
     backgroundColor: 'rgba(20, 20, 25, 0.9)',
     width: 44,
@@ -158,6 +178,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   recenterIcon: {
     fontSize: 20,

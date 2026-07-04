@@ -1,42 +1,28 @@
-import React, { useState, useCallback, useRef } from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, TextInput, StyleSheet, TouchableOpacity, Text } from 'react-native';
 
-interface Props {
+interface SearchBarProps {
   value: string;
   onChangeText: (text: string) => void;
+  placeholder?: string;
 }
 
-export default function SearchBar({ value, onChangeText }: Props) {
-  const [localValue, setLocalValue] = useState(value);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleChange = useCallback((text: string) => {
-    setLocalValue(text);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      onChangeText(text);
-    }, 300);
-  }, [onChangeText]);
-
-  const handleClear = useCallback(() => {
-    setLocalValue('');
-    onChangeText('');
-  }, [onChangeText]);
-
+export default function SearchBar({ value, onChangeText, placeholder = "Search incidents or locations..." }: SearchBarProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.searchIcon}>🔍</Text>
+      <View style={styles.searchIconContainer}>
+        <Text style={styles.searchIcon}>🔍</Text>
+      </View>
       <TextInput
         style={styles.input}
-        placeholder="ဖြစ်စဉ် ရှာဖွေပါ..."
-        placeholderTextColor="rgba(255, 255, 255, 0.3)"
-        value={localValue}
-        onChangeText={handleChange}
-        returnKeyType="search"
-        autoCorrect={false}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="rgba(255, 255, 255, 0.4)"
+        selectionColor="#f7b731"
       />
-      {localValue.length > 0 && (
-        <TouchableOpacity onPress={handleClear} style={styles.clearBtn}>
+      {value.length > 0 && (
+        <TouchableOpacity onPress={() => onChangeText('')} style={styles.clearBtn}>
           <Text style={styles.clearText}>✕</Text>
         </TouchableOpacity>
       )}
@@ -48,29 +34,37 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(20, 20, 25, 0.85)',
-    borderRadius: 10,
-    marginHorizontal: 16,
-    marginVertical: 6,
-    paddingHorizontal: 12,
+    backgroundColor: 'rgba(25, 25, 30, 0.75)',
+    borderRadius: 25,
+    paddingHorizontal: 16,
+    height: 50,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  searchIconContainer: {
+    marginRight: 10,
   },
   searchIcon: {
-    fontSize: 16,
-    marginRight: 8,
+    fontSize: 18,
+    color: 'rgba(255, 255, 255, 0.6)',
   },
   input: {
     flex: 1,
     color: '#ffffff',
-    fontSize: 14,
-    paddingVertical: 12,
+    fontSize: 16,
+    height: '100%',
   },
   clearBtn: {
-    padding: 6,
+    padding: 8,
   },
   clearText: {
+    color: 'rgba(255, 255, 255, 0.6)',
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.4)',
   },
 });

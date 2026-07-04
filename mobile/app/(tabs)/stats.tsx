@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, Text, SafeAreaView, RefreshControl } from 'react-native';
+import { View, StyleSheet, ScrollView, Text, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNews } from '../../hooks/useNews';
 import DangerousTownships from '../../components/DangerousTownships';
 import CategoryChart from '../../components/CategoryChart';

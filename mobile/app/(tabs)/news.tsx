@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, StyleSheet, FlatList, Text, RefreshControl, SafeAreaView } from 'react-native';
+import { View, StyleSheet, FlatList, Text, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNews } from '../../hooks/useNews';
 import { useFilters } from '../../hooks/useFilters';
-import FilterBar from '../../components/FilterBar';
+import CategoryChips from '../../components/CategoryChips';
 import SearchBar from '../../components/SearchBar';
 import NewsCard from '../../components/NewsCard';
 import LoadingScreen from '../../components/LoadingScreen';
@@ -26,10 +27,12 @@ export default function NewsScreen() {
         <Text style={styles.title}>သတင်းများ</Text>
       </View>
       <SearchBar value={filters.searchQuery} onChangeText={setSearchQuery} />
-      <FilterBar
-        filters={filters}
-        onRegionChange={setRegion}
+      <CategoryChips
+        selectedCategory={filters.category}
         onCategoryChange={setCategory}
+        selectedRegion={filters.region}
+        onRegionChange={setRegion}
+        selectedDate={filters.date}
         onDateChange={setDate}
       />
       <FlatList
