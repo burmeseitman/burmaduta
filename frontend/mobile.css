@@ -317,9 +317,9 @@ body, html {
 /* Critical List */
 .critical-list {
   position: absolute;
-  top: 170px;
+  bottom: 24px;
   left: 12px;
-  width: 160px;
+  width: 170px;
   background: rgba(25, 25, 30, 0.75);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
