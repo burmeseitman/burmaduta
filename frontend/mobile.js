@@ -311,9 +311,12 @@ function updateCriticalList() {
       const dateStr = (item.publish_date || '').split('T')[0];
       const timeStr = dateStr ? dateStr.slice(-5) : '';
       
+      const locationName = item.township || item.city || item.region;
+      const displayTitle = locationName ? locationName : (item.sub_category || item.summary || 'သတင်း');
+      
       div.innerHTML = `
         <div class="critical-item-icon" style="color: ${color};">${icon}</div>
-        <div class="critical-item-text" title="${item.township || item.city || item.region || 'သတင်း'}">${item.township || item.city || item.region || 'သတင်း'}</div>
+        <div class="critical-item-text" title="${displayTitle}">${displayTitle}</div>
         <div class="critical-item-time">${timeStr}</div>
       `;
       
