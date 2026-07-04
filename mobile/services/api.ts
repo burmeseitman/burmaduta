@@ -1,8 +1,7 @@
 import { NewsItem, WeatherData } from './types';
 
-const API_BASE_URL = __DEV__
-  ? 'http://localhost:8081'
-  : 'https://api.burmaduta.com';
+// Always use production API for testing since backend is on a remote server
+const API_BASE_URL = 'https://api.burmaduta.com';
 
 const API_KEY = 'burmaduta_mobile_web_secret_2026';
 
