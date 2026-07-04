@@ -45,6 +45,24 @@ const REGIONS = [
   'ကယား', 'ကရင်', 'ချင်း', 'မွန်', 'ရခိုင်',
 ];
 
+const typeColors = {
+  စစ်ရေးသတင်း: "#e74c3c",
+  မှုခင်းသတင်း: "#9b59b6",
+  မတော်တဆဖြစ်မှု: "#f1c40f",
+  သဘာဝဘေးအန္တရာယ်: "#e67e22",
+  အထွေထွေ: "#3498db",
+  Other: "#7f8c8d",
+};
+
+const typeIcons = {
+  စစ်ရေးသတင်း: "⚔️",
+  မှုခင်းသတင်း: "🚨",
+  မတော်တဆဖြစ်မှု: "⚠️",
+  သဘာဝဘေးအန္တရာယ်: "🌊",
+  အထွေထွေ: "ℹ️",
+  Other: "📍",
+};
+
 function getLocalDateString() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -155,14 +173,17 @@ function renderMap() {
   markers.clearLayers();
   
   filteredNews.forEach(item => {
-    const isMilitary = item.crime_type === 'စစ်ရေးသတင်း';
-    const color = isMilitary ? '#e74c3c' : '#f7b731';
+    const color = typeColors[item.crime_type] || typeColors.Other;
+    const iconStr = typeIcons[item.crime_type] || typeIcons.Other;
     
     const icon = L.divIcon({
       className: 'custom-marker',
-      html: `<div class="custom-marker-dot" style="background-color: ${color};"></div>`,
-      iconSize: [14, 14],
-      iconAnchor: [7, 7]
+      html: `
+        <div style="background-color:${color}; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1.5px solid #fff; font-size:12px; position:relative; z-index:2; box-shadow: 0 0 8px ${color}80;">
+            ${iconStr}
+        </div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
     });
 
     const popupContent = `
