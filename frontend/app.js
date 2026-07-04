@@ -322,6 +322,10 @@ const timelineSlider = document.getElementById("timeline-slider");
 const timelineDateDisplay = document.getElementById("current-timeline-date");
 const timelinePrev = document.getElementById("timeline-prev");
 const timelineNext = document.getElementById("timeline-next");
+const timelinePlay = document.getElementById("timeline-play");
+
+let isPlaying = false;
+let playInterval = null;
 
 function updateTimelineDisplay(sliderValue) {
     const date = new Date();
@@ -361,6 +365,45 @@ if (timelineSlider) {
             updateTimelineDisplay(val + 1);
         }
     };
+    
+    function togglePlay() {
+        if (isPlaying) {
+            clearInterval(playInterval);
+            isPlaying = false;
+            timelinePlay.classList.remove('playing');
+            timelinePlay.innerHTML = '<i data-lucide="play"></i>';
+        } else {
+            isPlaying = true;
+            timelinePlay.classList.add('playing');
+            timelinePlay.innerHTML = '<i data-lucide="pause"></i>';
+            
+            // If already at the end, restart from beginning
+            if (parseInt(timelineSlider.value) >= 30) {
+                timelineSlider.value = 0;
+                updateTimelineDisplay(0);
+            }
+            
+            playInterval = setInterval(() => {
+                let val = parseInt(timelineSlider.value);
+                if (val < 30) {
+                    val++;
+                    timelineSlider.value = val;
+                    updateTimelineDisplay(val);
+                } else {
+                    // Stop playing when it reaches the end
+                    togglePlay();
+                }
+            }, 800); // 800ms per day
+        }
+        // Re-initialize lucide icons for the new icon
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    }
+
+    if (timelinePlay) {
+        timelinePlay.onclick = togglePlay;
+    }
 }
 function syncTimelineWithDate(newDate) {
     const today = new Date();

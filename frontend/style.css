@@ -1672,6 +1672,14 @@ footer {
   transform: translateY(-2px);
 }
 
+.play-btn.playing {
+  background: var(--primary-color);
+  color: #000;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 15px rgba(247, 183, 49, 0.4);
+}
+
+
 .timeline-btn:active {
   transform: scale(0.95);
 }
