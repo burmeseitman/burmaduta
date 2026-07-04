@@ -410,7 +410,8 @@ setTimeout(() => {
   document.getElementById('weather-temp').innerText = '32°C';
 }, 1000);
 
-// Init
+// Initialize on load
 dateChipText.innerText = formatShortDate(currentFilters.date);
 initMap();
 fetchNews();
+setInterval(fetchNews, 60000); // Live refresh every 60 seconds
