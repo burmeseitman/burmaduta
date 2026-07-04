@@ -167,6 +167,7 @@ function applyFilters() {
 
   renderMap();
   checkAlerts();
+  updateCriticalList();
 }
 
 function renderMap() {
@@ -275,6 +276,57 @@ function checkAlerts() {
   } else {
     alertCard.classList.add('hidden');
     document.body.classList.remove('alert-visible');
+  }
+}
+
+function updateCriticalList() {
+  const critical = allNews.filter(item => {
+    const text = `${item.sub_category||''} ${item.summary||''} ${item.raw_text||''}`;
+    const isAir = text.includes('လေကြောင်း') || text.includes('လေယာဉ်');
+    const isEarthquake = text.includes('ငလျင်');
+    const isDisaster = item.crime_type === 'သဘာဝဘေးအန္တရာယ်';
+    return isAir || isEarthquake || isDisaster;
+  });
+  
+  critical.sort((a, b) => new Date(b.publish_date) - new Date(a.publish_date));
+  const top5 = critical.slice(0, 5);
+  
+  const container = document.getElementById('latest-critical-list');
+  const itemsContainer = document.getElementById('critical-list-items');
+  
+  if (top5.length > 0) {
+    container.classList.remove('hidden');
+    itemsContainer.innerHTML = '';
+    
+    top5.forEach(item => {
+      const text = `${item.sub_category||''} ${item.summary||''} ${item.raw_text||''}`;
+      const isAir = text.includes('လေကြောင်း') || text.includes('လေယာဉ်');
+      
+      const icon = isAir ? '✈️' : '🌊';
+      const color = isAir ? '#ff4757' : '#ffa502';
+      
+      const div = document.createElement('div');
+      div.className = 'critical-item';
+      
+      const dateStr = (item.publish_date || '').split('T')[0];
+      const timeStr = dateStr ? dateStr.slice(-5) : '';
+      
+      div.innerHTML = `
+        <div class="critical-item-icon" style="color: ${color};">${icon}</div>
+        <div class="critical-item-text" title="${item.township || item.city || item.region || 'သတင်း'}">${item.township || item.city || item.region || 'သတင်း'}</div>
+        <div class="critical-item-time">${timeStr}</div>
+      `;
+      
+      div.onclick = () => {
+        if (item.latitude && item.longitude) {
+          map.setView([item.latitude, item.longitude], 12);
+        }
+      };
+      
+      itemsContainer.appendChild(div);
+    });
+  } else {
+    container.classList.add('hidden');
   }
 }
 

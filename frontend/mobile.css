@@ -314,6 +314,56 @@ body, html {
   bottom: 140px;
 }
 
+/* Critical List */
+.critical-list {
+  position: absolute;
+  top: 170px;
+  left: 12px;
+  width: 160px;
+  background: rgba(25, 25, 30, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 10px;
+  z-index: 500;
+  pointer-events: auto;
+}
+.critical-list-title {
+  font-size: 11px;
+  color: #ff4757;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.critical-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 11px;
+  color: rgba(255,255,255,0.85);
+  cursor: pointer;
+}
+.critical-item:last-child {
+  border-bottom: none;
+}
+.critical-item-icon {
+  font-size: 14px;
+}
+.critical-item-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.critical-item-time {
+  font-size: 9px;
+  color: rgba(255,255,255,0.4);
+}
+
 /* Modals */
 .modal-overlay {
   position: fixed;
