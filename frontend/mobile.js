@@ -84,9 +84,9 @@ function initMap() {
     iconCreateFunction: function (cluster) {
       const count = cluster.getChildCount();
       return L.divIcon({
-        html: `<div style="background-color: rgba(247, 183, 49, 0.9); color: #000; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: bold;">${count}</div>`,
+        html: `<div style="background-color: rgba(247, 183, 49, 0.9); color: #000; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px;">${count}</div>`,
         className: 'custom-cluster-icon',
-        iconSize: L.point(40, 40)
+        iconSize: L.point(28, 28)
       });
     }
   });
@@ -178,12 +178,13 @@ function renderMap() {
 
   if (heatmapToggleBtn.classList.contains('active')) {
     if (heatLayer) map.removeLayer(heatLayer);
-    const heatData = filteredNews.map(i => [i.latitude, i.longitude, 1]);
+    const heatData = filteredNews.map(i => [parseFloat(i.latitude), parseFloat(i.longitude), 0.8]);
     heatLayer = L.heatLayer(heatData, {
-      radius: 25,
-      blur: 15,
-      maxZoom: 10,
-      gradient: { 0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1.0: 'red' }
+      radius: 35,
+      blur: 20,
+      maxZoom: 14,
+      minOpacity: 0.4,
+      gradient: { 0.4: 'blue', 0.6: 'lime', 1: 'yellow' }
     });
     map.addLayer(heatLayer);
   } else {
