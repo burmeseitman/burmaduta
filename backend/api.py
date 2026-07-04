@@ -50,7 +50,9 @@ MAX_CACHE_ENTRIES = 10  # Prevent unbounded memory growth from unique cache keys
 news_cache = {}
 
 # --- API Key Authentication ---
-API_KEY = os.getenv("API_KEY", "burmaduta_mobile_web_secret_2026")
+API_KEY = os.getenv("API_KEY")
+if not API_KEY:
+    raise ValueError("FATAL ERROR: API_KEY environment variable is not set. Please set it in your .env file.")
 
 async def verify_api_key(x_api_key: str = Header(None)):
     if x_api_key != API_KEY:

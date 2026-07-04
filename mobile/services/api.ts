@@ -1,9 +1,9 @@
 import { NewsItem, WeatherData } from './types';
 
 // Always use production API for testing since backend is on a remote server
-const API_BASE_URL = 'https://api.burmaduta.com';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'https://api.burmaduta.com';
 
-const API_KEY = 'burmaduta_mobile_web_secret_2026';
+const API_KEY = process.env.EXPO_PUBLIC_API_KEY || '';
 
 const WEATHER_API_URL =
   'https://api.open-meteo.com/v1/forecast?latitude=16.8661&longitude=96.1951&current=temperature_2m,weather_code,is_day';

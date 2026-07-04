@@ -1,7 +1,6 @@
-const API_BASE_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
-    ? "http://localhost:8081" 
-    : "https://api.burmaduta.com";
-const API_KEY = "burmaduta_mobile_web_secret_2026";
+// API Configuration - URL is relative to hit the Cloudflare Functions proxy
+const API_BASE_URL = '';
+const NEWS_API_ENDPOINT = '/api/news';
 const WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast?latitude=16.8661&longitude=96.1951&current=temperature_2m,weather_code,is_day";
 
 // Weather mapping
@@ -170,7 +169,7 @@ function getSubCategoryCounts(items, mainCategory, returnAll = false) {
 
         // Fallback for raw output (only if no mainCategory and no spec matched from allowedSubs)
         if (!mainCategory && Object.keys(subCounts).length === 0) {
-            const cleaned = rawS.replace(/[{}]/g, '').split(/[,/၊]/);
+            const cleaned = rawS.replace(/[{}]/g, '').split(/[,/]/);
             cleaned.forEach(part => {
                 const s = part.trim();
                 if (!s || ["null", "none", "n/a", "undefined", "-", "မသိရ", "အခြား"].includes(s.toLowerCase())) return;
@@ -403,15 +402,12 @@ async function filterByCategory(cat) {
     updateUI();
 }
 
+// Fetch News Data from Proxy
 async function fetchNews() {
     try {
-        // Fetch 90 days to match the newly upgraded server and clustering
-        const endpoint = `${API_BASE_URL}/api/news?days=90`;
-        const response = await fetch(endpoint, {
-            headers: {
-                'X-API-Key': API_KEY
-            }
-        });
+        const days = 90;
+        const response = await fetch(`${API_BASE_URL}${NEWS_API_ENDPOINT}?days=${days}`);
+        if (!response.ok) throw new Error("Network error");
         const data = await response.json();
 
         // Strictly normalize main categories to the 5 standard keys
