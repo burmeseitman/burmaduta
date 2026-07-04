@@ -3,11 +3,11 @@ export default {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/")) {
       // Proxy to backend
-      const API_BASE_URL = env.API_BASE_URL || 'https://api.burmaduta.com';
+      const API_BASE_URL = env.API_BASE_URL;
       const API_KEY = env.API_KEY;
       
-      if (!API_KEY) {
-        return new Response('API_KEY environment variable is not configured.', { status: 500 });
+      if (!API_BASE_URL || !API_KEY) {
+        return new Response('API environment variables are not configured.', { status: 500 });
       }
       
       const backendUrl = `${API_BASE_URL}${url.pathname}${url.search}`;

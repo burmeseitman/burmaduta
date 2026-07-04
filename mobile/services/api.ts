@@ -1,7 +1,7 @@
 import { NewsItem, WeatherData } from './types';
 
 // Always use production API for testing since backend is on a remote server
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'https://api.burmaduta.com';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || '';
 
 const API_KEY = process.env.EXPO_PUBLIC_API_KEY || '';
 
