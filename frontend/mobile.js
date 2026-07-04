@@ -281,6 +281,9 @@ function checkAlerts() {
 
 function updateCriticalList() {
   const critical = allNews.filter(item => {
+    const hasLocation = item.township || item.city || item.region;
+    if (!hasLocation) return false;
+    
     const text = `${item.sub_category||''} ${item.summary||''} ${item.raw_text||''}`;
     const isAir = text.includes('လေကြောင်း') || text.includes('လေယာဉ်');
     const isEarthquake = text.includes('ငလျင်');
