@@ -35,4 +35,13 @@ appJsContent = appJsContent.replace('__INJECT_API_BASE_URL__', apiBaseUrl);
 appJsContent = appJsContent.replace('__INJECT_API_KEY__', apiKey);
 
 fs.writeFileSync(appJsPath, appJsContent);
+
+const mobileJsPath = path.join('dist', 'mobile.js');
+if (fs.existsSync(mobileJsPath)) {
+    let mobileJsContent = fs.readFileSync(mobileJsPath, 'utf8');
+    mobileJsContent = mobileJsContent.replace('__INJECT_API_BASE_URL__', apiBaseUrl);
+    mobileJsContent = mobileJsContent.replace('__INJECT_API_KEY__', apiKey);
+    fs.writeFileSync(mobileJsPath, mobileJsContent);
+    console.log('Injected environment variables into mobile.js');
+}
 console.log('Build completed successfully.');

@@ -1,4 +1,7 @@
-const API_URL = "https://api.burmaduta.com/api/news";
+// API Configuration - Injected at build time
+const API_BASE_URL = '__INJECT_API_BASE_URL__';
+const API_KEY = '__INJECT_API_KEY__';
+const API_URL = `${API_BASE_URL}/api/news`;
 
 let map;
 let markers;
@@ -99,7 +102,11 @@ function normalizeCategory(raw) {
 
 async function fetchNews() {
   try {
-    const res = await fetch(`${API_URL}?days=30`);
+    const res = await fetch(`${API_URL}?days=30`, {
+      headers: {
+        'X-API-Key': API_KEY
+      }
+    });
     const data = await res.json();
     allNews = data.map(n => ({ ...n, crime_type: normalizeCategory(n.crime_type) }));
     applyFilters();
