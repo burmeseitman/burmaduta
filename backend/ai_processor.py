@@ -262,7 +262,7 @@ class AIProcessor:
                     'တရုတ်', 'အိန္ဒိယ', 'ဘင်္ဂလားဒေ့ရှ်'
                 ]
                 
-                location_full = f"{region} {township} {city} {location_name}"
+                location_full = f"{region} {township} {city} {location_name}".lower()
                 if any(kw in location_full for kw in FOREIGN_KEYWORDS):
                     # print(f"Skipping non-Myanmar news item: {location_full}")
                     continue
