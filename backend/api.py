@@ -29,7 +29,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "")
 if not allowed_origins_str or allowed_origins_str.strip() == "*":
     print("⚠️ WARNING: ALLOWED_ORIGINS is not set or is wildcard '*'. "
-          "Set explicit origins in production (e.g., https://burmaduta.com)")
+          "Set explicit origins in production (e.g., https://example.com)")
     allowed_origins = ["*"]
 else:
     allowed_origins = [o.strip() for o in allowed_origins_str.split(",") if o.strip()]

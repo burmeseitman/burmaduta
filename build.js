@@ -26,8 +26,8 @@ copyDir('frontend', 'dist');
 const appJsPath = path.join('dist', 'app.js');
 let appJsContent = fs.readFileSync(appJsPath, 'utf8');
 
-const apiBaseUrl = process.env.API_BASE_URL || 'https://api.burmaduta.com';
-const apiKey = process.env.API_KEY || 'burmaduta_mobile_web_secret_2026';
+const apiBaseUrl = process.env.API_BASE_URL || 'https://api.example.com';
+const apiKey = process.env.API_KEY || 'your_secret_api_key_here';
 
 console.log('Injecting environment variables into app.js during build step...');
 
