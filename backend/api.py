@@ -88,9 +88,10 @@ async def get_news(request: Request, days: int = Query(default=90, ge=1, le=365)
 async def health_check(api_key: str = Depends(verify_api_key)):
     return {"status": "ok"}
 
-# Serve Frontend Files
-frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
-app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+# Root endpoint message
+@app.get("/")
+async def root():
+    return {"message": "Burma Duta API Access Restricted. Valid API Key required."}
 
 if __name__ == "__main__":
     uvicorn.run(
