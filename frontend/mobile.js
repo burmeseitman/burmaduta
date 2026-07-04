@@ -11,7 +11,7 @@ let filteredNews = [];
 let currentFilters = {
   region: 'All',
   category: 'All',
-  date: '', // Show all by default
+  date: getLocalDateString(), // Show today by default
   search: ''
 };
 
@@ -121,7 +121,7 @@ async function fetchNews() {
 function applyFilters() {
   filteredNews = allNews.filter(item => {
     // Has coordinates
-    if (!item.lat || !item.lng) return false;
+    if (!item.latitude || !item.longitude) return false;
 
     // Date filter
     const itemDate = (item.publish_date || '').split('T')[0].split(' ')[0];
@@ -169,7 +169,7 @@ function renderMap() {
       <p class="popup-text">${item.summary || item.township}</p>
     `;
 
-    L.marker([item.lat, item.lng], { icon })
+    L.marker([item.latitude, item.longitude], { icon })
       .bindPopup(popupContent)
       .addTo(markers);
   });
