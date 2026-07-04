@@ -176,12 +176,50 @@ function renderMap() {
     const color = typeColors[item.crime_type] || typeColors.Other;
     const iconStr = typeIcons[item.crime_type] || typeIcons.Other;
     
+    // Identify aircraft/airstrike for radar animation
+    let isAirstrike = item.sub_category && item.sub_category.includes("လေကြောင်းတိုက်ခိုက်မှု");
+    let isAirAlert = item.sub_category && (item.sub_category.includes("လေယာဉ်သတိပေးချက်") || item.sub_category.includes("လေကြောင်းသတိပေးချက်") || item.sub_category === "လေကြောင်း" || item.sub_category.includes("လေယာဉ်"));
+    let isAircraft = isAirstrike || isAirAlert;
+    let customIconHtml = '';
+
+    if (isAircraft) {
+      let rotation = 45; // Default flight direction
+      if (item.raw_text) {
+        const text = item.raw_text;
+        let h = null;
+        if (text.includes("မြောက်")) h = text.includes("အရှေ့") ? "northeast" : text.includes("အနောက်") ? "northwest" : "north";
+        else if (text.includes("တောင်")) h = text.includes("အရှေ့") ? "southeast" : text.includes("အနောက်") ? "southwest" : "south";
+        else if (text.includes("အရှေ့")) h = "east";
+        else if (text.includes("အနောက်")) h = "west";
+
+        const rotMap = { "north": -45, "south": 135, "east": 45, "west": 225, "northeast": 0, "northwest": -90, "southeast": 90, "southwest": 180 };
+        if (rotMap[h] !== undefined) rotation = rotMap[h];
+      }
+
+      const radarClass = isAirAlert ? "radar-ping alert" : "radar-ping";
+      const bgColor = isAirAlert ? "#f39c12" : "#c0392b";
+      const shadowColor = isAirAlert ? "rgba(243, 156, 18, 0.8)" : "rgba(192, 57, 43, 0.8)";
+
+      customIconHtml = `
+      <div class="map-marker-container radar-container" style="width:24px; height:24px;">
+          <div class="${radarClass}"></div>
+          <div style="background-color:${bgColor}; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1.5px solid #fff; font-size:12px; position:relative; z-index:2; box-shadow: 0 0 10px ${shadowColor};">
+              <span style="transform: rotate(${rotation}deg); display: inline-block;">✈️</span>
+          </div>
+      </div>`;
+    } else {
+      customIconHtml = `
+      <div class="map-marker-container" style="width:24px; height:24px;">
+          <div class="pulse-ring" style="background-color:${color};"></div>
+          <div style="background-color:${color}; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1.5px solid #fff; font-size:12px; position:relative; z-index:2;">
+              ${iconStr}
+          </div>
+      </div>`;
+    }
+    
     const icon = L.divIcon({
       className: 'custom-marker',
-      html: `
-        <div style="background-color:${color}; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1.5px solid #fff; font-size:12px; position:relative; z-index:2; box-shadow: 0 0 8px ${color}80;">
-            ${iconStr}
-        </div>`,
+      html: customIconHtml,
       iconSize: [24, 24],
       iconAnchor: [12, 12]
     });
