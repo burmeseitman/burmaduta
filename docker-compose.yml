@@ -9,6 +9,7 @@ services:
     environment:
       INTERNAL_STORE_URI: ${INTERNAL_STORE_URI}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      API_KEY: ${API_KEY}
 
   # Scraper Service
   scraper:
