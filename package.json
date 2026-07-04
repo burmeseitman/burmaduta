@@ -4,7 +4,7 @@
   "private": true,
   "description": "Burma Duta Frontend - Real-time News Map",
   "scripts": {
-    "build": "mkdir -p dist && cp -rv frontend/* dist/ && cp _worker.js dist/",
+    "build": "node build.js",
     "deploy": "wrangler deploy"
   },
   "engines": {

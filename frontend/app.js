@@ -1,6 +1,6 @@
-// API Configuration - URL is relative to hit the Cloudflare Functions proxy
-const API_BASE_URL = '';
-const NEWS_API_ENDPOINT = '/api/news';
+// API Configuration - Injected at build time
+const API_BASE_URL = '__INJECT_API_BASE_URL__';
+const API_KEY = '__INJECT_API_KEY__';
 const WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast?latitude=16.8661&longitude=96.1951&current=temperature_2m,weather_code,is_day";
 
 // Weather mapping
@@ -402,11 +402,15 @@ async function filterByCategory(cat) {
     updateUI();
 }
 
-// Fetch News Data from Proxy
+// Fetch News Data
 async function fetchNews() {
     try {
         const days = 90;
-        const response = await fetch(`${API_BASE_URL}${NEWS_API_ENDPOINT}?days=${days}`);
+        const response = await fetch(`${API_BASE_URL}/api/news?days=${days}`, {
+            headers: {
+                'X-API-Key': API_KEY
+            }
+        });
         if (!response.ok) throw new Error("Network error");
         const data = await response.json();
 
