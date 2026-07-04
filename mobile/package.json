@@ -3,6 +3,8 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@react-navigation/bottom-tabs": "^7.18.7",
+    "@react-navigation/native": "^7.3.7",
     "expo": "~57.0.2",
     "expo-constants": "~57.0.3",
     "expo-font": "~57.0.0",
