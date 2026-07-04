@@ -1,7 +1,7 @@
-from fastapi import FastAPI, Query, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Query, Request, Header, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from db_manager import DBManager
 from dotenv import load_dotenv
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -49,6 +49,14 @@ CACHE_TTL = 30       # Cache duration in seconds
 MAX_CACHE_ENTRIES = 10  # Prevent unbounded memory growth from unique cache keys
 news_cache = {}
 
+# --- API Key Authentication ---
+API_KEY = os.getenv("API_KEY", "burmaduta_mobile_web_secret_2026")
+
+async def verify_api_key(x_api_key: str = Header(None)):
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API Key")
+    return x_api_key
+
 def _evict_oldest_cache():
     """Remove the oldest cache entry if we exceed MAX_CACHE_ENTRIES."""
     while len(news_cache) > MAX_CACHE_ENTRIES:
@@ -57,7 +65,7 @@ def _evict_oldest_cache():
 
 @app.get("/api/news")
 @limiter.limit("30/minute")
-async def get_news(request: Request, days: int = Query(default=90, ge=1, le=365)):
+async def get_news(request: Request, days: int = Query(default=90, ge=1, le=365), api_key: str = Depends(verify_api_key)):
     """Fetch news events. Rate limited to 30 requests/minute per IP."""
     current_time = time.time()
     
@@ -77,7 +85,7 @@ async def get_news(request: Request, days: int = Query(default=90, ge=1, le=365)
 
 # Health check endpoint (useful for monitoring, excluded from rate limit)
 @app.get("/api/health")
-async def health_check():
+async def health_check(api_key: str = Depends(verify_api_key)):
     return {"status": "ok"}
 
 # Serve Frontend Files

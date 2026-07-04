@@ -30,8 +30,9 @@ Burma Duta is a sophisticated news intelligence platform designed to monitor pub
   <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
   <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript">
+  <img src="https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React Native">
+  <img src="https://img.shields.io/badge/Expo-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo">
   <img src="https://img.shields.io/badge/Leaflet-199903?style=for-the-badge&logo=leaflet&logoColor=white" alt="Leaflet">
-  <img src="https://img.shields.io/badge/Leaflet_Heat-FFCC00?style=for-the-badge&logo=leaflet&logoColor=black" alt="Leaflet Heatmap">
   <img src="https://img.shields.io/badge/ECharts-AA0000?style=for-the-badge&logo=apache-echarts&logoColor=white" alt="ECharts">
   <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
   <img src="https://img.shields.io/badge/Google_Gemini-8E75B2?style=for-the-badge&logo=google-gemini&logoColor=white" alt="Google Gemini AI">
@@ -49,25 +50,31 @@ graph TD
     
     D -->|REST Endpoints| E(FastAPI Backend)
     
-    F[End User] <-->|HTTPS| G[Frontend App]
-    G <-->|AJAX Calls| E
+    F[End User] <-->|HTTPS| G[Web Dashboard]
+    H[Mobile User] <-->|HTTPS| I[React Native App]
+    
+    G <-->|X-API-Key| E
+    I <-->|X-API-Key| E
     
     classDef frontend fill:#f7b731,stroke:#333,stroke-width:2px,color:#000;
+    classDef mobile fill:#00d8d6,stroke:#333,stroke-width:2px,color:#000;
     classDef backend fill:#eb3b5a,stroke:#333,stroke-width:2px,color:#fff;
     classDef database fill:#2980b9,stroke:#333,stroke-width:2px,color:#fff;
     classDef external fill:#4b6584,stroke:#333,stroke-width:2px,color:#fff;
     
     class G frontend;
+    class I mobile;
     class B,C,E backend;
     class D database;
     class A external;
 ```
 
 ### Components
-1. **Frontend**: Pure HTML5/CSS3/Vanilla JS. No complex frameworks, ensuring ultra-fast load times and zero dependency bloat.
-2. **Backend API**: Optimized FastAPI services providing efficient data retrieval with CORS support.
-3. **Scraper & AI Processor**: A dedicated worker utilizing LLM intelligence for entity recognition (Location, Event Type, Timestamp, People involved) and data cleaning.
-4. **Database**: Robust PostgreSQL schema designed for incident tracking and system-wide configuration management.
+1. **Web Dashboard**: Pure HTML5/CSS3/Vanilla JS. No complex frameworks, ensuring ultra-fast load times and zero dependency bloat.
+2. **Mobile App**: A cross-platform React Native (Expo) application providing native map experiences and on-the-go real-time notifications.
+3. **Backend API**: Optimized FastAPI services providing efficient data retrieval, secured by **API Key Authentication** to prevent public scraping.
+4. **Scraper & AI Processor**: A dedicated worker utilizing LLM intelligence for entity recognition (Location, Event Type, Timestamp, People involved) and data cleaning.
+5. **Database**: Robust PostgreSQL schema designed for incident tracking and system-wide configuration management.
 
 ## 🚀 Deployment
 
