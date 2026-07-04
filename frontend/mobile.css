@@ -32,13 +32,39 @@ body, html {
   align-items: center;
   justify-content: center;
 }
+
+.loader-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
 .loader {
-  border: 4px solid rgba(255,255,255,0.1);
-  border-top: 4px solid #f7b731;
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(247, 183, 49, 0.2);
+  border-top-color: #f7b731;
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
   animation: spin 1s linear infinite;
+}
+.loader-text {
+  font-size: 1.1rem;
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.pulse-text {
+  animation: pulse-text 2s ease-in-out infinite;
+}
+@keyframes pulse-text {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.loader-subtext {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 .hidden { display: none !important; }
