@@ -130,9 +130,12 @@ def run_forecast():
                 last_7_days_avg = df_padded.tail(7)['incident_count'].mean()
                 future_avg = sum(predictions) / len(predictions)
                 
-                if future_avg > last_7_days_avg + 0.1:
+                # Dynamic Threshold: At least 0.5 absolute avg increase (3.5 incidents/week) OR 25% increase
+                threshold = max(0.5, last_7_days_avg * 0.25)
+                
+                if future_avg > last_7_days_avg + threshold:
                     trend = 'up'
-                elif future_avg < last_7_days_avg - 0.1:
+                elif future_avg < last_7_days_avg - threshold:
                     trend = 'down'
                 else:
                     trend = 'stable'
@@ -152,9 +155,12 @@ def run_forecast():
             last_7_days_avg = df_padded.tail(7)['incident_count'].mean()
             prev_7_days_avg = df_padded.tail(14).head(7)['incident_count'].mean()
             
-            if last_7_days_avg > prev_7_days_avg + 0.05:
+            # Dynamic Threshold for Fallback
+            threshold = max(0.5, prev_7_days_avg * 0.25)
+            
+            if last_7_days_avg > prev_7_days_avg + threshold:
                 trend = 'up'
-            elif last_7_days_avg < prev_7_days_avg - 0.05:
+            elif last_7_days_avg < prev_7_days_avg - threshold:
                 trend = 'down'
             else:
                 trend = 'stable'
