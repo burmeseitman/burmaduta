@@ -7,6 +7,7 @@ from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from db_manager import DBManager
 from ai_processor import AIProcessor
+from geolocator import resolve_location
 
 load_dotenv()
 
@@ -158,6 +159,23 @@ async def process_messages_batch(messages_batch):
                         pass
                 return None
 
+            lat = safe_float(parsed_data.get('latitude'))
+            lon = safe_float(parsed_data.get('longitude'))
+            region = parsed_data.get('region')
+            township = parsed_data.get('township')
+            city = parsed_data.get('city')
+
+            # Fallback Geolocation Resolution (Solution B)
+            resolved = resolve_location(township, city, region)
+            if resolved:
+                if lat is None or lat == 0.0 or lon is None or lon == 0.0:
+                    lat = resolved["lat"]
+                    lon = resolved["lon"]
+                if not region or region == 'မသိရ':
+                    region = resolved["region"]
+                if not city or city == 'မသိရ':
+                    city = resolved["city"]
+
             save_list.append({
                 'channel_handle': orig['channel_handle'],
                 'internal_id': orig['id'],
@@ -168,12 +186,12 @@ async def process_messages_batch(messages_batch):
                 'publish_time': publish_dt.strftime('%H:%M'),
                 'event_date': parsed_data.get('event_date'),
                 'event_time': parsed_data.get('event_time'),
-                'region': parsed_data.get('region'),
-                'township': parsed_data.get('township'),
-                'city': parsed_data.get('city'),
+                'region': region,
+                'township': township,
+                'city': city,
                 'location_name': parsed_data.get('location_name'),
-                'latitude': safe_float(parsed_data.get('latitude')),
-                'longitude': safe_float(parsed_data.get('longitude')),
+                'latitude': lat,
+                'longitude': lon,
                 'sub_category': parsed_data.get('sub_category'),
                 'heading': parsed_data.get('heading'),
                 'target_location': parsed_data.get('target_location')
