@@ -633,9 +633,9 @@ class DBManager:
             events_sorted = sorted(events, key=lambda x: x.get("created_at") or 0, reverse=True)
             sliced = events_sorted[offset:offset+limit]
             if minimal:
-                # Exclude only summary and raw_text to keep popups/charts functional in mock mode
+                # Exclude only raw_text (keep summary for map popups) in mock mode
                 return [{
-                    k: v for k, v in item.items() if k not in ["summary", "raw_text"]
+                    k: v for k, v in item.items() if k not in ["raw_text"]
                 } for item in sliced]
             return sliced
 
@@ -665,10 +665,10 @@ class DBManager:
         params.append(int(offset))
 
         if minimal:
-            # Minimal query: loads in milliseconds, excluding heavy text blocks (summary and raw_text)
+            # Minimal query: loads in milliseconds, excluding heavy text blocks (raw_text) but keeps summary for UI popups
             columns = [
                 "n.id", "n.channel_handle", "n.internal_id", "n.crime_type",
-                "n.sub_category", "n.publish_date", "n.publish_time", "n.event_date",
+                "n.sub_category", "n.summary", "n.publish_date", "n.publish_time", "n.event_date",
                 "n.event_time", "n.region", "n.township", "n.city", "n.location_name",
                 "n.latitude", "n.longitude", "n.heading", "n.target_location", "n.created_at"
             ]
