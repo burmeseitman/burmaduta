@@ -513,23 +513,23 @@
   <div class="modal-overlay" id="login-modal">
     <div class="modal">
       <div class="modal-header">
-        <div class="modal-title">Sign In</div>
+        <div class="modal-title">အကောင့်ဝင်ရန်</div>
         <button class="modal-close" onclick="closeAuthModals()">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label class="form-label">Username</label>
-          <input type="text" id="login-username" class="form-input" placeholder="Enter username..." />
+          <label class="form-label">အသုံးပြုသူအမည် (Username)</label>
+          <input type="text" id="login-username" class="form-input" placeholder="အမည်ထည့်ပါ..." />
         </div>
         <div class="form-group">
-          <label class="form-label">Password</label>
-          <input type="password" id="login-password" class="form-input" placeholder="Enter password..." />
+          <label class="form-label">စကားဝှက် (Password)</label>
+          <input type="password" id="login-password" class="form-input" placeholder="စကားဝှက်ထည့်ပါ..." />
         </div>
         <div class="error-msg" id="login-error">Invalid error details</div>
-        <button class="modal-btn" onclick="handleLoginSubmit()">Sign In</button>
+        <button class="modal-btn" onclick="handleLoginSubmit()">အကောင့်ဝင်မည်</button>
       </div>
       <div class="modal-footer">
-        Don't have an account? <span class="modal-link" onclick="switchAuthModal('register')">Register here</span>
+        အကောင့်မရှိသေးဘူးလား? <span class="modal-link" onclick="switchAuthModal('register')">အကောင့်သစ်ဖွင့်မည်</span>
       </div>
     </div>
   </div>
@@ -538,23 +538,27 @@
   <div class="modal-overlay" id="register-modal">
     <div class="modal">
       <div class="modal-header">
-        <div class="modal-title">Create Account</div>
+        <div class="modal-title">အကောင့်သစ်ဖွင့်ရန်</div>
         <button class="modal-close" onclick="closeAuthModals()">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label class="form-label">Username</label>
-          <input type="text" id="register-username" class="form-input" placeholder="Letters and numbers only..." />
+          <label class="form-label">အသုံးပြုသူအမည် (Username)</label>
+          <input type="text" id="register-username" class="form-input" placeholder="အင်္ဂလိပ်စာလုံးနှင့် ဂဏန်းများသာ..." />
         </div>
         <div class="form-group">
-          <label class="form-label">Password</label>
-          <input type="password" id="register-password" class="form-input" placeholder="Min 6 characters..." />
+          <label class="form-label">စကားဝှက် (Password)</label>
+          <input type="password" id="register-password" class="form-input" placeholder="အနည်းဆုံး ၆ လုံး..." />
+        </div>
+        <div class="form-group">
+          <label class="form-label">စစ်ဆေးရန်: ၅ + ၃ = ဘယ်လောက်လဲ?</label>
+          <input type="text" id="register-bot-check" class="form-input" placeholder="အဖြေထည့်ပါ..." />
         </div>
         <div class="error-msg" id="register-error">Invalid error details</div>
-        <button class="modal-btn" onclick="handleRegisterSubmit()">Create Account</button>
+        <button class="modal-btn" onclick="handleRegisterSubmit()">အကောင့်သစ်ဖွင့်မည်</button>
       </div>
       <div class="modal-footer">
-        Already have an account? <span class="modal-link" onclick="switchAuthModal('login')">Sign in here</span>
+        အကောင့်ရှိပြီးသားလား? <span class="modal-link" onclick="switchAuthModal('login')">အကောင့်ဝင်မည်</span>
       </div>
     </div>
   </div>

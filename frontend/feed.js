@@ -135,7 +135,7 @@ async function handleLoginSubmit() {
     const password = passEl.value;
     
     if (!username || !password) {
-        errEl.innerText = "Please fill in all fields.";
+        errEl.innerText = "ကျေးဇူးပြု၍ အချက်အလက်များ အပြည့်အစုံထည့်ပါ။";
         errEl.style.display = "block";
         return;
     }
@@ -157,16 +157,16 @@ async function handleLoginSubmit() {
             currentUser = { token: data.token, username: data.username };
             closeAuthModals();
             renderAuthHeader();
-            showToast("Logged in successfully!");
+            showToast("အကောင့်ဝင်ခြင်း အောင်မြင်ပါသည်။");
             // Clear inputs
             userEl.value = "";
             passEl.value = "";
         } else {
-            errEl.innerText = data.detail || "Authentication failed.";
+            errEl.innerText = data.detail === "Invalid credentials" ? "အမည် သို့မဟုတ် စကားဝှက် မှားယွင်းနေပါသည်။" : data.detail;
             errEl.style.display = "block";
         }
     } catch (err) {
-        errEl.innerText = "Connection error. Please try again.";
+        errEl.innerText = "ကွန်ရက်ချိတ်ဆက်မှု အခက်အခဲဖြစ်နေပါသည်။ ပြန်လည်ကြိုးစားကြည့်ပါ။";
         errEl.style.display = "block";
     }
 }
@@ -174,13 +174,21 @@ async function handleLoginSubmit() {
 async function handleRegisterSubmit() {
     const userEl = document.getElementById("register-username");
     const passEl = document.getElementById("register-password");
+    const botEl = document.getElementById("register-bot-check");
     const errEl = document.getElementById("register-error");
     
     const username = userEl.value.trim();
     const password = passEl.value;
+    const botCheck = botEl ? botEl.value.trim() : "8";
     
     if (!username || !password) {
-        errEl.innerText = "Please fill in all fields.";
+        errEl.innerText = "ကျေးဇူးပြု၍ အချက်အလက်များ အပြည့်အစုံထည့်ပါ။";
+        errEl.style.display = "block";
+        return;
+    }
+    
+    if (botCheck !== "8" && botCheck !== "၈") {
+        errEl.innerText = "စစ်ဆေးရန် အဖြေမှားယွင်းနေပါသည်။ (၅ + ၃ = ၈)";
         errEl.style.display = "block";
         return;
     }
@@ -197,19 +205,17 @@ async function handleRegisterSubmit() {
         
         const data = await response.json();
         if (response.ok) {
-            showToast("Account created! Please sign in.");
+            showToast("အကောင့်ဖွင့်ခြင်း အောင်မြင်ပါပြီ! ကျေးဇူးပြု၍ အကောင့်ဝင်ပါ။");
             switchAuthModal('login');
-            // Populate login field
-            document.getElementById("login-username").value = username;
-            // Clear fields
             userEl.value = "";
             passEl.value = "";
+            if (botEl) botEl.value = "";
         } else {
-            errEl.innerText = data.detail || "Registration failed.";
+            errEl.innerText = data.detail || "အကောင့်ဖွင့်ခြင်း မအောင်မြင်ပါ။";
             errEl.style.display = "block";
         }
     } catch (err) {
-        errEl.innerText = "Connection error. Please try again.";
+        errEl.innerText = "ကွန်ရက်ချိတ်ဆက်မှု အခက်အခဲဖြစ်နေပါသည်။ ပြန်လည်ကြိုးစားကြည့်ပါ။";
         errEl.style.display = "block";
     }
 }
