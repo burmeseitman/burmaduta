@@ -8,7 +8,9 @@
 
 Burma Duta is a sophisticated news intelligence platform designed to monitor public data streams in real-time. It leverages an advanced AI-powered analytical engine to transform raw, unstructured text into categorized, geo-tagged incident reports, visualized through a high-performance interactive dashboard.
 
-![Burma Duta Dashboard Runtime](./assets/screenshot.png)
+![Burma Duta Map Dashboard](./assets/dashboard.png)
+
+![Burma Duta News Feed](./assets/newsfeed.png)
 
 ## ✨ Key Features
 
