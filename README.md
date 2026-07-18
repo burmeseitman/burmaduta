@@ -13,15 +13,16 @@ Burma Duta is a sophisticated news intelligence platform designed to monitor pub
 ## ✨ Key Features
 
 -   📡 **Real-time Multi-Channel Monitoring**: Continuously tracks diverse news sources and public announcement channels for instantaneous awareness.
--   🧠 **Advanced AI Categorization**: Implements a hierarchical classification system (Conflict, Crime, Accident, Disaster, General) with granular sub-category extraction (e.g., Airstrikes, IDPs, Robbery).
--   📍 **Intelligent Geospatial Mapping**: Automatically geocodes incident locations using both AI logic and fallback OpenStreetMap (Nominatim) integration.
--   📊 **Interactive Narrative Dashboard**: Professional-grade visualizations using ECharts, including temporal trends, category distributions, and correlation analysis (e.g., IDP vs. Conflict).
--   🔄 **Optimized AI Processing**: Features context caching for batch processing, significantly reducing latency and operational costs while maintaining high extraction accuracy.
--   🛡️ **Decoupled & Secure Architecture**: Built with a modular approach (FastAPI + Vanilla JS + PostgreSQL), featuring hardened Docker configurations with non-root execution.
+-   🧠 **Advanced AI Categorization**: Implements a hierarchical classification system (Conflict, Crime, Accident, Disaster, General) with granular sub-category extraction.
+-   🔮 **Conflict Trend Forecasting**: A time-series ML engine (Facebook Prophet) predicting conflict escalation trajectories (Up/Down/Stable) for active townships.
+-   🧲 **Semantic De-duplication**: A machine learning model (Sentence-BERT) matching semantic similarity to identify and discard duplicate incidents reported by multiple channels.
+-   📍 **Intelligent Geospatial Mapping**: Automatically geocodes incident locations using AI logic, OpenStreetMap integration, and an Offline Township Dictionary fallback.
+-   👥 **Community Collaboration**: Fully authenticated comment and discussion system for user intelligence sharing, protected by an AI-driven content moderation engine and bot-check validations.
+-   📊 **Interactive Narrative Dashboard**: Professional-grade visualizations using ECharts, including temporal trends, category distributions, and correlation analysis.
 -   🗺️ **Interactive Heatmap Layer**: Real-time visualization of incident density to identify regional hotspots.
 -   🔍 **Advanced Keyword Search**: Instant searching across incident logs and locations for rapid data retrieval.
 -   📥 **Research Data Export**: Clean CSV export of filtered data with automated column filtering for privacy.
--   🐳 **Automated Deployment**: One-command setup script for cloud environments with full Docker & Docker Compose support.
+-   🛡️ **Decoupled & Secure Architecture**: Modular approach (FastAPI + Vanilla JS + PostgreSQL) featuring PBKDF2 secure password hashing and non-root Docker execution.
 
 ## 🛠️ Technology Stack
 
