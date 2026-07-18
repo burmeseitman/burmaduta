@@ -14,6 +14,7 @@ class DBManager:
         "users": {},
         "user_sessions": {},
         "news_comments": {},
+        "conflict_forecasts": [],
         "news_events": [
             {
                 "id": 1,
@@ -270,8 +271,23 @@ class DBManager:
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_news_comments_news_id ON news_comments (news_id);")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions (token);")
                 
+                # 5. Conflict Forecasts Table
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS conflict_forecasts (
+                        id SERIAL PRIMARY KEY,
+                        township VARCHAR(255) NOT NULL,
+                        forecast_date DATE NOT NULL,
+                        predicted_count REAL NOT NULL,
+                        trend VARCHAR(50) NOT NULL,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        UNIQUE(township, forecast_date)
+                    );
+                """)
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_conflict_forecasts_township ON conflict_forecasts (township);")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_conflict_forecasts_date ON conflict_forecasts (forecast_date);")
+
                 self.conn.commit()
-                print("✅ Users, Sessions, and Comments schema ensured.")
+                print("✅ Users, Sessions, Comments, and Forecasts schema ensured.")
         except Exception as e:
             print(f"❌ Error creating tables: {e}")
             self.conn.rollback()
@@ -874,4 +890,107 @@ class DBManager:
                 return [row[0].strip() for row in rows if row[0]]
         except Exception as e:
             print(f"Error fetching monitored channels: {e}")
+            return []
+
+
+    def save_forecasts_batch(self, forecast_list):
+        """Saves or updates conflict trend predictions in batch."""
+        if self.mock_mode:
+            forecasts = DBManager._mock_data["conflict_forecasts"]
+            for item in forecast_list:
+                forecasts = [
+                    f for f in forecasts 
+                    if not (f["township"] == item["township"] and str(f["forecast_date"]) == str(item["forecast_date"]))
+                ]
+                forecasts.append(item)
+            DBManager._mock_data["conflict_forecasts"] = forecasts
+            return len(forecast_list)
+
+        self._ensure_connection()
+        if not self.conn:
+            return 0
+
+        query = """
+            INSERT INTO conflict_forecasts (township, forecast_date, predicted_count, trend)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (township, forecast_date) 
+            DO UPDATE SET 
+                predicted_count = EXCLUDED.predicted_count,
+                trend = EXCLUDED.trend,
+                created_at = NOW();
+        """
+        try:
+            with self.conn.cursor() as cur:
+                data = [
+                    (item["township"], item["forecast_date"], item["predicted_count"], item["trend"])
+                    for item in forecast_list
+                ]
+                cur.executemany(query, data)
+                self.conn.commit()
+                return len(forecast_list)
+        except Exception as e:
+            print(f"Error saving forecasts batch: {e}")
+            self.conn.rollback()
+            return 0
+
+    def get_active_forecasts(self):
+        """Fetches the latest forecasted trends for all townships."""
+        if self.mock_mode:
+            return DBManager._mock_data["conflict_forecasts"]
+
+        self._ensure_connection()
+        if not self.conn:
+            return []
+
+        query = """
+            SELECT DISTINCT ON (township, forecast_date) 
+                township, forecast_date, predicted_count, trend
+            FROM conflict_forecasts
+            WHERE forecast_date >= CURRENT_DATE
+            ORDER BY township, forecast_date, created_at DESC;
+        """
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(query)
+                return cur.fetchall()
+        except Exception as e:
+            print(f"Error fetching active forecasts: {e}")
+            self.conn.rollback()
+            return []
+
+    def get_historical_daily_counts(self, days=90):
+        """Queries daily incident counts grouped by township and event_date for time-series training."""
+        if self.mock_mode:
+            events = DBManager._mock_data["news_events"]
+            counts = {}
+            for ev in events:
+                township = ev.get("township")
+                date = ev.get("event_date")
+                if not township or not date: continue
+                key = (township, date)
+                counts[key] = counts.get(key, 0) + 1
+            
+            return [
+                {"township": k[0], "event_date": k[1], "incident_count": v}
+                for k, v in counts.items()
+            ]
+
+        self._ensure_connection()
+        if not self.conn:
+            return []
+
+        query = """
+            SELECT township, event_date, COUNT(*) as incident_count
+            FROM news_events
+            WHERE event_date >= CURRENT_DATE - INTERVAL %s AND township IS NOT NULL AND township != ''
+            GROUP BY township, event_date
+            ORDER BY township, event_date ASC;
+        """
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(query, (f"{days} days",))
+                return cur.fetchall()
+        except Exception as e:
+            print(f"Error pulling historical daily counts: {e}")
+            self.conn.rollback()
             return []

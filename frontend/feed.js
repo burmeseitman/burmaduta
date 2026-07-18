@@ -4,6 +4,7 @@ const API_KEY = '__INJECT_API_KEY__';
 
 // Global variables
 let allNewsItems = [];
+let allForecasts = [];
 let currentCategory = 'All';
 let existingIds = new Set();
 let autoPollTimer = null;
@@ -225,14 +226,28 @@ function handleLogout() {
 async function fetchNews(isInitial = false) {
     try {
         const offset = (currentPage - 1) * itemsLimit;
-        const response = await fetch(`${API_BASE_URL}/api/news?days=90&limit=${itemsLimit}&offset=${offset}`, {
-            headers: {
-                "X-API-Key": API_KEY
-            }
-        });
         
-        if (!response.ok) throw new Error("API request failed");
-        const news = await response.json();
+        // Fetch news and active forecasts in parallel
+        const [newsRes, forecastRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/api/news?days=90&limit=${itemsLimit}&offset=${offset}`, {
+                headers: { "X-API-Key": API_KEY }
+            }),
+            fetch(`${API_BASE_URL}/api/forecasts`, {
+                headers: { "X-API-Key": API_KEY }
+            }).catch(err => {
+                console.error("Forecast fetch failed in feed:", err);
+                return null;
+            })
+        ]);
+        
+        if (!newsRes.ok) throw new Error("API request failed");
+        const news = await newsRes.json();
+        
+        if (forecastRes && forecastRes.ok) {
+            allForecasts = await forecastRes.json();
+        } else {
+            allForecasts = [];
+        }
         
         allNewsItems = news;
         renderFeedList(isInitial);
@@ -309,6 +324,25 @@ function renderFeedList(isInitial = false) {
         const source = item.source_name || item.channel_handle || "Unknown source";
         const location = [item.region, item.city, item.township].filter(s => s && s !== 'မသိရ').join(', ') || 'မြန်မာ';
         
+        // Find forecast trend if available for this township
+        let trendBadge = "";
+        if (item.township) {
+            const forecast = allForecasts.find(f => {
+                const cleanName = item.township.replace(/(မြို့နယ်|မြို့)$/, "").trim();
+                const cleanF = f.township.replace(/(မြို့နယ်|မြို့)$/, "").trim();
+                return cleanF === cleanName;
+            });
+            if (forecast) {
+                if (forecast.trend === "up") {
+                    trendBadge = `<span class="trend-badge trend-up" title="Conflict Predicted to Escalate" style="color: #ff4757; font-weight: bold; margin-left: 5px; cursor: help; font-size: 0.85em;">▲ ↗</span>`;
+                } else if (forecast.trend === "down") {
+                    trendBadge = `<span class="trend-badge trend-down" title="Conflict Predicted to De-escalate" style="color: #2ed573; font-weight: bold; margin-left: 5px; cursor: help; font-size: 0.85em;">▼ ↘</span>`;
+                } else {
+                    trendBadge = `<span class="trend-badge trend-stable" title="Conflict Predicted to Remain Stable" style="color: #747d8c; font-weight: bold; margin-left: 5px; cursor: help; font-size: 0.85em;">●</span>`;
+                }
+            }
+        }
+        
         // Setup item element wrapper
         const itemEl = document.createElement("div");
         itemEl.className = "feed-item";
@@ -328,7 +362,7 @@ function renderFeedList(isInitial = false) {
                 <div class="item-meta">
                     <span class="category-badge" style="color: ${badgeColor};">${escapeHTML(item.crime_type || 'အထွေထွေ')}</span>
                     <span class="meta-separator">|</span>
-                    <span>${escapeHTML(location)}</span>
+                    <span>${escapeHTML(location)}${trendBadge}</span>
                     <span class="meta-separator">|</span>
                     <span>${escapeHTML(dateStr)} ${escapeHTML(timeStr)}</span>
                     <span class="meta-separator">|</span>

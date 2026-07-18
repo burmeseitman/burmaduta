@@ -66,6 +66,7 @@ L.control.zoom({ position: "bottomright" }).addTo(map);
 
 // Global State
 let allNewsItems = [];
+let allForecasts = [];
 let currentFilter = "All";
 let regionFilter = "All";
 let searchQuery = "";
@@ -449,14 +450,27 @@ async function filterByCategory(cat) {
 async function fetchNews() {
     try {
         const days = 90;
-        // Solution B: fetch coordinates/metadata excluding summary & raw_text for 10x faster startup
-        const response = await fetch(`${API_BASE_URL}/api/news?days=${days}&minimal=true&limit=10000`, {
-            headers: {
-                'X-API-Key': API_KEY
-            }
-        });
-        if (!response.ok) throw new Error("Network error");
-        const data = await response.json();
+        // Fetch news and active conflict forecasts concurrently to prevent page blocking
+        const [newsRes, forecastRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/api/news?days=${days}&minimal=true&limit=10000`, {
+                headers: { 'X-API-Key': API_KEY }
+            }),
+            fetch(`${API_BASE_URL}/api/forecasts`, {
+                headers: { 'X-API-Key': API_KEY }
+            }).catch(err => {
+                console.error("Forecast fetch failed:", err);
+                return null;
+            })
+        ]);
+
+        if (!newsRes.ok) throw new Error("Network error");
+        const data = await newsRes.json();
+
+        if (forecastRes && forecastRes.ok) {
+            allForecasts = await forecastRes.json();
+        } else {
+            allForecasts = [];
+        }
 
         // Strictly normalize main categories to the 5 standard keys
         allNewsItems = data.map(item => {
@@ -1357,10 +1371,29 @@ function updateDangerousTownships() {
     const maxVal = sorted[0][1]; // Highest for scaling bars
     listBody.innerHTML = sorted.map(([name, count]) => {
         const perc = (count / maxVal) * 100;
+        
+        // Find forecast trend if available (cleaning suffixes for robust matching)
+        const forecast = allForecasts.find(f => {
+            const cleanName = name.replace(/(မြို့နယ်|မြို့)$/, "").trim();
+            const cleanF = f.township.replace(/(မြို့နယ်|မြို့)$/, "").trim();
+            return cleanF === cleanName;
+        });
+
+        let trendBadge = "";
+        if (forecast) {
+            if (forecast.trend === "up") {
+                trendBadge = `<span class="trend-badge trend-up" title="Conflict Predicted to Escalate" style="color: #ff4757; margin-left: 6px; font-weight: bold; cursor: help; font-size: 0.85em;">▲ ↗</span>`;
+            } else if (forecast.trend === "down") {
+                trendBadge = `<span class="trend-badge trend-down" title="Conflict Predicted to De-escalate" style="color: #2ed573; margin-left: 6px; font-weight: bold; cursor: help; font-size: 0.85em;">▼ ↘</span>`;
+            } else {
+                trendBadge = `<span class="trend-badge trend-stable" title="Conflict Predicted to Remain Stable" style="color: #747d8c; margin-left: 6px; font-weight: bold; cursor: help; font-size: 0.85em;">●</span>`;
+            }
+        }
+
         return `
             <div class="township-stat-item">
                 <div class="township-info-row">
-                    <span class="township-name">${escapeHTML(name)}</span>
+                    <span class="township-name">${escapeHTML(name)}${trendBadge}</span>
                     <span class="township-count">${count} <span style="font-size:0.6em; opacity:0.7; font-weight:normal;">မှတ်</span></span>
                 </div>
                 <div class="danger-bar-container">

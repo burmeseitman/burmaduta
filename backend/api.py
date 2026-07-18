@@ -162,6 +162,26 @@ async def get_stats(
         
     return stats_cache[cache_key]["data"]
 
+forecasts_cache = {"data": None, "timestamp": 0}
+
+@app.get("/api/forecasts")
+@limiter.limit("30/minute")
+async def get_forecasts(
+    request: Request,
+    api_key: str = Depends(verify_api_key)
+):
+    """Fetch active conflict trend forecasts. Cached for 10 minutes."""
+    current_time = time.time()
+    
+    if (forecasts_cache["data"] is None 
+        or (current_time - forecasts_cache["timestamp"]) > 600):
+        print("🔄 Fetching fresh conflict forecasts from database...")
+        data = db.get_active_forecasts()
+        forecasts_cache["data"] = data
+        forecasts_cache["timestamp"] = current_time
+        
+    return forecasts_cache["data"]
+
 @app.post("/api/register")
 async def register(req: RegisterRequest, api_key: str = Depends(verify_api_key)):
     # Validate username/password constraints
@@ -258,6 +278,41 @@ async def health_check(api_key: str = Depends(verify_api_key)):
 @app.get("/")
 async def root():
     return {"message": "Burma Duta API Access Restricted. Valid API Key required."}
+
+if __name__ == "__main__":
+    pass
+
+# Background task to run forecaster daily at 3:00 AM Singapore Time (SGT / UTC+8)
+async def schedule_daily_forecaster():
+    """Background loop that checks SGT time hourly and triggers forecaster at 03:00 AM SGT."""
+    print("⏰ Daily Forecaster Scheduler started.")
+    while True:
+        try:
+            # Singapore Time is UTC+8
+            sgt_now = datetime.now(timezone(timedelta(hours=8)))
+            if sgt_now.hour == 3:
+                print(f"⏰ SGT time is {sgt_now.strftime('%H:%M')}. Launching Prophet conflict trend prediction calculations...")
+                from forecaster import run_forecast
+                # Run the forecasting process inside a thread executor to avoid blocking the event loop
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, run_forecast)
+                print("✅ Prophet prediction calculations completed successfully.")
+                
+                # Sleep for 1 hour + 5 minutes to prevent re-triggering during the 3 AM hour
+                await asyncio.sleep(3900)
+            else:
+                # Sleep for 15 minutes before checking time again
+                await asyncio.sleep(900)
+        except Exception as e:
+            print(f"Error in daily forecaster scheduler loop: {e}")
+            await asyncio.sleep(60)
+
+@app.on_event("startup")
+async def startup_event():
+    # Start the daily forecaster background task
+    import asyncio
+    asyncio.create_task(schedule_daily_forecaster())
+
 
 if __name__ == "__main__":
     uvicorn.run(
