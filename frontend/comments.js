@@ -181,7 +181,13 @@ function renderNewsDetails() {
     
     const rawBox = document.getElementById("news-raw-text");
     if (rawBox && currentNewsItem.raw_text) {
-        rawBox.innerText = currentNewsItem.raw_text;
+        // Solution B optimization: Remove URLs and Hashtags from rendering
+        let cleanedText = currentNewsItem.raw_text
+            .replace(/https?:\/\/\S+/gi, "")
+            .replace(/#\S+/g, "")
+            .replace(/\n\s*\n/g, "\n")
+            .trim();
+        rawBox.innerText = cleanedText;
     } else if (rawBox) {
         rawBox.style.display = "none";
     }
