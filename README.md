@@ -45,28 +45,46 @@ The project is architected for maximum flexibility. The frontend is entirely sta
 ```mermaid
 graph TD
     A[Public Data Channels] -->|Real-time feed| B(Scraper Service)
-    B -->|Batch Raw Text| C{AI Analytical Engine}
-    C -->|Structured JSON| D[(PostgreSQL Database)]
     
-    D -->|REST Endpoints| E(FastAPI Backend)
+    subgraph Scraper Pipeline
+        B -->|1. Parse Event| C{AI Analytical Engine}
+        C -->|2. Geolocation Fallback| GEO[Auto Geolocator Fallback]
+        GEO -->|3. Similarity Match| DEDUP[Semantic De-duplication Model]
+    end
     
-    F[End User] <-->|HTTPS| G[Web Dashboard]
-    H[Mobile User] <-->|HTTPS| I[React Native App]
+    DEDUP -->|Structured JSON| DB[(PostgreSQL Database)]
     
-    G <-->|X-API-Key| E
-    I <-->|X-API-Key| E
+    subgraph Background Services
+        SCHED[SGT 3:00 AM Scheduler] -->|Triggers Forecast| FORE[Prophet Trend Predictor]
+        FORE -->|Save Predictions| DB
+    end
+    
+    DB -->|REST Endpoints & Stats| API(FastAPI Backend)
+    
+    USR[End User] <-->|HTTPS| WEB[Web Dashboard]
+    MOB[Mobile User] <-->|HTTPS| APP[Mobile App]
+    
+    WEB <-->|API Key & Session Token| API
+    APP <-->|API Key & Session Token| API
+    
+    subgraph Comments & Moderation
+        API <-->|User Auth & Comments| COM[Comments System]
+        COM -->|Text Moderation| MOD[Content Moderation Engine]
+    end
     
     classDef frontend fill:#f7b731,stroke:#333,stroke-width:2px,color:#000;
     classDef mobile fill:#00d8d6,stroke:#333,stroke-width:2px,color:#000;
     classDef backend fill:#eb3b5a,stroke:#333,stroke-width:2px,color:#fff;
     classDef database fill:#2980b9,stroke:#333,stroke-width:2px,color:#fff;
     classDef external fill:#4b6584,stroke:#333,stroke-width:2px,color:#fff;
+    classDef pipeline fill:#20bf6b,stroke:#333,stroke-width:2px,color:#fff;
     
-    class G frontend;
-    class I mobile;
-    class B,C,E backend;
-    class D database;
+    class WEB frontend;
+    class APP mobile;
+    class B,C,API,FORE,SCHED,MOD,COM backend;
+    class DB database;
     class A external;
+    class GEO,DEDUP pipeline;
 ```
 
 ### Components
