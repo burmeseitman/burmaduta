@@ -181,11 +181,12 @@ function renderNewsDetails() {
     
     const rawBox = document.getElementById("news-raw-text");
     if (rawBox && currentNewsItem.raw_text) {
-        // Solution B optimization: Remove URLs, Hashtags, and "Read more" footers from rendering
+        // Solution B optimization: Remove URLs, Hashtags, the location line preceding the link, and the "Read more" footers
         let cleanedText = currentNewsItem.raw_text
             .replace(/https?:\/\/\S+/gi, "")
             .replace(/#\S+/g, "")
-            .replace(/■?\s*Read\s+more\s*(>|&gt;)+/gi, "")
+            .replace(/\n+[^\n]*\n+■?\s*Read\s+more\s*(>|&gt;)+/gi, "") // Delete the preceding line (township/location) along with the footer
+            .replace(/■?\s*Read\s+more\s*(>|&gt;)+/gi, "")             // Fallback to strip just footer if no preceding line matched
             .replace(/\n\s*\n/g, "\n")
             .trim();
         rawBox.innerText = cleanedText;
