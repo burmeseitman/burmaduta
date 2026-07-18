@@ -44,4 +44,23 @@ if (fs.existsSync(mobileJsPath)) {
     fs.writeFileSync(mobileJsPath, mobileJsContent);
     console.log('Injected environment variables into mobile.js');
 }
+
+const feedJsPath = path.join('dist', 'feed.js');
+if (fs.existsSync(feedJsPath)) {
+    let feedJsContent = fs.readFileSync(feedJsPath, 'utf8');
+    feedJsContent = feedJsContent.replace('__INJECT_API_BASE_URL__', apiBaseUrl);
+    feedJsContent = feedJsContent.replace('__INJECT_API_KEY__', apiKey);
+    fs.writeFileSync(feedJsPath, feedJsContent);
+    console.log('Injected environment variables into feed.js');
+}
+
+const commentsJsPath = path.join('dist', 'comments.js');
+if (fs.existsSync(commentsJsPath)) {
+    let commentsJsContent = fs.readFileSync(commentsJsPath, 'utf8');
+    commentsJsContent = commentsJsContent.replace('__INJECT_API_BASE_URL__', apiBaseUrl);
+    commentsJsContent = commentsJsContent.replace('__INJECT_API_KEY__', apiKey);
+    fs.writeFileSync(commentsJsPath, commentsJsContent);
+    console.log('Injected environment variables into comments.js');
+}
+
 console.log('Build completed successfully.');

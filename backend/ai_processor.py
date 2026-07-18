@@ -339,3 +339,67 @@ class AIProcessor:
             
             AIProcessor._current_cache_name = None
             return None
+
+    def moderate_comment(self, comment_text: str) -> dict:
+        """
+        Moderates a user comment for safety (hate speech, harassment, spam, explicit, dangerous).
+        Optimized to consume minimal tokens.
+        """
+        if not comment_text or not comment_text.strip():
+            return {"allowed": False, "reason": "Comment text is empty"}
+
+        # 1. Regex Pre-Filter: Simple keyword checking to save tokens
+        # Burmese common bad/harassment/slang phrases & English curse words
+        blacklist_words = [
+            # Burmese vulgarity/hate speech
+            "စောက်", "လိုး", "မအေလိုး", "ဖာသည်", "ခွေးမသား", "သေစမ်း", "ငါလိုးမ", "ဖာသယ်", "ခွေးမွေး", "စောက်ရူး", "အခြောက်", "အဖုတ်", "လီး", "စောက်ပတ်",
+            # English vulgarity/harassment/dangerous
+            "fuck", "shit", "bitch", "asshole", "kill yourself", "kys", "bastard", "dick", "pussy", "cunt", "nigger", "retard", "scam", "crypto promotion"
+        ]
+        
+        lower_comment = comment_text.lower()
+        for word in blacklist_words:
+            if word in lower_comment:
+                return {
+                    "allowed": False,
+                    "reason": f"Filtered by security policies (Hate speech/Harassment local check match: '{word}')",
+                    "category": "local_filter"
+                }
+
+        if not self.client:
+            # Fallback if no AI Client is configured (allow locally matched checks only)
+            return {"allowed": True, "reason": "Passed local validation (AI client not configured)"}
+
+        # 2. AI validation layer - highly optimized, low token usage
+        prompt = (
+            "Determine if the user comment violates policies against: hate speech, harassment, spam, explicit language, dangerous instructions, or inauthentic behaviour.\n"
+            "Respond in JSON format with exactly: {\"allowed\": true/false, \"category\": \"none/hate/harassment/spam/explicit/dangerous\", \"reason\": \"brief explanation\"}\n"
+            f"Comment: {comment_text}"
+        )
+        try:
+            # Using low token model from db or fallback
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config={
+                    'response_mime_type': 'application/json',
+                    'safety_settings': [
+                        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                    ]
+                }
+            )
+            if response and response.text:
+                res_data = json.loads(response.text.strip())
+                return {
+                    "allowed": bool(res_data.get("allowed", True)),
+                    "reason": res_data.get("reason", "Passed AI validation"),
+                    "category": res_data.get("category", "none")
+                }
+        except Exception as e:
+            print(f"Error in AI moderation: {e}")
+            
+        # Default allow if AI fails to keep app functional (unless flagged locally)
+        return {"allowed": True, "reason": "Passed validation fallback"}

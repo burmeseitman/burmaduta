@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BurmaDuta Feed Comments</title>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --primary-color: #f7b731;
+      --accent-color: #eb3b5a;
+      --bg-dark: #0a0a0b;
+      --glass-bg: rgba(20, 20, 25, 0.7);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --text-color: #ffffff;
+      --text-muted: rgba(255, 255, 255, 0.6);
+      --item-hover: rgba(255, 255, 255, 0.03);
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    
+    body {
+      background: var(--bg-dark);
+      color: var(--text-color);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1150px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      overflow: hidden;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+      padding-bottom: 24px;
+    }
+
+    header {
+      background: rgba(247, 183, 49, 0.15);
+      border-bottom: 1px solid var(--glass-border);
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-container {
+      font-weight: 800;
+      font-size: 1.15rem;
+      color: var(--primary-color);
+      text-decoration: none;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .back-btn {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-color);
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      border: 1px solid var(--glass-border);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .back-btn:hover {
+      background: var(--primary-color);
+      color: #000;
+      border-color: var(--primary-color);
+    }
+
+    .auth-badge {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Target Post Summary Details */
+    .news-detail-box {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--glass-border);
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    .news-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text-color);
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    .news-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .category-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .meta-separator {
+      color: rgba(255, 255, 255, 0.15);
+    }
+
+    .news-raw-box {
+      margin-top: 14px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--glass-border);
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.8);
+      white-space: pre-wrap;
+    }
+
+    /* Comment Form Area */
+    .comment-form-container {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .comment-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .comment-textarea {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      padding: 12px;
+      color: var(--text-color);
+      font-size: 0.95rem;
+      outline: none;
+      resize: vertical;
+      min-height: 100px;
+      transition: border-color 0.2s ease;
+    }
+
+    .comment-textarea:focus {
+      border-color: var(--primary-color);
+    }
+
+    .comment-actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .submit-btn {
+      background: var(--primary-color);
+      color: #000;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.2s ease;
+    }
+
+    .submit-btn:hover {
+      background: #e1a624;
+    }
+
+    .non-auth-prompt {
+      background: rgba(235, 59, 90, 0.08);
+      border: 1px dashed rgba(235, 59, 90, 0.3);
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.8);
+      text-align: center;
+    }
+
+    .auth-link {
+      color: var(--primary-color);
+      text-decoration: underline;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    /* Comments List Rendering */
+    .comments-section {
+      padding: 20px 24px 0 24px;
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .comment-item {
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .comment-item:last-child {
+      border-bottom: none;
+    }
+
+    .comment-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .comment-author {
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+
+    .comment-text {
+      font-size: 0.92rem;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.9);
+      white-space: pre-wrap;
+    }
+
+    .empty-comments {
+      padding: 40px 0;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .loader {
+      border: 3px solid rgba(255,255,255,0.05);
+      border-top: 3px solid var(--primary-color);
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      animation: spin 0.8s linear infinite;
+      margin: 40px auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Moderation Alert banner */
+    .mod-warning {
+      background: rgba(235, 59, 90, 0.15);
+      border: 1px solid rgba(235, 59, 90, 0.4);
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: #ff4d6d;
+      font-size: 0.85rem;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    /* Toast Notification styles */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .toast {
+      background: #1e1e24;
+      border-left: 4px solid var(--primary-color);
+      border-radius: 6px;
+      padding: 12px 18px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 280px;
+      max-width: 400px;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast.error {
+      border-left-color: var(--accent-color);
+    }
+
+    .toast-text {
+      font-size: 0.88rem;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <div class="header-left">
+        <a href="feed.html" class="logo-container">
+          <i data-lucide="newspaper"></i>
+          BurmaDuta Feed
+        </a>
+        <a href="feed.html" class="back-btn">
+          <i data-lucide="arrow-left"></i>
+          Back to Feed
+        </a>
+      </div>
+      <div class="auth-badge" id="auth-status-badge">
+        <!-- populated dynamically -->
+      </div>
+    </header>
+
+    <!-- News details view -->
+    <div id="news-details-spinner" class="loader"></div>
+    
+    <div id="news-details-content" style="display: none;">
+      <div class="news-detail-box">
+        <div class="news-title" id="news-title">Loading details...</div>
+        <div class="news-meta">
+          <span class="category-badge" id="news-category">GENERAL</span>
+          <span class="meta-separator">|</span>
+          <span id="news-location">Location</span>
+          <span class="meta-separator">|</span>
+          <span id="news-date">Date Time</span>
+          <span class="meta-separator">|</span>
+          <span id="news-source">Source</span>
+        </div>
+        <div class="news-raw-box" id="news-raw-text"></div>
+      </div>
+
+      <!-- Add Comments forms -->
+      <div class="comment-form-container">
+        <div id="comment-form-block">
+          <!-- Populated based on Auth states -->
+        </div>
+      </div>
+
+      <!-- Comments List -->
+      <div class="comments-section">
+        <div class="section-title">
+          <i data-lucide="message-square" style="width: 18px; height: 18px;"></i>
+          Opinions & Comments
+        </div>
+        
+        <div id="comments-spinner" class="loader" style="margin: 20px auto; width: 22px; height: 22px; border-width: 2px;"></div>
+        <div id="comments-list"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Toast notifications -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="comments.js"></script>
+</body>
+</html>

@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BurmaDuta New Feed</title>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --primary-color: #f7b731;
+      --accent-color: #eb3b5a;
+      --bg-dark: #0a0a0b;
+      --glass-bg: rgba(20, 20, 25, 0.7);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --text-color: #ffffff;
+      --text-muted: rgba(255, 255, 255, 0.6);
+      --item-hover: rgba(255, 255, 255, 0.03);
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    
+    body {
+      background: var(--bg-dark);
+      color: var(--text-color);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .feed-container {
+      width: 100%;
+      max-width: 1150px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      overflow: hidden;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    }
+
+    /* Header Styling modeled after HN but dark/glass */
+    header {
+      background: rgba(247, 183, 49, 0.15);
+      border-bottom: 1px solid var(--glass-border);
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-container {
+      font-weight: 800;
+      font-size: 1.15rem;
+      color: var(--primary-color);
+      text-decoration: none;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .redirect-map {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-color);
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      border: 1px solid var(--glass-border);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .redirect-map:hover {
+      background: var(--primary-color);
+      color: #000;
+      border-color: var(--primary-color);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.9rem;
+    }
+
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--primary-color);
+      font-weight: 500;
+    }
+
+    .auth-btn {
+      background: transparent;
+      border: 1px solid var(--primary-color);
+      color: var(--primary-color);
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .auth-btn:hover {
+      background: var(--primary-color);
+      color: #000;
+    }
+
+    /* Sub-header navigation filters */
+    .nav-filters {
+      background: rgba(10, 10, 11, 0.5);
+      border-bottom: 1px solid var(--glass-border);
+      padding: 8px 18px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    /* Hide scrollbar */
+    .nav-filters::-webkit-scrollbar {
+      display: none;
+    }
+
+    .filter-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .filter-btn:hover {
+      color: var(--text-color);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .filter-btn.active {
+      color: #000;
+      background: var(--primary-color);
+      font-weight: 500;
+    }
+
+    /* News items list */
+    .feed-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .feed-item {
+      padding: 6px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      transition: background 0.2s ease;
+    }
+ 
+    .feed-item:hover {
+      background: var(--item-hover);
+    }
+ 
+    .item-number {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      width: 20px;
+      text-align: right;
+      margin-top: 1px;
+    }
+ 
+    .item-main {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex-grow: 1;
+    }
+
+    .item-title-row {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .item-title {
+      font-size: 0.92rem;
+      font-weight: 500;
+      color: var(--text-color);
+      text-decoration: none;
+      line-height: 1.35;
+      cursor: pointer;
+    }
+ 
+    .item-title:hover {
+      color: var(--primary-color);
+    }
+ 
+    .item-source {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+ 
+    .item-meta {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .meta-separator {
+      color: rgba(255, 255, 255, 0.15);
+    }
+
+    .category-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .comments-link {
+      color: var(--primary-color);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .comments-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Live update flash animation */
+    @keyframes flash-new {
+      0% { background: rgba(247, 183, 49, 0.2); }
+      100% { background: transparent; }
+    }
+
+    .flash-highlight {
+      animation: flash-new 2s ease-out;
+    }
+
+    /* Modals styling */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal {
+      background: #121214;
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 400px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--glass-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.2rem;
+    }
+
+    .modal-close:hover {
+      color: var(--text-color);
+    }
+
+    .modal-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .form-input {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--glass-border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      color: var(--text-color);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .form-input:focus {
+      border-color: var(--primary-color);
+    }
+
+    .modal-btn {
+      background: var(--primary-color);
+      color: #000;
+      border: none;
+      padding: 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      margin-top: 8px;
+    }
+
+    .modal-btn:hover {
+      background: #e1a624;
+    }
+
+    .modal-footer {
+      padding: 14px 20px;
+      background: rgba(0,0,0,0.2);
+      border-top: 1px solid var(--glass-border);
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .modal-link {
+      color: var(--primary-color);
+      text-decoration: none;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .modal-link:hover {
+      text-decoration: underline;
+    }
+
+    .error-msg {
+      color: var(--accent-color);
+      font-size: 0.82rem;
+      margin-top: 4px;
+      display: none;
+    }
+
+    .empty-state {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .loader {
+      border: 3px solid rgba(255,255,255,0.05);
+      border-top: 3px solid var(--primary-color);
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      animation: spin 0.8s linear infinite;
+      margin: 40px auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Toast Notification styles */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .toast {
+      background: #1e1e24;
+      border-left: 4px solid var(--primary-color);
+      border-radius: 6px;
+      padding: 12px 18px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 280px;
+      max-width: 400px;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast.error {
+      border-left-color: var(--accent-color);
+    }
+
+    .toast-text {
+      font-size: 0.88rem;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="feed-container">
+    <header>
+      <div class="header-left">
+        <a href="feed.html" class="logo-container">
+          <i data-lucide="newspaper" style="color: var(--primary-color);"></i>
+          BurmaDuta New Feed
+        </a>
+        <!-- Redirection link back to map -->
+        <a id="btn-back-map" href="index.html" class="redirect-map">
+          <i data-lucide="map"></i>
+          မြေပုံဆီသို့
+        </a>
+      </div>
+      
+      <div class="header-right" id="auth-header-section">
+        <!-- Will be dynamically populated with user status or login btn -->
+        <div class="loader" style="margin: 0; width: 18px; height: 18px; border-width: 2px;"></div>
+      </div>
+    </header>
+
+    <!-- Top Categories Navigation Filters -->
+    <div class="nav-filters">
+      <button class="filter-btn active" data-category="All">All</button>
+      <button class="filter-btn" data-category="စစ်ရေးသတင်း">စစ်ရေးသတင်း</button>
+      <button class="filter-btn" data-category="မှုခင်းသတင်း">မှုခင်းသတင်း</button>
+      <button class="filter-btn" data-category="မတော်တဆဖြစ်မှု">မတော်တဆဖြစ်မှု</button>
+      <button class="filter-btn" data-category="သဘာဝဘေးအန္တရာယ်">သဘာဝဘေးအန္တရာယ်</button>
+      <button class="filter-btn" data-category="အထွေထွေ">အထွေထွေ</button>
+    </div>
+
+    <!-- Feed list items container -->
+    <div id="feed-spinner" class="loader"></div>
+    <div id="feed-list" class="feed-list" style="display: none;"></div>
+    
+    <!-- Hacker News style bottom navigation pagination -->
+    <div id="pagination-container" style="padding: 10px 14px; border-top: 1px solid var(--glass-border); display: none;">
+      <a id="more-news-btn" href="#" style="color: var(--primary-color); text-decoration: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+        More <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
+      </a>
+    </div>
+  </div>
+
+  <!-- Toast notifications -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Login Modal -->
+  <div class="modal-overlay" id="login-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Sign In</div>
+        <button class="modal-close" onclick="closeAuthModals()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input type="text" id="login-username" class="form-input" placeholder="Enter username..." />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="login-password" class="form-input" placeholder="Enter password..." />
+        </div>
+        <div class="error-msg" id="login-error">Invalid error details</div>
+        <button class="modal-btn" onclick="handleLoginSubmit()">Sign In</button>
+      </div>
+      <div class="modal-footer">
+        Don't have an account? <span class="modal-link" onclick="switchAuthModal('register')">Register here</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Register Modal -->
+  <div class="modal-overlay" id="register-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Create Account</div>
+        <button class="modal-close" onclick="closeAuthModals()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input type="text" id="register-username" class="form-input" placeholder="Letters and numbers only..." />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="register-password" class="form-input" placeholder="Min 6 characters..." />
+        </div>
+        <div class="error-msg" id="register-error">Invalid error details</div>
+        <button class="modal-btn" onclick="handleRegisterSubmit()">Create Account</button>
+      </div>
+      <div class="modal-footer">
+        Already have an account? <span class="modal-link" onclick="switchAuthModal('login')">Sign in here</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="feed.js"></script>
+</body>
+</html>
