@@ -10,6 +10,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from pydantic import BaseModel
 import uvicorn
+import secrets
 import os
 import time
 import uuid
@@ -71,7 +72,7 @@ def verify_password(password: str, hashed_password: str) -> bool:
     try:
         salt, hashed = hashed_password.split("$")
         check_hash = hashlib.sha256((password + salt).encode()).hexdigest()
-        return check_hash == hashed
+        return secrets.compare_digest(check_hash, hashed)
     except ValueError:
         return False
 
@@ -101,7 +102,7 @@ if not API_KEY:
     API_KEY = "your_secret_api_key_here"
 
 async def verify_api_key(x_api_key: str = Header(None)):
-    if x_api_key != API_KEY:
+    if not x_api_key or not secrets.compare_digest(x_api_key, API_KEY):
         raise HTTPException(status_code=401, detail="Invalid or missing API Key")
     return x_api_key
 
