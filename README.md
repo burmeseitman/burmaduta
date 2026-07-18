@@ -106,8 +106,8 @@ Burma Duta is designed to be deployed effortlessly on any Linux-based VPS or clo
 
 ### 1. Pre-requisites
 Ensure you have the following **private** files ready (do not commit these to source control):
--   `.env`: Containing your `DATABASE_URL` and `PROCESSOR_KEY`.
--   `sessions/burmaduta.session`: Your authenticated Telegram session file (must be inside the `sessions` directory).
+-   `.env`: Containing your `INTERNAL_STORE_URI`, `ALLOWED_ORIGINS`, and `API_KEY` (see `.env.example`).
+-   `sessions/burmaduta.session`: Your authenticated Telegram session file (must be inside the `sessions` directory if running the scraper).
 
 ### 2. Automated Installation
 Run the deployment script to prepare your server environment (Docker, Docker Compose, Swap configuration):
@@ -116,14 +116,19 @@ curl -O https://raw.githubusercontent.com/burmeseitman/burmaduta/main/deploy.sh 
 ```
 
 ### 3. Launching the Stack
-Once your configuration files are in place, start the entire ecosystem:
+Once your configuration files are in place, start the backend ecosystem:
 ```bash
 docker-compose up -d --build
 ```
 The API will be accessible at `http://[your-ip]:8081`.
 
 ### 4. Frontend Global Deployment
-For optimal performance, host the `frontend` directory on a CDN (e.g., Cloudflare Pages, Netlify). Update `frontend/app.js` with your production API URL before deployment.
+For optimal performance, host the `frontend` directory on a CDN (e.g., Cloudflare Pages, Netlify).
+Before deploying, compile the frontend to inject your API keys and Base URL securely:
+```bash
+API_BASE_URL=https://api.yourdomain.com API_KEY=your_secret_api_key node build.js
+```
+Then upload the compiled `frontend` directory to your hosting provider.
 
 ## 📄 License
 
