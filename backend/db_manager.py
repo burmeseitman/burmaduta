@@ -628,7 +628,8 @@ class DBManager:
 
     def get_all_news(self, include_raw=False, days=90, limit=30, offset=0, minimal=False):
         if self.mock_mode:
-            events = DBManager._mock_data["news_events"]
+            # Filter out items with no summary
+            events = [e for e in DBManager._mock_data["news_events"] if e.get("summary") and str(e.get("summary")).strip()]
             # Ensure sorting
             events_sorted = sorted(events, key=lambda x: x.get("created_at") or 0, reverse=True)
             sliced = events_sorted[offset:offset+limit]
@@ -655,9 +656,9 @@ class DBManager:
 
         # SECURITY FIX: Use parameterized query instead of f-string interpolation
         params = []
-        where_clause = ""
+        where_clause = "WHERE n.summary IS NOT NULL AND BTRIM(n.summary) != ''"
         if days:
-            where_clause = "WHERE n.created_at >= NOW() - INTERVAL %s"
+            where_clause += " AND n.created_at >= NOW() - INTERVAL %s"
             params.append(f"{days} days")
 
         # Append Limit and Offset parameters safely
