@@ -340,11 +340,11 @@ function renderFeedList(isInitial = false) {
             });
             if (forecast) {
                 if (forecast.trend === "up") {
-                    trendBadge = `<span class="trend-badge trend-up" title="Conflict Predicted to Escalate" style="color: #ff4757; font-weight: bold; margin-left: 5px; cursor: help; font-size: 0.85em;">▲ ↗</span>`;
+                    trendBadge = `<span class="trend-badge trend-up" title="ပဋိပက္ခ ပိုမိုဆိုးရွားလာနိုင်သည်" style="color: #ff4757; font-weight: bold; margin-left: 5px; cursor: help; font-size: 0.85em;">▲ ↗</span>`;
                 } else if (forecast.trend === "down") {
-                    trendBadge = `<span class="trend-badge trend-down" title="Conflict Predicted to De-escalate" style="color: #2ed573; font-weight: bold; margin-left: 5px; cursor: help; font-size: 0.85em;">▼ ↘</span>`;
+                    trendBadge = `<span class="trend-badge trend-down" title="ပဋိပက္ခ လျော့ကျသွားနိုင်သည်" style="color: #2ed573; font-weight: bold; margin-left: 5px; cursor: help; font-size: 0.85em;">▼ ↘</span>`;
                 } else {
-                    trendBadge = `<span class="trend-badge trend-stable" title="Conflict Predicted to Remain Stable" style="color: #747d8c; font-weight: bold; margin-left: 5px; cursor: help; font-size: 0.85em;">●</span>`;
+                    trendBadge = `<span class="trend-badge trend-stable" title="ပုံမှန်အတိုင်း ဆက်ရှိနေမည်" style="color: #747d8c; font-weight: bold; margin-left: 5px; cursor: help; font-size: 0.85em;">●</span>`;
                 }
             }
         }
