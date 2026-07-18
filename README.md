@@ -90,9 +90,12 @@ graph TD
 ### Components
 1. **Web Dashboard**: Pure HTML5/CSS3/Vanilla JS. No complex frameworks, ensuring ultra-fast load times and zero dependency bloat.
 2. **Mobile App**: A cross-platform React Native (Expo) application providing native map experiences and on-the-go real-time notifications.
-3. **Backend API**: Optimized FastAPI services providing efficient data retrieval, secured by **API Key Authentication** to prevent public scraping.
+3. **Backend API**: Optimized FastAPI services providing efficient data retrieval, secured by **API Key Authentication** to prevent public scraping. Includes a secured Comments & Moderation system.
 4. **Scraper & AI Processor**: A dedicated worker utilizing LLM intelligence for entity recognition (Location, Event Type, Timestamp, People involved) and data cleaning.
-5. **Database**: Robust PostgreSQL schema designed for incident tracking and system-wide configuration management.
+5. **Auto Geolocator**: An offline fallback system ensuring missing GPS coordinates are automatically resolved against a strict pre-compiled township dictionary.
+6. **Semantic De-duplicator**: A machine learning engine (Sentence-BERT + Jaccard fallbacks) that detects and drops duplicate incident reports across overlapping channels.
+7. **Conflict Trend Predictor**: A time-series forecasting engine (Facebook Prophet) scheduled to run nightly, calculating escalation trajectories (`up`, `down`, `stable`) for active townships.
+8. **Database**: Robust PostgreSQL schema designed for incident tracking and system-wide configuration management.
 
 ## 🚀 Deployment
 
