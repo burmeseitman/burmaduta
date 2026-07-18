@@ -181,10 +181,11 @@ function renderNewsDetails() {
     
     const rawBox = document.getElementById("news-raw-text");
     if (rawBox && currentNewsItem.raw_text) {
-        // Solution B optimization: Remove URLs and Hashtags from rendering
+        // Solution B optimization: Remove URLs, Hashtags, and "Read more" footers from rendering
         let cleanedText = currentNewsItem.raw_text
             .replace(/https?:\/\/\S+/gi, "")
             .replace(/#\S+/g, "")
+            .replace(/■?\s*Read\s+more\s*(>|&gt;)+/gi, "")
             .replace(/\n\s*\n/g, "\n")
             .trim();
         rawBox.innerText = cleanedText;
