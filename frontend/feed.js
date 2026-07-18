@@ -370,7 +370,7 @@ function renderFeedList(isInitial = false) {
                     <span class="meta-separator">|</span>
                     <span>${escapeHTML(location)}${trendBadge}</span>
                     <span class="meta-separator">|</span>
-                    <span>${escapeHTML(dateStr)} ${escapeHTML(timeStr)}</span>
+                    <span>သတင်းရက်စွဲ - ${escapeHTML(dateStr)} ${escapeHTML(timeStr)}</span>
                     <span class="meta-separator">|</span>
                     <a href="comments.html?id=${itemId}" class="comments-link">discuss/comments</a>
                 </div>
