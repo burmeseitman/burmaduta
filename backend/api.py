@@ -64,15 +64,17 @@ class CommentRequest(BaseModel):
     comment_text: str
 
 def hash_password(password: str) -> str:
-    salt = uuid.uuid4().hex
-    hashed = hashlib.sha256((password + salt).encode()).hexdigest()
-    return f"{salt}${hashed}"
+    # Use PBKDF2 with SHA256 and 600,000 iterations (OWASP recommendation)
+    salt = os.urandom(16)
+    hashed = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 600000)
+    return f"{salt.hex()}${hashed.hex()}"
 
 def verify_password(password: str, hashed_password: str) -> bool:
     try:
-        salt, hashed = hashed_password.split("$")
-        check_hash = hashlib.sha256((password + salt).encode()).hexdigest()
-        return secrets.compare_digest(check_hash, hashed)
+        salt_hex, hashed_hex = hashed_password.split("$")
+        salt = bytes.fromhex(salt_hex)
+        check_hash = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 600000)
+        return secrets.compare_digest(check_hash.hex(), hashed_hex)
     except ValueError:
         return False
 
