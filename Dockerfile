@@ -21,6 +21,9 @@ RUN groupadd -r appgroup && useradd -r -g appgroup -d /app -s /sbin/nologin appu
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Explicitly install cmdstan for Prophet (fixes stan_backend missing attribute error)
+RUN python -c "import cmdstanpy; cmdstanpy.install_cmdstan()"
+
 # Copy application code
 COPY backend ./backend
 COPY frontend ./frontend
