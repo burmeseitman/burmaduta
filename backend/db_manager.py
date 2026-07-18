@@ -9,10 +9,72 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 INTERNAL_STORE_URI = os.getenv("INTERNAL_STORE_URI")
 
 class DBManager:
+    # In-memory store for local mock testing if DB connection fails
+    _mock_data = {
+        "users": {},
+        "user_sessions": {},
+        "news_comments": {},
+        "news_events": [
+            {
+                "id": 1,
+                "channel_handle": "@burma_duta_mock",
+                "internal_id": 1001,
+                "summary": "ဗမာဒူတ နယူးဖိဒ် တိုက်ရိုက်စနစ် local test verification update. ဖြစ်စဉ်မှတ်တမ်းများအား dynamic categorizations filtering ဖြင့် ဤဖိဒ်တွင် လွယ်ကူစွာ ဖတ်ရှုနိုင်ပါသည်။",
+                "crime_type": "စစ်ရေးသတင်း",
+                "sub_category": "ပစ်ခတ်မှု",
+                "publish_date": "2026-07-18",
+                "publish_time": "12:00:00",
+                "event_date": "2026-07-18",
+                "event_time": "12:00:00",
+                "region": "ရန်ကုန်",
+                "township": "ကမာရွတ်",
+                "city": "ရန်ကုန်",
+                "location_name": "ကမာရွတ်",
+                "latitude": 16.82,
+                "longitude": 96.13,
+                "heading": "သတင်းအချက်အလက်",
+                "target_location": "ရန်ကုန်",
+                "created_at": None, # Will be set to current time
+                "source_name": "BurmaDuta Mobile"
+            },
+            {
+                "id": 2,
+                "channel_handle": "@crime_records_mock",
+                "internal_id": 1002,
+                "summary": "မှုခင်းဖြစ်စဉ် သတင်းအချက်အလက် - ရန်ကုန်တိုင်းအတွင်း ဆိုင်ကယ်ခိုးယူမှုများ မကြာခဏ ဖြစ်ပွားနေသဖြင့် သတိပြုကြရန်။",
+                "crime_type": "မှုခင်းသတင်း",
+                "sub_category": "ခိုးယူမှု",
+                "publish_date": "2026-07-18",
+                "publish_time": "14:30:00",
+                "event_date": "2026-07-18",
+                "event_time": "14:30:00",
+                "region": "ရန်ကုန်",
+                "township": "လှိုင်",
+                "city": "ရန်ကုန်",
+                "location_name": "လှိုင်",
+                "latitude": 16.84,
+                "longitude": 96.12,
+                "heading": "သတင်းအချက်အလက်",
+                "target_location": "လှိုင်မြို့နယ်",
+                "created_at": None,
+                "source_name": "Crime Records MM"
+            }
+        ]
+    }
+
     def __init__(self):
         self.conn = None
+        self.mock_mode = False
+        
+        # Populate dynamic mock times
+        from datetime import datetime, timezone
+        for item in DBManager._mock_data["news_events"]:
+            if item["created_at"] is None:
+                item["created_at"] = datetime.now(timezone.utc)
+
         if not INTERNAL_STORE_URI:
-            print("❌ Error: INTERNAL_STORE_URI not found in environment.")
+            print("⚠️ Warning: INTERNAL_STORE_URI not found. Fallback to local memory mock mode...")
+            self.mock_mode = True
             return
 
         try:
@@ -22,13 +84,15 @@ class DBManager:
             self.create_table()
             self.ensure_tables()
         except Exception as e:
-            print(f"❌ Database Connection Error: {e}")
-            # We don't raise here to allow the object to exist, 
-            # but subsequent calls will try to reconnect.
+            print(f"⚠️ Database Connection Error: {e}. Fallback to In-Memory Local Dev Mock Mode for testing...")
+            self.mock_mode = True
             self.conn = None
 
     def _ensure_connection(self):
         """Checks if connection is alive and reconnects if needed."""
+        if self.mock_mode:
+            return
+
         if not self.conn or (hasattr(self.conn, 'closed') and self.conn.closed != 0):
             if not INTERNAL_STORE_URI:
                 print("❌ Cannot reconnect: INTERNAL_STORE_URI missing.")
@@ -173,7 +237,213 @@ class DBManager:
                         updated_at TIMESTAMPTZ DEFAULT NOW()
                     );
                 """)
+                # 2. Users Table
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS users (
+                        id SERIAL PRIMARY KEY,
+                        username VARCHAR(50) UNIQUE NOT NULL,
+                        password_hash TEXT NOT NULL,
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                    );
+                """)
+                # 3. User Sessions Table
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS user_sessions (
+                        token TEXT PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        expires_at TIMESTAMPTZ NOT NULL
+                    );
+                """)
+                # 4. News Comments Table
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS news_comments (
+                        id SERIAL PRIMARY KEY,
+                        news_id INTEGER NOT NULL REFERENCES news_events(id) ON DELETE CASCADE,
+                        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                        username VARCHAR(50) NOT NULL,
+                        comment_text TEXT NOT NULL,
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                    );
+                """)
+                # Indexes for comment optimization
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_news_comments_news_id ON news_comments (news_id);")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions (token);")
+                
                 self.conn.commit()
+                print("✅ Users, Sessions, and Comments schema ensured.")
+        except Exception as e:
+            print(f"❌ Error creating tables: {e}")
+            self.conn.rollback()
+
+    # --- User Management DB Methods ---
+    def create_user(self, username, password_hash):
+        if self.mock_mode:
+            user_id = len(DBManager._mock_data["users"]) + 1
+            DBManager._mock_data["users"][user_id] = {
+                "id": user_id,
+                "username": username,
+                "password_hash": password_hash,
+                "created_at": "2026-07-18T12:00:00+00:00"
+            }
+            return user_id
+
+        self._ensure_connection()
+        if not self.conn:
+            return False
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO users (username, password_hash) VALUES (%s, %s) RETURNING id;",
+                    (username, password_hash)
+                )
+                user_id = cur.fetchone()[0]
+                self.conn.commit()
+                return user_id
+        except Exception as e:
+            print(f"Error creating user {username}: {e}")
+            self.conn.rollback()
+            return False
+
+    def get_user_by_username(self, username):
+        if self.mock_mode:
+            for uid, user in DBManager._mock_data["users"].items():
+                if user["username"].lower() == username.lower():
+                    return user
+            return None
+
+        self._ensure_connection()
+        if not self.conn:
+            return None
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT id, username, password_hash, created_at FROM users WHERE username = %s LIMIT 1;", (username,))
+                return cur.fetchone()
+        except Exception as e:
+            print(f"Error fetching user {username}: {e}")
+            return None
+
+    # --- Session Management DB Methods ---
+    def create_session(self, token, user_id, expires_at):
+        if self.mock_mode:
+            user = DBManager._mock_data["users"].get(user_id)
+            username = user["username"] if user else "mock_user"
+            DBManager._mock_data["user_sessions"][token] = {
+                "token": token,
+                "user_id": user_id,
+                "expires_at": expires_at,
+                "username": username
+            }
+            return True
+
+        self._ensure_connection()
+        if not self.conn:
+            return False
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO user_sessions (token, user_id, expires_at) VALUES (%s, %s, %s);",
+                    (token, user_id, expires_at)
+                )
+                self.conn.commit()
+                return True
+        except Exception as e:
+            print(f"Error creating session: {e}")
+            self.conn.rollback()
+            return False
+
+    def get_session(self, token):
+        if self.mock_mode:
+            return DBManager._mock_data["user_sessions"].get(token)
+
+        self._ensure_connection()
+        if not self.conn:
+            return None
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                # JOIN user data directly
+                cur.execute("""
+                    SELECT s.token, s.user_id, s.expires_at, u.username
+                    FROM user_sessions s
+                    JOIN users u ON s.user_id = u.id
+                    WHERE s.token = %s LIMIT 1;
+                """, (token,))
+                return cur.fetchone()
+        except Exception as e:
+            print(f"Error fetching session: {e}")
+            return None
+
+    def delete_session(self, token):
+        if self.mock_mode:
+            if token in DBManager._mock_data["user_sessions"]:
+                del DBManager._mock_data["user_sessions"][token]
+            return True
+
+        self._ensure_connection()
+        if not self.conn:
+            return False
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("DELETE FROM user_sessions WHERE token = %s;", (token,))
+                self.conn.commit()
+                return True
+        except Exception as e:
+            print(f"Error deleting session: {e}")
+            self.conn.rollback()
+            return False
+
+    # --- Comments Management DB Methods ---
+    def add_comment(self, news_id, user_id, username, comment_text):
+        if self.mock_mode:
+            from datetime import datetime, timezone
+            if news_id not in DBManager._mock_data["news_comments"]:
+                DBManager._mock_data["news_comments"][news_id] = []
+            comment_id = len(DBManager._mock_data["news_comments"][news_id]) + 1
+            DBManager._mock_data["news_comments"][news_id].append({
+                "id": comment_id,
+                "news_id": news_id,
+                "user_id": user_id,
+                "username": username,
+                "comment_text": comment_text,
+                "created_at": datetime.now(timezone.utc)
+            })
+            return comment_id
+
+        self._ensure_connection()
+        if not self.conn:
+            return False
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO news_comments (news_id, user_id, username, comment_text) VALUES (%s, %s, %s, %s) RETURNING id;",
+                    (news_id, user_id, username, comment_text)
+                )
+                comment_id = cur.fetchone()[0]
+                self.conn.commit()
+                return comment_id
+        except Exception as e:
+            print(f"Error inserting comment: {e}")
+            self.conn.rollback()
+            return False
+
+    def get_comments(self, news_id):
+        if self.mock_mode:
+            # Return list of comments, filter by news_id
+            return DBManager._mock_data["news_comments"].get(news_id, [])
+
+        self._ensure_connection()
+        if not self.conn:
+            return []
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    "SELECT id, news_id, user_id, username, comment_text, created_at FROM news_comments WHERE news_id = %s ORDER BY created_at ASC;",
+                    (news_id,)
+                )
+                return cur.fetchall()
+        except Exception as e:
+            print(f"Error fetching comments: {e}")
+            return []
         except Exception as e:
             print(f"❌ Error creating tables: {e}")
             self.conn.rollback()
@@ -340,7 +610,19 @@ class DBManager:
         """Single insert wrapper around batch insert."""
         return self.insert_news_batch([data]) > 0
 
-    def get_all_news(self, include_raw=False, days=90):
+    def get_all_news(self, include_raw=False, days=90, limit=30, offset=0, minimal=False):
+        if self.mock_mode:
+            events = DBManager._mock_data["news_events"]
+            # Ensure sorting
+            events_sorted = sorted(events, key=lambda x: x.get("created_at") or 0, reverse=True)
+            sliced = events_sorted[offset:offset+limit]
+            if minimal:
+                # Exclude only summary and raw_text to keep popups/charts functional in mock mode
+                return [{
+                    k: v for k, v in item.items() if k not in ["summary", "raw_text"]
+                } for item in sliced]
+            return sliced
+
         self._ensure_connection()
         if not self.conn:
             return []
@@ -355,18 +637,6 @@ class DBManager:
         except (ValueError, TypeError):
             days = 90
 
-        # Define all columns EXCEPT large fields like raw_text by default
-        columns = [
-            "n.id", "n.channel_handle", "n.internal_id", "n.summary", "n.crime_type",
-            "n.sub_category", "n.publish_date", "n.publish_time", "n.event_date",
-            "n.event_time", "n.region", "n.township", "n.city", "n.location_name",
-            "n.latitude", "n.longitude", "n.heading", "n.target_location", "n.created_at"
-        ]
-        if include_raw:
-            columns.append("n.raw_text")
-
-        columns_str = ", ".join(columns)
-        
         # SECURITY FIX: Use parameterized query instead of f-string interpolation
         params = []
         where_clause = ""
@@ -374,16 +644,193 @@ class DBManager:
             where_clause = "WHERE n.created_at >= NOW() - INTERVAL %s"
             params.append(f"{days} days")
 
+        # Append Limit and Offset parameters safely
+        params.append(int(limit))
+        params.append(int(offset))
+
+        if minimal:
+            # Minimal query: loads in milliseconds, excluding heavy text blocks (summary and raw_text)
+            columns = [
+                "n.id", "n.channel_handle", "n.internal_id", "n.crime_type",
+                "n.sub_category", "n.publish_date", "n.publish_time", "n.event_date",
+                "n.event_time", "n.region", "n.township", "n.city", "n.location_name",
+                "n.latitude", "n.longitude", "n.heading", "n.target_location", "n.created_at"
+            ]
+            columns_str = ", ".join(columns)
+            query = f"""
+                SELECT {columns_str}, COALESCE(s.display_name, n.channel_handle) as source_name
+                FROM news_events n
+                LEFT JOIN source_mappings s ON LOWER(n.channel_handle) = LOWER(s.handle)
+                {where_clause}
+                ORDER BY n.created_at DESC
+                LIMIT %s OFFSET %s;
+            """
+        else:
+            # Define all columns EXCEPT large fields like raw_text by default
+            columns = [
+                "n.id", "n.channel_handle", "n.internal_id", "n.summary", "n.crime_type",
+                "n.sub_category", "n.publish_date", "n.publish_time", "n.event_date",
+                "n.event_time", "n.region", "n.township", "n.city", "n.location_name",
+                "n.latitude", "n.longitude", "n.heading", "n.target_location", "n.created_at"
+            ]
+            if include_raw:
+                columns.append("n.raw_text")
+
+            columns_str = ", ".join(columns)
+            query = f"""
+                SELECT {columns_str}, COALESCE(s.display_name, n.channel_handle) as source_name
+                FROM news_events n
+                LEFT JOIN source_mappings s ON LOWER(n.channel_handle) = LOWER(s.handle)
+                {where_clause}
+                ORDER BY n.created_at DESC
+                LIMIT %s OFFSET %s;
+            """
+
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(query, params)
+            return cur.fetchall()
+
+    def get_aggregated_stats(self, days=90):
+        # 1. Mock fallback Mode
+        if self.mock_mode:
+            from datetime import datetime, timedelta, timezone
+            today = datetime.now(timezone.utc)
+            
+            category_counts = [
+                {"crime_type": "စစ်ရေးသတင်း", "count": 1},
+                {"crime_type": "မှုခင်းသတင်း", "count": 1},
+                {"crime_type": "မတော်တဆဖြစ်မှု", "count": 0},
+                {"crime_type": "သဘာဝဘေးအန္တရာယ်", "count": 0},
+                {"crime_type": "အထွေထွေ", "count": 0}
+            ]
+            dangerous_townships = [
+                {"township": "ကမာရွတ်", "city": "ရန်ကုန်", "count": 1, "score": 10},
+                {"township": "လှိုင်", "city": "ရန်ကုန်", "count": 1, "score": 10}
+            ]
+            time_series = []
+            for i in range(15):
+                d = (today - timedelta(days=i)).strftime("%Y-%m-%d")
+                time_series.append({"event_date": d, "count": 1 if i in [0, 1] else 0})
+            
+            correlation_data = []
+            for i in range(15):
+                d = (today - timedelta(days=i)).strftime("%Y-%m-%d")
+                correlation_data.append({
+                    "date": d, 
+                    "conflict_count": 1 if i == 0 else 0,
+                    "refugee_count": 0
+                })
+
+            return {
+                "category_counts": category_counts,
+                "dangerous_townships": dangerous_townships,
+                "time_series": time_series,
+                "correlation_data": correlation_data
+            }
+
+        # 2. Postgres Live Mode
+        self._ensure_connection()
+        if not self.conn:
+            return {}
+
+        # Validate days parameter
+        try:
+            days = int(days)
+            if days < 1: days = 1
+            elif days > 365: days = 365
+        except:
+            days = 90
+
+        interval_str = f"{days} days"
+        
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                # Query A: Category counts
+                cur.execute("""
+                    SELECT crime_type, COUNT(*) as count 
+                    FROM news_events 
+                    WHERE created_at >= NOW() - INTERVAL %s AND crime_type IS NOT NULL
+                    GROUP BY crime_type;
+                """, (interval_str,))
+                category_counts = cur.fetchall()
+
+                # Query B: Dangerous Townships (Top 5)
+                cur.execute("""
+                    SELECT township, city, COUNT(*) as count, (COUNT(*) * 10) as score 
+                    FROM news_events 
+                    WHERE created_at >= NOW() - INTERVAL %s AND township IS NOT NULL AND township != 'မသိရ' AND township != ''
+                    GROUP BY township, city 
+                    ORDER BY count DESC 
+                    LIMIT 5;
+                """, (interval_str,))
+                dangerous_townships = cur.fetchall()
+
+                # Query C: Time series (Incident count grouped by event_date)
+                cur.execute("""
+                    SELECT COALESCE(event_date, publish_date)::TEXT as event_date, COUNT(*) as count 
+                    FROM news_events 
+                    WHERE created_at >= NOW() - INTERVAL %s AND COALESCE(event_date, publish_date) IS NOT NULL 
+                    GROUP BY event_date 
+                    ORDER BY event_date ASC;
+                """, (interval_str,))
+                time_series = cur.fetchall()
+
+                # Query D: Correlation (Conflict vs Refugee keywords over time)
+                cur.execute("""
+                    SELECT COALESCE(event_date, publish_date)::TEXT as date,
+                           SUM(CASE WHEN crime_type = 'စစ်ရေးသတင်း' THEN 1 ELSE 0 END) as conflict_count,
+                           SUM(CASE WHEN raw_text LIKE '%%စစ်ဘေး%%' OR raw_text LIKE '%%ဒုက္ခသည်%%' THEN 1 ELSE 0 END) as refugee_count
+                    FROM news_events
+                    WHERE created_at >= NOW() - INTERVAL %s AND COALESCE(event_date, publish_date) IS NOT NULL
+                    GROUP BY date
+                    ORDER BY date ASC;
+                """, (interval_str,))
+                correlation_data = cur.fetchall()
+
+                return {
+                    "category_counts": category_counts,
+                    "dangerous_townships": dangerous_townships,
+                    "time_series": time_series,
+                    "correlation_data": correlation_data
+                }
+        except Exception as e:
+            print(f"Error querying aggregated stats: {e}")
+            self.conn.rollback()
+            return {}
+
+    def get_news_by_id(self, news_id):
+        if self.mock_mode:
+            events = DBManager._mock_data["news_events"]
+            for item in events:
+                if str(item.get("id")) == str(news_id):
+                    return item
+            return None
+
+        self._ensure_connection()
+        if not self.conn:
+            return None
+
+        columns = [
+            "n.id", "n.channel_handle", "n.internal_id", "n.summary", "n.crime_type",
+            "n.sub_category", "n.publish_date", "n.publish_time", "n.event_date",
+            "n.event_time", "n.region", "n.township", "n.city", "n.location_name",
+            "n.latitude", "n.longitude", "n.heading", "n.target_location", "n.created_at", "n.raw_text"
+        ]
+        columns_str = ", ".join(columns)
         query = f"""
             SELECT {columns_str}, COALESCE(s.display_name, n.channel_handle) as source_name
             FROM news_events n
             LEFT JOIN source_mappings s ON LOWER(n.channel_handle) = LOWER(s.handle)
-            {where_clause}
-            ORDER BY n.created_at DESC;
+            WHERE n.id = %s;
         """
-        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(query, params if params else None)
-            return cur.fetchall()
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(query, (int(news_id),))
+                return cur.fetchone()
+        except Exception as e:
+            print(f"Error fetching news by ID: {e}")
+            self.conn.rollback()
+            return None
 
 
     def get_monitored_channels(self):

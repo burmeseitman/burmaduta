@@ -123,7 +123,7 @@ function normalizeCategory(raw) {
 
 async function fetchNews() {
   try {
-    const res = await fetch(`${API_URL}?days=30`, {
+    const res = await fetch(`${API_URL}?days=30&minimal=true&limit=10000`, {
       headers: {
         'X-API-Key': API_KEY
       }

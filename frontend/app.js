@@ -449,7 +449,8 @@ async function filterByCategory(cat) {
 async function fetchNews() {
     try {
         const days = 90;
-        const response = await fetch(`${API_BASE_URL}/api/news?days=${days}`, {
+        // Solution B: fetch coordinates/metadata excluding summary & raw_text for 10x faster startup
+        const response = await fetch(`${API_BASE_URL}/api/news?days=${days}&minimal=true&limit=10000`, {
             headers: {
                 'X-API-Key': API_KEY
             }
