@@ -833,6 +833,34 @@ class DBManager:
             return None
 
 
+    def get_recent_news_by_township(self, township, hours=24):
+        if self.mock_mode:
+            events = DBManager._mock_data["news_events"]
+            candidates = [
+                item for item in events 
+                if item.get("township") == township
+            ]
+            return candidates
+
+        self._ensure_connection()
+        if not self.conn:
+            return []
+
+        query = """
+            SELECT id, summary, raw_text, township, created_at
+            FROM news_events
+            WHERE township = %s AND created_at >= NOW() - INTERVAL %s;
+        """
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(query, (township, f"{hours} hours"))
+                return cur.fetchall()
+        except Exception as e:
+            print(f"Error fetching candidates for deduplication: {e}")
+            self.conn.rollback()
+            return []
+
+
     def get_monitored_channels(self):
         """Fetches all channel handles from source_mappings table to use as INPUT_CHANNELS."""
         self._ensure_connection()

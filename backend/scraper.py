@@ -8,10 +8,12 @@ from dotenv import load_dotenv
 from db_manager import DBManager
 from ai_processor import AIProcessor
 from geolocator import resolve_location
+from deduplicator import NewsDeduplicator
 
 load_dotenv()
 
 db = DBManager()
+deduplicator = NewsDeduplicator()
 
 # Global placeholders - will be initialized in main()
 client = None
@@ -175,6 +177,24 @@ async def process_messages_batch(messages_batch):
                     region = resolved["region"]
                 if not city or city == 'မသိရ':
                     city = resolved["city"]
+
+            # SEMANTIC DE-DUPLICATION CHECK:
+            is_semantic_duplicate = False
+            if township:
+                candidates = db.get_recent_news_by_township(township, hours=24)
+                new_summary = parsed_data.get('summary') or orig['text']
+                
+                for cand in candidates:
+                    cand_summary = cand.get('summary') or cand.get('raw_text') or ""
+                    # Calculate similarity score
+                    score = deduplicator.get_similarity_score(new_summary, cand_summary)
+                    if score > 0.85:
+                        print(f"⚠️ Semantic duplicate detected (similarity={score:.2f}) between msg {orig['id']} and database news {cand['id']}. Skipping.")
+                        is_semantic_duplicate = True
+                        break
+
+            if is_semantic_duplicate:
+                continue
 
             save_list.append({
                 'channel_handle': orig['channel_handle'],
