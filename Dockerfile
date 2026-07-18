@@ -17,12 +17,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create a non-root user for security
 RUN groupadd -r appgroup && useradd -r -g appgroup -d /app -s /sbin/nologin appuser
 
+# Pre-install cmdstanpy and cmdstan to ensure prophet can build its backend
+RUN pip install --no-cache-dir cmdstanpy==1.2.2
+RUN python -c "import cmdstanpy; cmdstanpy.install_cmdstan()"
+
 # Install Python dependencies
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Explicitly install cmdstan for Prophet (fixes stan_backend missing attribute error)
-RUN python -c "import cmdstanpy; cmdstanpy.install_cmdstan()"
 
 # Copy application code
 COPY backend ./backend
