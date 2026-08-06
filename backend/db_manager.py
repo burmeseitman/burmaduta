@@ -919,6 +919,7 @@ class DBManager:
                 created_at = NOW();
         """
         try:
+            print(f"💾 Saving {len(forecast_list)} forecast points to database via bulk insert...")
             from psycopg2.extras import execute_values
             with self.conn.cursor() as cur:
                 data = [
