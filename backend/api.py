@@ -1,5 +1,3 @@
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
 from fastapi import FastAPI, Query, Request, Header, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from db_manager import DBManager
@@ -9,6 +7,9 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from pydantic import BaseModel
+from contextlib import asynccontextmanager
+import config
+import asyncio
 import uvicorn
 import secrets
 import os
@@ -17,28 +18,50 @@ import uuid
 import hashlib
 from datetime import datetime, timedelta, timezone
 
-# Load environment variables
+# Load environment variables (config also loads .env; this is idempotent)
 load_dotenv()
+
+# Validate the environment before anything binds a port. Missing secrets used to
+# degrade silently into a public placeholder key and wildcard CORS; now they stop
+# the process. Pre-flight the same checks with: python backend/config.py
+config.enforce()
 
 # --- Rate Limiter Setup ---
 limiter = Limiter(key_func=get_remote_address)
+
+# Prophet forecasting runs in-process and is memory hungry. Keep it opt-in so a
+# constrained host can run the API without it. See schedule_daily_forecaster below.
+FORECAST_SCHEDULER_ENABLED = config.FORECAST_SCHEDULER_ENABLED
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = None
+    if FORECAST_SCHEDULER_ENABLED:
+        task = asyncio.create_task(schedule_daily_forecaster())
+    else:
+        print("ℹ️ Daily forecaster scheduler disabled (set FORECAST_SCHEDULER_ENABLED=true to enable).")
+
+    yield
+
+    if task:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 app = FastAPI(
     title="Burma Duta API",
     docs_url=None,   # Disable Swagger UI in production
     redoc_url=None,  # Disable ReDoc in production
+    lifespan=lifespan,
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # --- CORS Configuration (Hardened) ---
-allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "")
-if not allowed_origins_str or allowed_origins_str.strip() == "*":
-    print("⚠️ WARNING: ALLOWED_ORIGINS is not set or is wildcard '*'. "
-          "Set explicit origins in production (e.g., https://example.com)")
-    allowed_origins = ["*"]
-else:
-    allowed_origins = [o.strip() for o in allowed_origins_str.split(",") if o.strip()]
+# Validated in config.enforce(): guaranteed non-empty and wildcard-free by here.
+allowed_origins = config.ALLOWED_ORIGINS
 
 app.add_middleware(
     CORSMiddleware,
@@ -98,10 +121,8 @@ MAX_CACHE_ENTRIES = 10  # Prevent unbounded memory growth from unique cache keys
 news_cache = {}
 
 # --- API Key Authentication ---
-API_KEY = os.getenv("API_KEY")
-if not API_KEY:
-    print("⚠️ Warning: API_KEY environment variable is not set. Fallback to mock API Key: 'your_secret_api_key_here'")
-    API_KEY = "your_secret_api_key_here"
+# Validated in config.enforce(): guaranteed present, non-placeholder, long enough.
+API_KEY = config.API_KEY
 
 async def verify_api_key(x_api_key: str = Header(None)):
     if not x_api_key or not secrets.compare_digest(x_api_key, API_KEY):
@@ -185,8 +206,13 @@ async def get_forecasts(
         
     return forecasts_cache["data"]
 
+# Auth limits guard two things: credential stuffing, and CPU. hash_password and
+# verify_password each run 600k PBKDF2 iterations, so unthrottled attempts also
+# starve the single blocking worker. Tune with care — Myanmar mobile carriers use
+# CGNAT, so many real users can share one source address.
 @app.post("/api/register")
-async def register(req: RegisterRequest, api_key: str = Depends(verify_api_key)):
+@limiter.limit("20/hour")
+async def register(request: Request, req: RegisterRequest, api_key: str = Depends(verify_api_key)):
     # Validate username/password constraints
     username_cleaned = req.username.strip()
     if len(username_cleaned) < 3 or len(username_cleaned) > 20:
@@ -209,7 +235,8 @@ async def register(req: RegisterRequest, api_key: str = Depends(verify_api_key))
     return {"message": "User registered successfully", "user_id": user_id}
 
 @app.post("/api/login")
-async def login(req: LoginRequest, api_key: str = Depends(verify_api_key)):
+@limiter.limit("10/minute")
+async def login(request: Request, req: LoginRequest, api_key: str = Depends(verify_api_key)):
     username_cleaned = req.username.strip()
     user = db.get_user_by_username(username_cleaned)
     if not user:
@@ -229,11 +256,13 @@ async def login(req: LoginRequest, api_key: str = Depends(verify_api_key)):
     return {"token": token, "username": user["username"], "message": "Login successful"}
 
 @app.get("/api/auth/me")
-async def auth_me(current_user: dict = Depends(get_current_user), api_key: str = Depends(verify_api_key)):
+@limiter.limit("60/minute")
+async def auth_me(request: Request, current_user: dict = Depends(get_current_user), api_key: str = Depends(verify_api_key)):
     return {"id": current_user["user_id"], "username": current_user["username"]}
 
 @app.get("/api/news/{news_id}/comments")
-async def get_comments(news_id: int, api_key: str = Depends(verify_api_key)):
+@limiter.limit("60/minute")
+async def get_comments(request: Request, news_id: int, api_key: str = Depends(verify_api_key)):
     comments = db.get_comments(news_id)
     return comments
 
@@ -282,9 +311,6 @@ async def health_check(api_key: str = Depends(verify_api_key)):
 async def root():
     return {"message": "Burma Duta API Access Restricted. Valid API Key required."}
 
-if __name__ == "__main__":
-    pass
-
 # Background task to run forecaster daily at 3:00 AM Singapore Time (SGT / UTC+8)
 async def schedule_daily_forecaster():
     """Background loop that checks SGT time hourly and triggers forecaster at 03:00 AM SGT."""
@@ -300,28 +326,27 @@ async def schedule_daily_forecaster():
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, run_forecast)
                 print("✅ Prophet prediction calculations completed successfully.")
-                
+
                 # Sleep for 1 hour + 5 minutes to prevent re-triggering during the 3 AM hour
                 await asyncio.sleep(3900)
             else:
                 # Sleep for 15 minutes before checking time again
                 await asyncio.sleep(900)
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             print(f"Error in daily forecaster scheduler loop: {e}")
             await asyncio.sleep(60)
 
-@app.on_event("startup")
-async def startup_event():
-    # Start the daily forecaster background task
-    import asyncio
-    asyncio.create_task(schedule_daily_forecaster())
-
 
 if __name__ == "__main__":
     uvicorn.run(
-        app, 
-        host="0.0.0.0", 
+        app,
+        # Binds all interfaces *inside the container* — required for Docker to
+        # forward. Public exposure is controlled by the host side of the port
+        # mapping (API_BIND_HOST in docker-compose.yml), not here.
+        host="0.0.0.0",
         port=8081,
-        proxy_headers=True, 
-        forwarded_allow_ips="*"
+        proxy_headers=True,
+        forwarded_allow_ips=config.TRUSTED_PROXY_IPS,
     )

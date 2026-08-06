@@ -164,11 +164,11 @@ class DBManager:
             cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_channel_handle ON {TABLE} (channel_handle);")
             cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_channel_handle_lower ON {TABLE} (LOWER(channel_handle));")
             cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_created_at ON {TABLE} (created_at DESC);")
-            
-            # 4. Source Mappings Indexes
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_source_mappings_handle_lower ON source_mappings (LOWER(handle));")
 
-            # 5. Content Uniqueness Index (MD5-based to handle large text)
+            # NOTE: the source_mappings index lives in ensure_tables(), which is where
+            # that table is created. Indexing it here fails on a fresh database.
+
+            # 4. Content Uniqueness Index (MD5-based to handle large text)
             cur.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{TABLE}_raw_text_unique ON {TABLE} (MD5(raw_text));")
             
             self.conn.commit()
@@ -238,6 +238,7 @@ class DBManager:
                         updated_at TIMESTAMPTZ DEFAULT NOW()
                     );
                 """)
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_source_mappings_handle_lower ON source_mappings (LOWER(handle));")
                 # 2. Users Table
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS users (
@@ -460,9 +461,6 @@ class DBManager:
         except Exception as e:
             print(f"Error fetching comments: {e}")
             return []
-        except Exception as e:
-            print(f"❌ Error creating tables: {e}")
-            self.conn.rollback()
 
     def get_config(self, key, default=None):
         self._ensure_connection()

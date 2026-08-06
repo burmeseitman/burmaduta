@@ -5,11 +5,26 @@ services:
     container_name: burmaduta-api
     restart: always
     ports:
-      - "8081:8081"
+      # Host-local by default: Docker DNATs published ports through FORWARD, which
+      # ufw's INPUT rules never see, so "0.0.0.0" exposes the API to the internet
+      # regardless of the firewall. The reverse proxy reaches it over loopback.
+      # Set API_BIND_HOST=0.0.0.0 in .env to revert (see README rollback note).
+      - "${API_BIND_HOST:-127.0.0.1}:8081:8081"
     environment:
       INTERNAL_STORE_URI: ${INTERNAL_STORE_URI}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
       API_KEY: ${API_KEY}
+      FORECAST_SCHEDULER_ENABLED: ${FORECAST_SCHEDULER_ENABLED:-false}
+      TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-*}
+      DEDUP_SIMILARITY_THRESHOLD: ${DEDUP_SIMILARITY_THRESHOLD:-0.85}
+    # The root endpoint needs no API key, so it works as an unauthenticated probe.
+    # Gives `docker compose ps` a real signal instead of "up" for a broken container.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8081/', timeout=4).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
 
   # Scraper Service
   scraper:
@@ -19,6 +34,7 @@ services:
     command: python backend/scraper.py
     environment:
       INTERNAL_STORE_URI: ${INTERNAL_STORE_URI}
+      DEDUP_SIMILARITY_THRESHOLD: ${DEDUP_SIMILARITY_THRESHOLD:-0.85}
     volumes:
       # Persistent session directory for Telegram login
       - ./sessions:/app/sessions

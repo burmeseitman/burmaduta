@@ -122,6 +122,35 @@ docker-compose up -d --build
 ```
 The API will be accessible at `http://[your-ip]:8081`.
 
+The API validates its environment on start-up and exits rather than falling back
+to an insecure default. To check a configuration before restarting a live
+service, run the same validation without touching the database:
+```bash
+docker compose exec api python backend/config.py
+```
+
+### Network exposure
+
+The API port is published on `127.0.0.1` only, so it is reachable through the
+reverse proxy and not from the internet. This is deliberate: `ufw` does **not**
+filter Docker-published ports, because Docker DNATs them through `FORWARD` while
+`ufw` filters `INPUT`. Binding to `0.0.0.0` therefore exposes the API regardless
+of the firewall rules.
+
+Verify from another machine — this should time out or refuse:
+```bash
+curl -m 5 -sI http://YOUR_VPS_IP:8081/
+```
+
+If the site breaks after this change, your proxy is not reaching the API over
+host loopback. Revert immediately by setting `API_BIND_HOST=0.0.0.0` in `.env`
+and running `docker-compose up -d`. Two cases need a different fix instead:
+
+-   **Proxy runs in its own container** — it cannot reach host loopback. Remove
+    the `ports:` mapping entirely, put both services on a shared Docker network,
+    and point the proxy at `http://api:8081`.
+-   **No reverse proxy at all** — install one before closing the port.
+
 ### 4. Frontend Global Deployment
 For optimal performance, host the `frontend` directory on a CDN (e.g., Cloudflare Pages, Netlify).
 Before deploying, compile the frontend to inject your API keys and Base URL securely:
