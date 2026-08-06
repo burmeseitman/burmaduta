@@ -1,5 +1,5 @@
 # Base image for Python applications
-FROM python:3.11-slim as base
+FROM python:3.12-slim AS base
 
 # Set working directory
 WORKDIR /app
@@ -17,17 +17,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create a non-root user for security
 RUN groupadd -r appgroup && useradd -r -g appgroup -d /app -s /sbin/nologin appuser
 
-# Pre-install cmdstanpy and cmdstan to ensure prophet can build its backend
-RUN pip install --no-cache-dir cmdstanpy==1.2.2
-RUN python -c "import cmdstanpy; cmdstanpy.install_cmdstan()"
+# NOTE: cmdstan is no longer installed by hand. prophet's manylinux wheels ship a
+# prebuilt prophet_model.bin alongside cmdstan 2.37.0, so the previous
+# `cmdstanpy.install_cmdstan()` step compiled a toolchain the wheel already
+# contained — minutes of build time and ~1GB of image for nothing.
 
 # Install Python dependencies
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy application code. The frontend is deployed separately to Cloudflare and
+# the API mounts no static files, so it is not copied into this image.
 COPY backend ./backend
-COPY frontend ./frontend
 
 # Ensure the appuser owns the app directory
 RUN chown -R appuser:appgroup /app
@@ -37,6 +38,10 @@ USER appuser
 
 # Expose API port
 EXPOSE 8081
+
+# No image-level HEALTHCHECK: the scraper service reuses this image and never
+# binds a port, so it would be permanently unhealthy. The probe is defined on the
+# api service in docker-compose.yml instead.
 
 # Command to run API
 CMD ["python", "backend/api.py"]

@@ -9,6 +9,7 @@ from db_manager import DBManager
 from ai_processor import AIProcessor
 from geolocator import resolve_location
 from deduplicator import NewsDeduplicator
+import config
 
 load_dotenv()
 
@@ -188,7 +189,7 @@ async def process_messages_batch(messages_batch):
                     cand_summary = cand.get('summary') or cand.get('raw_text') or ""
                     # Calculate similarity score
                     score = deduplicator.get_similarity_score(new_summary, cand_summary)
-                    if score > 0.85:
+                    if score > config.DEDUP_SIMILARITY_THRESHOLD:
                         print(f"⚠️ Semantic duplicate detected (similarity={score:.2f}) between msg {orig['id']} and database news {cand['id']}. Skipping.")
                         is_semantic_duplicate = True
                         break

@@ -9,6 +9,7 @@ class NewsDeduplicator:
             cls._instance = super(NewsDeduplicator, cls).__new__(cls, *args, **kwargs)
             cls._instance.model = None
             cls._instance.initialized = False
+            cls._instance.degraded = False
         return cls._instance
 
     def initialize_model(self):
@@ -23,9 +24,21 @@ class NewsDeduplicator:
             model_name = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
             self.model = SentenceTransformer(model_name)
             self.initialized = True
+            self.degraded = False
             print("✅ Semantic Deduplicator model loaded successfully.")
         except Exception as e:
-            print(f"❌ Error loading similarity model: {e}")
+            # Loud on purpose. This used to fail silently — sentence-transformers
+            # 2.2.2 could not import against a newer huggingface-hub — and the
+            # scraper went on scoring bigram Jaccard while the README advertised
+            # Sentence-BERT. A one-line error was too easy to miss in the logs.
+            self.degraded = True
+            print("=" * 72)
+            print("❌ SEMANTIC DEDUPLICATION DEGRADED")
+            print(f"   Could not load {model_name!r}: {e}")
+            print("   Falling back to bigram Jaccard similarity, which scores on a")
+            print("   different scale — DEDUP_SIMILARITY_THRESHOLD is calibrated for")
+            print("   embeddings and will not mean the same thing here.")
+            print("=" * 72)
             self.initialized = False
 
     def get_similarity_score(self, text1: str, text2: str) -> float:
