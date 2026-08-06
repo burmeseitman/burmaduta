@@ -85,16 +85,19 @@ def run_forecast():
     start_date = end_date - timedelta(days=90)
     full_date_range = pd.date_range(start=start_date, end=end_date)
 
-    use_prophet = False
+    prophet_available = False
     try:
         from prophet import Prophet
         import logging
         logging.getLogger('prophet').setLevel(logging.ERROR)
         logging.getLogger('cmdstanpy').setLevel(logging.ERROR)
-        use_prophet = True
+        prophet_available = True
         print("🤖 Prophet library detected. Using Facebook Prophet model.")
     except ImportError:
         print("⚠️ Prophet library not installed. Falling back to Moving Average trend forecaster.")
+
+    prophet_ok = 0
+    prophet_failed = 0
 
     for ts in townships:
         df_ts = df_raw[df_raw['township'] == ts].copy()
@@ -108,7 +111,11 @@ def run_forecast():
         
         future_dates = [end_date + timedelta(days=i) for i in range(1, 8)]
 
-        if use_prophet:
+        # Tracked per township: a single Prophet failure must not silently demote
+        # every remaining township to the moving-average fallback.
+        used_prophet = False
+
+        if prophet_available:
             try:
                 prophet_df = df_padded[['event_date', 'incident_count']].rename(
                     columns={'event_date': 'ds', 'incident_count': 'y'}
@@ -147,11 +154,13 @@ def run_forecast():
                         "predicted_count": float(round(predictions[idx], 2)),
                         "trend": trend
                     })
+                used_prophet = True
+                prophet_ok += 1
             except Exception as e:
-                print(f"Prophet failed for township {ts}: {e}. Falling back to Moving Average.")
-                use_prophet = False
+                prophet_failed += 1
+                print(f"Prophet failed for township {ts}: {e}. Falling back to Moving Average for this township.")
 
-        if not use_prophet:
+        if not used_prophet:
             last_7_days_avg = df_padded.tail(7)['incident_count'].mean()
             prev_7_days_avg = df_padded.tail(14).head(7)['incident_count'].mean()
             
@@ -172,6 +181,9 @@ def run_forecast():
                     "predicted_count": float(round(last_7_days_avg, 2)),
                     "trend": trend
                 })
+
+    if prophet_available:
+        print(f"📊 Prophet fitted {prophet_ok} township(s); {prophet_failed} fell back to Moving Average.")
 
     if forecast_results:
         saved = db.save_forecasts_batch(forecast_results)
