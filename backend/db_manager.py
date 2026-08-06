@@ -911,7 +911,7 @@ class DBManager:
 
         query = """
             INSERT INTO conflict_forecasts (township, forecast_date, predicted_count, trend)
-            VALUES (%s, %s, %s, %s)
+            VALUES %s
             ON CONFLICT (township, forecast_date) 
             DO UPDATE SET 
                 predicted_count = EXCLUDED.predicted_count,
@@ -919,12 +919,13 @@ class DBManager:
                 created_at = NOW();
         """
         try:
+            from psycopg2.extras import execute_values
             with self.conn.cursor() as cur:
                 data = [
                     (item["township"], item["forecast_date"], item["predicted_count"], item["trend"])
                     for item in forecast_list
                 ]
-                cur.executemany(query, data)
+                execute_values(cur, query, data)
                 self.conn.commit()
                 return len(forecast_list)
         except Exception as e:
