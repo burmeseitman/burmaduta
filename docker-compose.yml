@@ -38,3 +38,9 @@ services:
     volumes:
       # Persistent session directory for Telegram login
       - ./sessions:/app/sessions
+      # The embedding model is ~471MB and is fetched at first use. Without this
+      # it is re-downloaded on every container recreate.
+      - hf-cache:/app/.cache/huggingface
+
+volumes:
+  hf-cache:

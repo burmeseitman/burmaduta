@@ -17,6 +17,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create a non-root user for security
 RUN groupadd -r appgroup && useradd -r -g appgroup -d /app -s /sbin/nologin appuser
 
+# Pin the HuggingFace cache to an explicit path rather than relying on $HOME
+# resolution (appuser's home is /app, not /home/appuser). docker-compose mounts a
+# named volume here so the ~471MB embedding model survives container recreation.
+ENV HF_HOME=/app/.cache/huggingface
+RUN mkdir -p /app/.cache/huggingface
+
 # NOTE: cmdstan is no longer installed by hand. prophet's manylinux wheels ship a
 # prebuilt prophet_model.bin alongside cmdstan 2.37.0, so the previous
 # `cmdstanpy.install_cmdstan()` step compiled a toolchain the wheel already
