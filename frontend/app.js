@@ -206,6 +206,18 @@ const typeIcons = {
     Other: "📍",
 };
 
+// Declared here, above the top-level updateTimelineDisplay() call further down.
+// It used to sit below that call, so the very first updateUI() threw
+// "Cannot access 'ALL_CATEGORIES' before initialization" on every page load --
+// swallowed by a try/catch, but it meant the first paint never built the filters.
+const ALL_CATEGORIES = [
+    "စစ်ရေးသတင်း",
+    "မှုခင်းသတင်း",
+    "မတော်တဆဖြစ်မှု",
+    "သဘာဝဘေးအန္တရာယ်",
+    "အထွေထွေ"
+];
+
 const SUB_CATEGORIES = {
     "စစ်ရေးသတင်း": ["တိုက်ပွဲ", "လေကြောင်း", "လက်နက်ကြီး", "စစ်ကြောင်း", "မီးရှို့", "စစ်ဘေးရှောင်", "ဗုံးပေါက်ကွဲ", "ဖမ်းဆီး"],
     "မှုခင်းသတင်း": ["လုယက်", "ဓားပြတိုက်", "ဖောက်ထွင်း", "လူသတ်", "မူးယစ်ဆေး", "အွန်လိုင်းလိမ်လည်မှု", "လောင်းကစား", "ခိုးယူ", "ငွေညှစ်", "ရိုက်နှက်"],
@@ -446,10 +458,16 @@ async function filterByCategory(cat) {
     updateUI();
 }
 
+// The map opens on a single day, but the charts, the month's township ranking
+// and the timeline scrubber all need history. Fetching 90 days before the first
+// paint made the splash wait on ~180KB (gzipped) to draw one day's markers, so
+// the initial load is split: a short window first, then the rest in background.
+const INITIAL_DAYS = 3;   // today plus slack for timezone edges and empty days
+const FULL_DAYS = 90;
+
 // Fetch News Data
-async function fetchNews() {
+async function fetchNews(days = FULL_DAYS) {
     try {
-        const days = 90;
         // Fetch news and active conflict forecasts concurrently to prevent page blocking
         const [newsRes, forecastRes] = await Promise.all([
             fetch(`${API_BASE_URL}/api/news?days=${days}&minimal=true&limit=10000`, {
@@ -485,9 +503,13 @@ async function fetchNews() {
 
             return { ...item, crime_type: finalType };
         });
-        // Always strictly show current day on load, even if it has 0 news.
-        const todayStr = getLocalDateString();
-        syncTimelineWithDate(todayStr);
+        // Only on the very first render. This used to run on every 30s refresh,
+        // which snapped the slider back to today while dateFilterInput kept the
+        // user's chosen date -- the scrubber and the map silently disagreed.
+        if (!firstLoadComplete) {
+            const todayStr = getLocalDateString();
+            syncTimelineWithDate(todayStr);
+        }
 
         updateUI();
         if (window.lucide) lucide.createIcons();
@@ -579,14 +601,6 @@ function updateUI() {
     }
 }
 
-const ALL_CATEGORIES = [
-    "စစ်ရေးသတင်း",
-    "မှုခင်းသတင်း",
-    "မတော်တဆဖြစ်မှု",
-    "သဘာဝဘေးအန္တရာယ်",
-    "အထွေထွေ"
-];
-
 function updateFilters(items) {
     const topStatsPanel = document.getElementById("top-right-stats");
     topStatsPanel.innerHTML = "";
@@ -659,7 +673,19 @@ function updateFilters(items) {
     });
 }
 
+// ECharts loads async and off the critical path, so it may not exist yet on the
+// first render. Remember the arguments and replay once the library arrives.
+let lastChartArgs = null;
+window.__chartsReady = function () {
+    if (lastChartArgs) {
+        try { renderCharts.apply(null, lastChartArgs); } catch (e) { console.error("Chart replay failed:", e); }
+    }
+};
+
 function renderCharts(filteredItems, pieDataItems, fullItems) {
+    lastChartArgs = [filteredItems, pieDataItems, fullItems];
+    if (!window.echarts) return; // __chartsReady() will re-invoke this on load
+
     const selectedRegion = regionFilterInput.value || "All";
     const selectedDate = dateFilterInput.value || "";
 
@@ -1405,9 +1431,18 @@ function updateDangerousTownships() {
 }
 
 // Initial Execution after DOM is safe
+async function initialLoad() {
+    // Phase 1 - a few days only. Renders the map and dismisses the splash.
+    await fetchNews(INITIAL_DAYS);
+    // Phase 2 - full history for the charts, township ranking and scrubber.
+    // Not awaited by the splash; the 90-day result is a superset of phase 1, so
+    // replacing allNewsItems wholesale loses nothing.
+    fetchNews(FULL_DAYS);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    fetchNews();
-    setInterval(fetchNews, 30000); // Live refresh every 30 seconds
+    initialLoad();
+    setInterval(() => fetchNews(FULL_DAYS), 30000); // Live refresh every 30 seconds
     if (window.lucide) {
         try { lucide.createIcons(); } catch (e) { }
     }
