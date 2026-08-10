@@ -63,4 +63,27 @@ if (fs.existsSync(commentsJsPath)) {
     console.log('Injected environment variables into comments.js');
 }
 
+// Inject the API origin into the HTML preconnect hints. Without this the browser
+// only discovers the API host when app.js first calls fetch(), paying a cold
+// DNS + TLS round trip at exactly the moment it is blocking the splash screen.
+let apiOrigin;
+try {
+    apiOrigin = new URL(apiBaseUrl).origin;
+} catch (e) {
+    console.warn(`Could not parse API_BASE_URL (${apiBaseUrl}); skipping preconnect injection.`);
+    apiOrigin = null;
+}
+
+if (apiOrigin) {
+    for (const htmlFile of ['index.html', 'feed.html', 'mobile.html', 'comments.html']) {
+        const htmlPath = path.join('dist', htmlFile);
+        if (!fs.existsSync(htmlPath)) continue;
+        let html = fs.readFileSync(htmlPath, 'utf8');
+        if (!html.includes('__INJECT_API_ORIGIN__')) continue;
+        html = html.split('__INJECT_API_ORIGIN__').join(apiOrigin);
+        fs.writeFileSync(htmlPath, html);
+        console.log(`Injected API origin ${apiOrigin} into ${htmlFile}`);
+    }
+}
+
 console.log('Build completed successfully.');

@@ -10,14 +10,41 @@
       window.location.href = "mobile.html";
     }
   </script>
+  <!-- Warm up the TLS handshakes before anything needs them. On high-latency
+       mobile networks each cold DNS+TLS round trip is 200-400ms, and the page
+       otherwise pays that serially once each script or fetch is discovered. -->
+  <link rel="preconnect" href="__INJECT_API_ORIGIN__" crossorigin />
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <link rel="preconnect" href="https://fastly.jsdelivr.net" crossorigin />
+  <link rel="preconnect" href="https://basemaps.cartocdn.com" crossorigin />
+
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <!-- MarkerCluster CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
-  
+
   <link rel="stylesheet" href="style.css" />
+
+  <!-- Moved out of the end of <body> and deferred: the browser can now discover
+       and download these while it is still parsing the HTML, instead of after.
+       defer preserves execution order, so app.js still runs last. -->
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script defer src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+  <script defer src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script defer src="app.js"></script>
+
+  <!-- ECharts is ~1MB and nothing above the fold needs it, so it loads async and
+       off the critical path. renderCharts() no-ops until it arrives, then this
+       onload re-runs it with the data already fetched. -->
+  <script async src="https://fastly.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"
+    onload="window.__chartsReady && window.__chartsReady()"></script>
+  <!-- Pinned: this was lucide@latest, which is both a supply-chain risk and
+       uncacheable across releases. 1.28.0 is what @latest already resolved to. -->
+  <script async src="https://unpkg.com/lucide@1.28.0"
+    onload="window.lucide && window.lucide.createIcons()"></script>
 </head>
 
 <body>
@@ -191,18 +218,7 @@
     </footer>
   </div>
 
-  <!-- Apache ECharts -->
-  <script src="https://fastly.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <!-- MarkerCluster JS -->
-  <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
-  <!-- Leaflet Heatmap Plugin -->
-  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-  <script src="app.js"></script>
+  <!-- Scripts moved to <head> with defer/async; see the comment there. -->
 </body>
 
 </html>
