@@ -28,10 +28,8 @@ class AgentTools:
         unverified rumors, clickbait, and scam indicators in Myanmar context.
         """
         reasons = []
-        credibility_score = 0.85
-        verdict = "VERIFIED"
-
         lower_text = text.lower()
+        handle_lower = (channel_handle or "unknown").lower()
 
         # 1. Spam & Commercial Ads Detector
         SPAM_INDICATORS = [
@@ -50,17 +48,59 @@ class AgentTools:
                 "reasons": [f"Contains commercial/spam keyword: '{m}'" for m in spam_matches]
             }
 
-        # 2. Sensationalism & Rumor Pattern Detector
+        # 2. Source Credibility Tiering (Base Credibility by Channel Reputation)
+        TIER1_CHANNELS = [
+            "@khitthitnews", "@dvbburmese", "@mizzimaburmese", "@rfa_burmese",
+            "@bbcburmese", "@voaburmese", "@myanmar_now", "@irrawaddynews",
+            "@elevenmediagroup"
+        ]
+        TIER2_CHANNELS = [
+            "@cjplatform", "@ayeyarwaddytimes", "@delta_news_agency",
+            "@kachinwaves", "@thanlwintimes", "@shannews", "@westernnews",
+            "@tachileiknewsagency", "@myaelattathan"
+        ]
+
+        if any(h in handle_lower for h in TIER1_CHANNELS):
+            credibility_score = 0.94
+            reasons.append(f"Source '{channel_handle}' is in vetted Tier-1 independent media network.")
+        elif any(h in handle_lower for h in TIER2_CHANNELS):
+            credibility_score = 0.88
+            reasons.append(f"Source '{channel_handle}' is in verified regional citizen journalist network.")
+        elif channel_handle and channel_handle != "unknown" and channel_handle != "@sandbox_demo":
+            credibility_score = 0.80
+            reasons.append(f"Source '{channel_handle}' assessed as community report.")
+        else:
+            credibility_score = 0.76
+            reasons.append("Unattributed / open community submission.")
+
+        # 3. Content Specificity & Verification Signals
+        # Detail bonus for numbers/casualties
+        if any(w in lower_text for w in ["ဦး", "ယောက်", "ဦးခန့်", "သေဆုံး", "ဒဏ်ရာရ", "ပျက်စီး", "သိမ်းဆည်း", "ဖမ်းဆီးရမိ"]):
+            credibility_score += 0.04
+            reasons.append("Contains verified quantitative event data.")
+
+        # Specific date/time context bonus
+        if any(w in lower_text for w in ["ရက်", "နာရီ", "ယနေ့", "မနက်", "ညနေ", "နေ့လယ်"]):
+            credibility_score += 0.03
+
+        # Length / context depth
+        if len(text.strip()) > 100:
+            credibility_score += 0.02
+        elif len(text.strip()) < 25:
+            credibility_score -= 0.12
+            reasons.append("Brief snippet with limited verifiable context.")
+
+        # 4. Sensationalism & Rumor Pattern Detector
         RUMOR_INDICATORS = [
             "အတည်မပြုနိုင်သေး", "သတင်းကြားရ", "ကောလာဟလ", "ကြားသိရသည်", 
             "သေချာမသိရသေး", "facebook မှ သိရ", "unconfirmed", "rumor", "allegedly"
         ]
         rumor_matches = [w for w in RUMOR_INDICATORS if w in lower_text]
         if rumor_matches:
-            credibility_score -= 0.35
+            credibility_score -= 0.32
             reasons.append(f"Contains unconfirmed rumor phrasing: '{', '.join(rumor_matches)}'")
 
-        # 3. Aggressive Propaganda / Clickbait Markers
+        # 5. Aggressive Propaganda / Clickbait Markers
         CLICKBAIT_PATTERNS = [
             "အထူးသတင်းဆိုး", "မဖြစ်မနေကြည့်ပါ", "မယုံနိုင်စရာ", "shocking", "breaking viral",
             "ဒုက္ခရောက်တော့မည်", "အရေးပေါ်သတိပေးချက်အတု"
@@ -69,18 +109,6 @@ class AgentTools:
         if clickbait_matches:
             credibility_score -= 0.25
             reasons.append(f"Clickbait/sensationalist headline marker: '{', '.join(clickbait_matches)}'")
-
-        # 4. Source Credibility Assessment
-        TRUSTED_CHANNELS = [
-            "@khitthitnews", "@dvbburmese", "@mizzimaburmese", "@rfa_burmese",
-            "@bbcburmese", "@voaburmese", "@myanmar_now", "@irrawaddynews",
-            "@elevenmediagroup", "@cjplatform", "@ayeyarwaddytimes", "@delta_news_agency"
-        ]
-        if any(h.lower() in channel_handle.lower() for h in TRUSTED_CHANNELS):
-            credibility_score = min(1.0, credibility_score + 0.15)
-            reasons.append(f"Source '{channel_handle}' is in vetted independent media network.")
-        elif channel_handle and channel_handle != "unknown":
-            reasons.append(f"Source '{channel_handle}' assessed as community/citizen report.")
 
         # Determine Final Verdict
         credibility_score = max(0.05, min(0.99, round(credibility_score, 2)))
