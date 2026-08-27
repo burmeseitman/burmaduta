@@ -142,130 +142,90 @@ class DBManager:
     def create_table(self):
         if not self.conn:
             return
-        # Configuration for migration transparency
         TABLE = 'news_events'
         
-        with self.conn.cursor() as cur:
-            cur.execute("SET lock_timeout = '5s';")
-            
-            # 1. Main Table
-            cur.execute(f"""
-                CREATE TABLE IF NOT EXISTS {TABLE} (
-                    id SERIAL PRIMARY KEY,
-                    channel_handle TEXT,
-                    internal_id BIGINT,
-                    raw_text TEXT,
-                    summary TEXT,
-                    crime_type VARCHAR(50),
-                    sub_category VARCHAR(100),
-                    publish_date DATE,
-                    publish_time TIME,
-                    event_date DATE,
-                    event_time TIME,
-                    region VARCHAR(100),
-                    township VARCHAR(100),
-                    city VARCHAR(100),
-                    location_name VARCHAR(255),
-                    latitude FLOAT8,
-                    longitude FLOAT8,
-                    heading VARCHAR(50),
-                    target_location VARCHAR(255),
-                    priority_level VARCHAR(30) DEFAULT 'STANDARD',
-                    fact_check_verdict VARCHAR(50) DEFAULT 'VERIFIED',
-                    credibility_score REAL DEFAULT 0.85,
-                    is_emergency_alert BOOLEAN DEFAULT FALSE,
-                    emergency_type VARCHAR(50) DEFAULT 'none',
-                    agent_trace TEXT,
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    UNIQUE(channel_handle, internal_id)
-                );
-            """)
-            self.conn.commit()
-
-            # 2. System Config Table
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS system_config (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL,
-                    updated_at TIMESTAMPTZ DEFAULT NOW()
-                );
-            """)
-            self.conn.commit()
-
-            # 3. Optimization Indexes (Speed up filtering and sorting)
-            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_publish_date ON {TABLE} (publish_date);")
-            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_crime_type ON {TABLE} (crime_type);")
-            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_region ON {TABLE} (region);")
-            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_township ON {TABLE} (township);")
-            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_city ON {TABLE} (city);")
-            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_channel_handle ON {TABLE} (channel_handle);")
-            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_channel_handle_lower ON {TABLE} (LOWER(channel_handle));")
-            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_created_at ON {TABLE} (created_at DESC);")
-            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_priority ON {TABLE} (priority_level);")
-            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_emergency ON {TABLE} (is_emergency_alert);")
-            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_fact_check ON {TABLE} (fact_check_verdict);")
-
-            # 4. Content Uniqueness Index (MD5-based to handle large text)
-            cur.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{TABLE}_raw_text_unique ON {TABLE} (MD5(raw_text));")
-            
-            self.conn.commit()
-            print(f"✅ Optimization and Unique indexes ensured for {TABLE}.")
-
-
-        # 4. Migrations (Independent transactions to avoid aborted state)
-        def check_col(col):
+        try:
             with self.conn.cursor() as cur:
-                cur.execute("SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = %s AND column_name = %s", (TABLE, col))
-                return cur.fetchone() is not None
+                cur.execute("SET lock_timeout = '5s';")
+                
+                # 1. Main Table
+                cur.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {TABLE} (
+                        id SERIAL PRIMARY KEY,
+                        channel_handle TEXT,
+                        internal_id BIGINT,
+                        raw_text TEXT,
+                        summary TEXT,
+                        crime_type VARCHAR(50),
+                        sub_category VARCHAR(100),
+                        publish_date DATE,
+                        publish_time TIME,
+                        event_date DATE,
+                        event_time TIME,
+                        region VARCHAR(100),
+                        township VARCHAR(100),
+                        city VARCHAR(100),
+                        location_name VARCHAR(255),
+                        latitude FLOAT8,
+                        longitude FLOAT8,
+                        heading VARCHAR(50),
+                        target_location VARCHAR(255),
+                        priority_level VARCHAR(30) DEFAULT 'STANDARD',
+                        fact_check_verdict VARCHAR(50) DEFAULT 'VERIFIED',
+                        credibility_score REAL DEFAULT 0.85,
+                        is_emergency_alert BOOLEAN DEFAULT FALSE,
+                        emergency_type VARCHAR(50) DEFAULT 'none',
+                        agent_trace TEXT,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        UNIQUE(channel_handle, internal_id)
+                    );
+                """)
+                self.conn.commit()
 
-        # Rename source_id -> internal_id
-        if check_col('telegram_id') and not check_col('internal_id'):
-            try:
-                with self.conn.cursor() as cur:
-                    print(f"🔄 Migration: Renaming source_id to internal_id in {TABLE}...")
-                    cur.execute(f"ALTER TABLE {TABLE} RENAME COLUMN telegram_id TO internal_id;")
-                    self.conn.commit()
-            except Exception as e:
+                # 2. System Config Table
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS system_config (
+                        key TEXT PRIMARY KEY,
+                        value TEXT NOT NULL,
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                    );
+                """)
+                self.conn.commit()
+
+                # 3. Column Migrations (Ensure columns exist on pre-existing tables before indexing)
+                cur.execute(f"""
+                    ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS sub_category VARCHAR(100);
+                    ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS heading VARCHAR(50);
+                    ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS target_location VARCHAR(255);
+                    ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS priority_level VARCHAR(30) DEFAULT 'STANDARD';
+                    ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS fact_check_verdict VARCHAR(50) DEFAULT 'VERIFIED';
+                    ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS credibility_score REAL DEFAULT 0.85;
+                    ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS is_emergency_alert BOOLEAN DEFAULT FALSE;
+                    ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS emergency_type VARCHAR(50) DEFAULT 'none';
+                    ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS agent_trace TEXT;
+                """)
+                self.conn.commit()
+
+                # 4. Optimization Indexes (Completely safe because all columns exist)
+                cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_publish_date ON {TABLE} (publish_date);")
+                cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_crime_type ON {TABLE} (crime_type);")
+                cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_region ON {TABLE} (region);")
+                cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_township ON {TABLE} (township);")
+                cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_city ON {TABLE} (city);")
+                cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_channel_handle ON {TABLE} (channel_handle);")
+                cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_channel_handle_lower ON {TABLE} (LOWER(channel_handle));")
+                cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_created_at ON {TABLE} (created_at DESC);")
+                cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_priority ON {TABLE} (priority_level);")
+                cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_emergency ON {TABLE} (is_emergency_alert);")
+                cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_fact_check ON {TABLE} (fact_check_verdict);")
+                cur.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{TABLE}_raw_text_unique ON {TABLE} (MD5(raw_text));")
+                
+                self.conn.commit()
+                print(f"✅ Optimization and Unique indexes ensured for {TABLE}.")
+        except Exception as e:
+            if self.conn:
                 self.conn.rollback()
-                print(f"❌ Migration failed: Renaming source_id to internal_id in {TABLE}. Error: {e}")
-
-        # Add sub_category
-        if not check_col('sub_category'):
-            try:
-                with self.conn.cursor() as cur:
-                    cur.execute(f"ALTER TABLE {TABLE} ADD COLUMN sub_category VARCHAR(100);")
-                    self.conn.commit()
-            except Exception as e:
-                self.conn.rollback()
-
-        # Add heading and target_location
-        if not check_col('heading'):
-            try:
-                with self.conn.cursor() as cur:
-                    cur.execute(f"ALTER TABLE {TABLE} ADD COLUMN heading VARCHAR(50);")
-                    cur.execute(f"ALTER TABLE {TABLE} ADD COLUMN target_location VARCHAR(255);")
-                    self.conn.commit()
-            except Exception as e:
-                self.conn.rollback()
-
-        # Agentic Upgrades: priority_level, fact_check_verdict, credibility_score, is_emergency_alert, emergency_type, agent_trace
-        agent_cols = [
-            ("priority_level", "VARCHAR(30) DEFAULT 'STANDARD'"),
-            ("fact_check_verdict", "VARCHAR(50) DEFAULT 'VERIFIED'"),
-            ("credibility_score", "REAL DEFAULT 0.85"),
-            ("is_emergency_alert", "BOOLEAN DEFAULT FALSE"),
-            ("emergency_type", "VARCHAR(50) DEFAULT 'none'"),
-            ("agent_trace", "TEXT")
-        ]
-        for col_name, col_type in agent_cols:
-            if not check_col(col_name):
-                try:
-                    with self.conn.cursor() as cur:
-                        print(f"🔄 Migration: Adding {col_name} column to {TABLE}...")
-                        cur.execute(f"ALTER TABLE {TABLE} ADD COLUMN {col_name} {col_type};")
-                        self.conn.commit()
-                except Exception as e:
-                    self.conn.rollback()
+            print(f"⚠️ Schema setup notice for {TABLE}: {e}")
 
     def ensure_tables(self):
         """Creates required tables if they don't exist. Does NOT populate data auto."""
