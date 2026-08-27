@@ -1822,10 +1822,10 @@ footer {
    Autonomous Agent & Emergency Alert Styles
    ===================================================================== */
 
-/* 🚨 Top Emergency Broadcast Banner */
+/* 🚨 Top Emergency Broadcast Banner (Positioned below top-5 stat cards to avoid overlap) */
 .emergency-banner {
   position: fixed;
-  top: 16px;
+  top: 105px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1200;
@@ -1837,12 +1837,24 @@ footer {
   padding: 8px 18px;
   box-shadow: 0 8px 32px rgba(235, 59, 90, 0.4), 0 0 20px rgba(235, 59, 90, 0.3);
   animation: emergency-slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1), emergency-glow 2s infinite alternate;
-  max-width: 90vw;
+  max-width: 85vw;
 }
 
 @keyframes emergency-slide-down {
-  from { top: -60px; opacity: 0; }
-  to { top: 16px; opacity: 1; }
+  from { top: 50px; opacity: 0; }
+  to { top: 105px; opacity: 1; }
+}
+
+@media (max-width: 768px) {
+  .emergency-banner {
+    top: 16px;
+    max-width: 94vw;
+    padding: 6px 12px;
+  }
+  @keyframes emergency-slide-down {
+    from { top: -60px; opacity: 0; }
+    to { top: 16px; opacity: 1; }
+  }
 }
 
 @keyframes emergency-glow {
