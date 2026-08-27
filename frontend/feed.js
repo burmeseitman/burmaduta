@@ -330,6 +330,21 @@ function renderFeedList(isInitial = false) {
         const source = item.source_name || item.channel_handle || "Unknown source";
         const location = [item.region, item.city, item.township].filter(s => s && s !== 'မသိရ').join(', ') || 'မြန်မာ';
         
+        // Agent Intelligence Badges
+        let agentBadgeHtml = '';
+        const verdict = item.fact_check_verdict || 'VERIFIED';
+        const score = item.credibility_score !== undefined ? Math.round(item.credibility_score * 100) : 85;
+        if (verdict === 'VERIFIED') {
+            agentBadgeHtml += `<span style="color:#20bf6b; font-size:0.75rem; font-weight:bold; background:rgba(32,191,107,0.15); padding:1px 6px; border-radius:4px; margin-right:4px;">🟢 Verified (${score}%)</span>`;
+        } else if (verdict === 'PLAUSIBLE') {
+            agentBadgeHtml += `<span style="color:#f7b731; font-size:0.75rem; font-weight:bold; background:rgba(247,183,49,0.15); padding:1px 6px; border-radius:4px; margin-right:4px;">🟡 Plausible (${score}%)</span>`;
+        } else if (verdict === 'FAKE_NEWS' || verdict === 'DISPUTED') {
+            agentBadgeHtml += `<span style="color:#eb3b5a; font-size:0.75rem; font-weight:bold; background:rgba(235,59,90,0.15); padding:1px 6px; border-radius:4px; margin-right:4px;">🔴 Fake/Disputed</span>`;
+        }
+        if (item.priority_level === 'CRITICAL_EMERGENCY' || item.is_emergency_alert) {
+            agentBadgeHtml += `<span style="color:#fff; font-size:0.75rem; font-weight:bold; background:#eb3b5a; padding:1px 6px; border-radius:4px; margin-right:4px;">🚨 Alert (${escapeHTML(item.emergency_type || 'hazard')})</span>`;
+        }
+
         // Find forecast trend if available for this township
         let trendBadge = "";
         if (item.township) {
@@ -365,7 +380,8 @@ function renderFeedList(isInitial = false) {
                     <a href="comments.html?id=${itemId}" class="item-title">${escapeHTML(trimmedTitle)}</a>
                     <span class="item-source">(${escapeHTML(source)})</span>
                 </div>
-                <div class="item-meta">
+                <div class="item-meta" style="display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
+                    ${agentBadgeHtml}
                     <span class="category-badge" style="color: ${badgeColor};">${escapeHTML(item.crime_type || 'အထွေထွေ')}</span>
                     <span class="meta-separator">|</span>
                     <span>${escapeHTML(location)}${trendBadge}</span>

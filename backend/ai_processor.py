@@ -7,6 +7,7 @@ import time
 from google import genai
 from dotenv import load_dotenv
 from db_manager import DBManager
+from agent_core import AutonomousNewsAgent, AgentTools
 
 load_dotenv()
 
@@ -16,7 +17,6 @@ class AIProcessor:
     _current_cache_hash = None
     _cache_expire_time = 0
 
-
     def __init__(self, db=None):
         self.db = db if db else DBManager()
         
@@ -24,19 +24,19 @@ class AIProcessor:
         api_key = self.db.get_config("PROCESSOR_KEY")
         if not api_key:
             print("❌ Error: PROCESSOR_KEY not found in Database configuration (system_config table).")
-            # We don't raise here to allow the object to exist, 
-            # but calls to generate_content will fail.
         
         self.client = genai.Client(api_key=api_key) if api_key else None
 
         # Strictly retrieve Model Name from database
         model_name = self.db.get_config("MODEL_NAME")
         if not model_name:
-            # Fallback to a safe default ONLY if it's absolutely missing in DB
-            print("⚠️ Warning: MODEL_NAME not found in Database. Defaulting to High-performance model.")
-            model_name = "gemini-2.5-flash-lite"
+            print("⚠️ Warning: MODEL_NAME not found in Database. Defaulting to Gemini 3.5 Flash.")
+            model_name = "gemini-3.5-flash"
             
         self.model_name = model_name
+        
+        # Initialize Autonomous News Agent with Google Agent capabilities
+        self.agent = AutonomousNewsAgent(db_manager=self.db, client=self.client, model_name=self.model_name)
         
         # Initialize or retrieve prompt
         self.get_active_prompt()
@@ -267,12 +267,70 @@ class AIProcessor:
                     # print(f"Skipping non-Myanmar news item: {location_full}")
                     continue
 
-                # If AI missed lat/lon, try Nominatim
-                if not data.get('latitude') or not data.get('longitude'):
-                    if data.get('location_name'):
-                        lat, lon = self.geocode(data['location_name'])
-                        data['latitude'] = lat
-                        data['longitude'] = lon
+                # Agentic Multi-Tool Execution & Enrichment
+                item_text = str(data.get('summary') or data.get('raw_text') or '')
+                orig_item = next((x for x in news_items if str(x.get('id')) == str(data.get('internal_id'))), {})
+                full_raw_text = orig_item.get('text', item_text)
+                channel_handle = orig_item.get('channel_handle', 'unknown')
+
+                # 1. Fact-Check Tool
+                fc = AgentTools.tool_fact_checker(full_raw_text, channel_handle=channel_handle)
+                data['fact_check_verdict'] = fc['verdict']
+                data['credibility_score'] = fc['credibility_score']
+
+                # 2. Geo-Inference Tool if coordinates missing
+                if not data.get('latitude') or not data.get('longitude') or data.get('latitude') == 0.0:
+                    geo = AgentTools.tool_geo_inferencer(
+                        raw_text=full_raw_text,
+                        township=data.get('township'),
+                        city=data.get('city'),
+                        region=data.get('region'),
+                        location_name=data.get('location_name')
+                    )
+                    data['latitude'] = geo.get('latitude')
+                    data['longitude'] = geo.get('longitude')
+                    if not data.get('region') or data.get('region') == 'မသိရ':
+                        data['region'] = geo.get('region')
+                    if not data.get('township') or data.get('township') == 'မသိရ':
+                        data['township'] = geo.get('township')
+                    if not data.get('city') or data.get('city') == 'မသိရ':
+                        data['city'] = geo.get('city')
+
+                # 3. Emergency & Priority Triage Tool
+                triage = AgentTools.tool_emergency_triager(
+                    text=full_raw_text,
+                    event_type=data.get('crime_type', 'အထွေထွေ'),
+                    sub_category=data.get('sub_category', '')
+                )
+                data['priority_level'] = triage['priority_level']
+                data['is_emergency_alert'] = triage['is_emergency_alert']
+                data['emergency_type'] = triage['emergency_type']
+
+                # 4. Emergency Broadcast Tool if disaster/emergency confirmed
+                emergency_dispatch = None
+                if triage['is_emergency_alert'] and fc['credibility_score'] >= 0.40:
+                    emergency_dispatch = AgentTools.tool_emergency_broadcaster(
+                        emergency_type=triage['emergency_type'],
+                        alert_level=triage['priority_level'],
+                        region=data.get('region', 'Myanmar'),
+                        township=data.get('township', 'General'),
+                        headline=data.get('heading') or data.get('summary') or 'Emergency Alert',
+                        action_required=triage['action_required']
+                    )
+                data['emergency_dispatch'] = emergency_dispatch
+
+                # 5. Build Agent Reasoning Trace
+                run_id = f"batch_run_{uuid_hex[:8]}" if 'uuid_hex' in locals() else f"run_{int(time.time()*1000)}"
+                data['agent_trace'] = json.dumps({
+                    "run_id": run_id,
+                    "reasoning_chain": [
+                        {"step": 1, "phase": "THOUGHT", "message": f"Processed item from {channel_handle}."},
+                        {"step": 2, "phase": "TOOL_EXECUTION", "tool": "tool_fact_checker", "observation": {"verdict": fc['verdict'], "score": fc['credibility_score']}},
+                        {"step": 3, "phase": "TOOL_EXECUTION", "tool": "tool_geo_inferencer", "observation": {"township": data.get('township'), "coords": [data.get('latitude'), data.get('longitude')]}},
+                        {"step": 4, "phase": "TOOL_EXECUTION", "tool": "tool_emergency_triager", "observation": {"priority": triage['priority_level'], "emergency": triage['is_emergency_alert'], "type": triage['emergency_type']}}
+                    ]
+                }, ensure_ascii=False)
+
                 final_data.append(data)
             
             return final_data
@@ -284,6 +342,10 @@ class AIProcessor:
         """Single item wrapper."""
         res = self.parse_news_batch([{'id': 0, 'text': text}])
         return res[0] if res else None
+
+    def analyze_with_agent(self, text: str, channel_handle: str = "unknown") -> dict:
+        """Runs the full Autonomous ReAct Agent workflow for interactive inspection and test."""
+        return self.agent.process_news_item(raw_text=text, channel_handle=channel_handle)
 
     def _get_context_cache(self, instructions):
         """Creates or retrieves a context cache for the given instructions."""

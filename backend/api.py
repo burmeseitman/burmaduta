@@ -97,6 +97,10 @@ class LoginRequest(BaseModel):
 class CommentRequest(BaseModel):
     comment_text: str
 
+class AnalyzeNewsRequest(BaseModel):
+    text: str
+    channel_handle: str = "unknown"
+
 def hash_password(password: str) -> str:
     # Use PBKDF2 with SHA256 and 600,000 iterations (OWASP recommendation)
     salt = os.urandom(16)
@@ -319,15 +323,91 @@ async def get_news_detail(
         raise HTTPException(status_code=404, detail="News event not found.")
     return data
 
+# =====================================================================
+# Autonomous Agentic API Endpoints
+# =====================================================================
+
+@app.get("/api/agent/alerts")
+@limiter.limit("60/minute")
+async def get_emergency_alerts(
+    request: Request,
+    response: Response,
+    limit: int = Query(default=10, ge=1, le=50),
+    api_key: str = Depends(verify_api_key)
+):
+    """Fetch active emergency broadcast alerts generated autonomously by the agent."""
+    alerts = db.get_active_emergency_alerts(limit=limit)
+    response.headers["Cache-Control"] = "public, max-age=15"
+    return {"status": "ok", "count": len(alerts), "alerts": alerts}
+
+@app.get("/api/agent/runs")
+@limiter.limit("30/minute")
+async def get_agent_runs(
+    request: Request,
+    limit: int = Query(default=20, ge=1, le=100),
+    api_key: str = Depends(verify_api_key)
+):
+    """Audit log of recent Autonomous Agent ReAct execution cycles & reasoning chains."""
+    runs = db.get_recent_agent_logs(limit=limit)
+    return {"status": "ok", "count": len(runs), "runs": runs}
+
+@app.post("/api/agent/analyze")
+@limiter.limit("20/minute")
+async def analyze_news_with_agent(
+    request: Request,
+    req: AnalyzeNewsRequest,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Live Interactive Agent Sandbox:
+    Executes the full Autonomous ReAct Agent Loop on custom text,
+    triggering tools (Fact-Check, Geo-Inferencer, Emergency-Triage, Alert-Broadcaster)
+    and returning the complete step-by-step reasoning trace.
+    """
+    text_cleaned = req.text.strip()
+    if not text_cleaned or len(text_cleaned) < 5:
+        raise HTTPException(status_code=400, detail="Text must be at least 5 characters.")
+    
+    agent_result = ai.analyze_with_agent(text_cleaned, channel_handle=req.channel_handle)
+    return {
+        "status": "ok",
+        "result": agent_result
+    }
+
+@app.get("/api/agent/status")
+async def get_agent_status(api_key: str = Depends(verify_api_key)):
+    """System health & capabilities overview of the BurmaDuta Autonomous Agent."""
+    return {
+        "agent_name": "BurmaDuta Autonomous News Agent",
+        "version": "2.0-agentic",
+        "framework": "Google GenAI SDK (Gemini 3.5 Flash / ReAct)",
+        "active_tools": [
+            "tool_fact_checker",
+            "tool_geo_inferencer",
+            "tool_emergency_triager",
+            "tool_emergency_broadcaster",
+            "tool_semantic_correlator"
+        ],
+        "autonomous_capabilities": [
+            "Real-time Telegram message filtering and deduplication",
+            "Disinformation & propaganda detection with credibility scoring",
+            "Myanmar spatial reasoning and GPS coordinate inference",
+            "Life-threatening disaster & conflict triage (Floods, Landslides, Earthquakes, Shelling)",
+            "Autonomous broadcast alert dispatch to map and live feeds",
+            "Full ReAct reasoning audit logs and observability"
+        ],
+        "status": "OPERATIONAL"
+    }
+
 # Health check endpoint (useful for monitoring, excluded from rate limit)
 @app.get("/api/health")
 async def health_check(api_key: str = Depends(verify_api_key)):
-    return {"status": "ok"}
+    return {"status": "ok", "agent_status": "active"}
 
 # Root endpoint message
 @app.get("/")
 async def root():
-    return {"message": "Burma Duta API Access Restricted. Valid API Key required."}
+    return {"message": "Burma Duta Agentic API Access Restricted. Valid API Key required."}
 
 # Background task to run forecaster daily at 3:00 AM Singapore Time (SGT / UTC+8)
 async def schedule_daily_forecaster():

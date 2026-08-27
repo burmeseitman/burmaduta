@@ -12,19 +12,18 @@ Burma Duta is a sophisticated news intelligence platform designed to monitor pub
 
 ![Burma Duta News Feed](./assets/newsfeed.png)
 
-## ✨ Key Features
+## 🤖 Autonomous Multi-Tool Agentic Engine
 
--   📡 **Real-time Multi-Channel Monitoring**: Continuously tracks diverse news sources and public announcement channels for instantaneous awareness.
--   🧠 **Advanced AI Categorization**: Implements a hierarchical classification system (Conflict, Crime, Accident, Disaster, General) with granular sub-category extraction.
--   🔮 **Conflict Trend Forecasting**: A time-series ML engine (Facebook Prophet) predicting conflict escalation trajectories (Up/Down/Stable) for active townships.
--   🧲 **Semantic De-duplication**: A machine learning model (Sentence-BERT) matching semantic similarity to identify and discard duplicate incidents reported by multiple channels.
--   📍 **Intelligent Geospatial Mapping**: Automatically geocodes incident locations using AI logic, OpenStreetMap integration, and an Offline Township Dictionary fallback.
--   👥 **Community Collaboration**: Fully authenticated comment and discussion system for user intelligence sharing, protected by an AI-driven content moderation engine and bot-check validations.
--   📊 **Interactive Narrative Dashboard**: Professional-grade visualizations using ECharts, including temporal trends, category distributions, and correlation analysis.
--   🗺️ **Interactive Heatmap Layer**: Real-time visualization of incident density to identify regional hotspots.
--   🔍 **Advanced Keyword Search**: Instant searching across incident logs and locations for rapid data retrieval.
--   📥 **Research Data Export**: Clean CSV export of filtered data with automated column filtering for privacy.
--   🛡️ **Decoupled & Secure Architecture**: Modular approach (FastAPI + Vanilla JS + PostgreSQL) featuring PBKDF2 secure password hashing and non-root Docker execution.
+Burma Duta is powered by an **Autonomous Multi-Tool Agentic Workflow** leveraging **Google Gemini 3.5 Flash** (via `google-genai` SDK) and a deterministic **ReAct (Reasoning + Acting)** execution loop. The agent runs autonomously in the background, ingesting chaotic, unstructured crisis streams from Myanmar Telegram channels without human intervention.
+
+### 🛠️ The 5 Specialized Autonomous Agent Tools:
+1. **`tool_fact_checker`**: Analyzes news for misinformation, propaganda patterns, clickbait markers, and unverified rumors. Computes Credibility Score (0-100%) and Assigns Verdict (`VERIFIED`, `PLAUSIBLE`, `DISPUTED`, `FAKE_NEWS`, `SPAM`).
+2. **`tool_geo_inferencer`**: Solves missing GPS coordinates via Myanmar spatial reasoning, 330+ administrative township ontology, landmark entity extraction, and OpenStreetMap Nominatim fallback.
+3. **`tool_emergency_triager`**: Identifies life-threatening emergencies (Landslides, Flash Floods, Earthquakes, Cyclones, Artillery Shelling, Airstrikes) and classifies Priority Levels (`CRITICAL_EMERGENCY`, `HIGH_PRIORITY`, `STANDARD`, `LOW_NOISE`).
+4. **`tool_emergency_broadcaster`**: When a critical emergency is confirmed, the agent autonomously dispatches a live Emergency Broadcast Alert across the UI banner, map pulse indicators, and live stream API.
+5. **`tool_semantic_correlator`**: Evaluates cross-channel corroboration to reinforce verified reports.
+
+---
 
 ## 🛠️ Technology Stack
 
@@ -32,73 +31,62 @@ Burma Duta is a sophisticated news intelligence platform designed to monitor pub
   <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
   <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/Google_Gemini-8E75B2?style=for-the-badge&logo=google-gemini&logoColor=white" alt="Google Gemini AI">
   <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript">
-  <img src="https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React Native">
-  <img src="https://img.shields.io/badge/Expo-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo">
   <img src="https://img.shields.io/badge/Leaflet-199903?style=for-the-badge&logo=leaflet&logoColor=white" alt="Leaflet">
   <img src="https://img.shields.io/badge/ECharts-AA0000?style=for-the-badge&logo=apache-echarts&logoColor=white" alt="ECharts">
   <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
-  <img src="https://img.shields.io/badge/Google_Gemini-8E75B2?style=for-the-badge&logo=google-gemini&logoColor=white" alt="Google Gemini AI">
 </p>
+
+---
+
+## ✨ Key Features
+
+-   🤖 **Autonomous ReAct Agent Engine**: Multi-tool reasoning loop that understands, fact-checks, geo-locates, and acts on Myanmar crisis news in real time.
+-   🚨 **Autonomous Emergency Broadcasts**: Instantaneous alerting for natural disasters (landslides, earthquakes, floods) and high-severity conflict hotspots.
+-   📍 **Intelligent Geospatial Mapping**: Inferred coordinates with confidence scoring and interactive Leaflet map visualization.
+-   🔍 **Full Reasoning Observability & Audit Trail**: Real-time inspection modal detailing every thought, tool invocation, and decision step (`/api/agent/runs`).
+-   🕹️ **Live Interactive Agent Sandbox**: Test the agent on arbitrary text inputs with step-by-step latency & reasoning logs (`/api/agent/analyze`).
+-   🔮 **Conflict Trend Forecasting**: A time-series ML engine (Facebook Prophet) predicting conflict trajectories for active townships.
+-   🧲 **Semantic De-duplication**: Sentence-BERT embedding similarity to eliminate duplicate cross-channel reports.
+-   👥 **Community Discussion & AI Moderation**: Authenticated comments protected by Gemini AI moderation filter against hate speech and harassment.
+
+---
 
 ## 🏗️ System Architecture
 
-The project is architected for maximum flexibility. The frontend is entirely static, enabling global distribution via CDNs, while the backend handles high-concurrency data ingestion and AI processing.
-
 ```mermaid
 graph TD
-    A[Public Data Channels] -->|Real-time feed| B(Scraper Service)
+    A[Unstructured Telegram Feeds] -->|Live Raw Streams| B(Scraper Service)
     
-    subgraph Scraper Pipeline
-        B -->|1. Parse Event| C{AI Analytical Engine}
-        C -->|2. Geolocation Fallback| GEO[Auto Geolocator Fallback]
-        GEO -->|3. Similarity Match| DEDUP[Semantic De-duplication Model]
+    subgraph Autonomous Agentic Engine [Google Gemini 3.5 + ReAct Loop]
+        B -->|1. Ingest Text| AGENT[Autonomous News Agent]
+        AGENT <-->|Tool 1: Fact Check & Credibility| FC[Fact Checker Tool]
+        AGENT <-->|Tool 2: Spatial Geo-Reasoning| GEO[Geo-Inference Engine]
+        AGENT <-->|Tool 3: Priority & Disaster Triage| TRIAGE[Emergency Triage Tool]
+        AGENT <-->|Tool 4: Autonomous Alert Trigger| BROADCAST[Emergency Broadcast Dispatcher]
+        AGENT <-->|Tool 5: Cross-Source Correlation| DEDUP[Semantic Correlator]
     end
     
-    DEDUP -->|Structured JSON| DB[(PostgreSQL Database)]
+    AGENT -->|Structured Event + Agent Trace| DB[(PostgreSQL Database)]
+    AGENT -->|Emergency Dispatches| ALERTS[Emergency Alerts]
+    AGENT -->|Audit Trail| LOGS[Agent Execution Logs]
     
-    subgraph Background Services
-        SCHED[SGT 3:00 AM Scheduler] -->|Triggers Forecast| FORE[Prophet Trend Predictor]
-        FORE -->|Save Predictions| DB
-    end
+    DB --> API(FastAPI Backend)
+    ALERTS --> API
+    LOGS --> API
     
-    DB -->|REST Endpoints & Stats| API(FastAPI Backend)
-    
-    USR[End User] <-->|HTTPS| WEB[Web Dashboard]
-    MOB[Mobile User] <-->|HTTPS| APP[Mobile App]
-    
-    WEB <-->|API Key & Session Token| API
-    APP <-->|API Key & Session Token| API
-    
-    subgraph Comments & Moderation
-        API <-->|User Auth & Comments| COM[Comments System]
-        COM -->|Text Moderation| MOD[Content Moderation Engine]
-    end
-    
-    classDef frontend fill:#f7b731,stroke:#333,stroke-width:2px,color:#000;
-    classDef mobile fill:#00d8d6,stroke:#333,stroke-width:2px,color:#000;
-    classDef backend fill:#eb3b5a,stroke:#333,stroke-width:2px,color:#fff;
-    classDef database fill:#2980b9,stroke:#333,stroke-width:2px,color:#fff;
-    classDef external fill:#4b6584,stroke:#333,stroke-width:2px,color:#fff;
-    classDef pipeline fill:#20bf6b,stroke:#333,stroke-width:2px,color:#fff;
-    
-    class WEB frontend;
-    class APP mobile;
-    class B,C,API,FORE,SCHED,MOD,COM backend;
-    class DB database;
-    class A external;
-    class GEO,DEDUP pipeline;
+    API -->|Live Map Data & Alerts| WEB[Interactive Web Dashboard]
+    API -->|Agent Reasoning Inspector| AUDIT[Agent Observability Modal]
+    API -->|Mobile Endpoints| APP[Mobile App]
 ```
 
 ### Components
-1. **Web Dashboard**: Pure HTML5/CSS3/Vanilla JS. No complex frameworks, ensuring ultra-fast load times and zero dependency bloat.
-2. **Mobile App**: A cross-platform React Native (Expo) application providing native map experiences and on-the-go real-time notifications.
-3. **Backend API**: Optimized FastAPI services providing efficient data retrieval, secured by **API Key Authentication** to prevent public scraping. Includes a secured Comments & Moderation system.
-4. **Scraper & AI Processor**: A dedicated worker utilizing LLM intelligence for entity recognition (Location, Event Type, Timestamp, People involved) and data cleaning.
-5. **Auto Geolocator**: An offline fallback system ensuring missing GPS coordinates are automatically resolved against a strict pre-compiled township dictionary.
-6. **Semantic De-duplicator**: A machine learning engine (Sentence-BERT + Jaccard fallbacks) that detects and drops duplicate incident reports across overlapping channels.
-7. **Conflict Trend Predictor**: A time-series forecasting engine (Facebook Prophet) scheduled to run nightly, calculating escalation trajectories (`up`, `down`, `stable`) for active townships.
-8. **Database**: Robust PostgreSQL schema designed for incident tracking and system-wide configuration management.
+1. **Autonomous News Agent (`agent_core.py`)**: Google Gemini 3.5 ReAct engine with 5 specialized tools for fact-checking, spatial reasoning, emergency triage, and broadcast alerting.
+2. **Web Dashboard (`frontend/index.html`, `app.js`)**: Interactive Leaflet & ECharts dashboard featuring real-time Emergency Alert Banner, Fact-Check badges, and the Agent Reasoning Inspector Modal.
+3. **Agent Sandbox Drawer**: Interactive live test environment for judges and users to test arbitrary inputs.
+4. **Backend API (`api.py`)**: High-performance FastAPI backend with endpoints for agent alerts (`/api/agent/alerts`), audit runs (`/api/agent/runs`), and interactive analysis (`/api/agent/analyze`).
+5. **Database**: PostgreSQL schema with automated migrations for agent traces, emergency alerts, and audit logs.
 
 ## 🚀 Deployment
 

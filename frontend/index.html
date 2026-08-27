@@ -48,6 +48,16 @@
 </head>
 
 <body>
+  <!-- 🚨 Top Emergency Broadcast Banner -->
+  <div id="emergency-banner" class="emergency-banner" style="display: none;">
+    <div class="emergency-banner-content">
+      <span class="emergency-pulsing-tag">🚨 အရေးပေါ် သတိပေးချက်</span>
+      <span id="emergency-banner-text" class="emergency-text"></span>
+      <button id="emergency-zoom-btn" class="emergency-action-btn">📍 မြေပုံတွင်ကြည့်ရန်</button>
+      <button id="emergency-close-btn" class="emergency-close-btn" aria-label="Close alert" onclick="document.getElementById('emergency-banner').style.display='none'">×</button>
+    </div>
+  </div>
+
   <!-- Loading Overlay -->
   <div id="loading-overlay" class="loading-overlay">
     <div class="loader-container">
@@ -112,6 +122,9 @@
         <h1 onclick="window.resetToHomeView();" style="cursor: pointer;" title="Home - Reset View">ဗမာဒူတ</h1>
         <div class="header-status-wrapper">
           <div class="header-actions">
+            <button id="open-agent-sandbox" class="action-btn" data-tooltip="Autonomous Agent စမ်းသပ်ရန်" aria-label="Agent Sandbox" onclick="window.toggleAgentSandbox()">
+              <i data-lucide="bot"></i>
+            </button>
             <a href="feed.html" class="action-btn" data-tooltip="သတင်းများ" aria-label="News Feed" style="display: flex; align-items: center; justify-content: center; text-decoration: none; color: inherit;">
               <i data-lucide="newspaper"></i>
             </a>
@@ -216,6 +229,47 @@
       </div>
       <p>Powered by AI Intelligence & OpenStreetMap</p>
     </footer>
+  </div>
+
+  <!-- 🤖 Agent Reasoning Inspector Modal -->
+  <div id="agent-inspector-modal" class="agent-modal" style="display: none;">
+    <div class="agent-modal-backdrop" onclick="window.closeAgentInspector()"></div>
+    <div class="agent-modal-dialog">
+      <div class="agent-modal-header">
+        <div class="agent-title-row">
+          <span class="agent-icon-badge">🤖</span>
+          <div>
+            <h3>Autonomous Agent Reasoning Chain</h3>
+            <p class="agent-subtitle">ReAct Multi-Tool Execution & Observability Trace</p>
+          </div>
+        </div>
+        <button class="agent-modal-close" onclick="window.closeAgentInspector()">&times;</button>
+      </div>
+      <div id="agent-modal-body" class="agent-modal-body">
+        <!-- Injected via JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 🕹️ Agent Live Sandbox Drawer -->
+  <div id="agent-sandbox-drawer" class="agent-sandbox-drawer" style="display: none;">
+    <div class="sandbox-header">
+      <div class="sandbox-title">
+        <i data-lucide="cpu"></i>
+        <span>Autonomous Agent Sandbox</span>
+      </div>
+      <button class="sandbox-close" onclick="window.toggleAgentSandbox()">&times;</button>
+    </div>
+    <div class="sandbox-body">
+      <p class="sandbox-desc">Telegram သတင်း သို့မဟုတ် စာသားကို ထည့်သွင်းပြီး Agent ၏ Fact-checking, Spatial Geolocation Inferencing နှင့် Emergency Alert Decision-making ကို တိုက်ရိုက် စမ်းသပ်ပါ။</p>
+      <textarea id="sandbox-input-text" placeholder="သတင်းစာသား ရိုက်ထည့်ပါ... (ဥပမာ- 'မိုးကုတ်မြို့နယ်တွင် မြေပြိုကျမှုဖြစ်ပွားပြီး ကယ်ဆယ်ရေး လိုအပ်နေ')" rows="4"></textarea>
+      <button id="sandbox-run-btn" class="sandbox-submit-btn" onclick="window.runAgentSandbox()">
+        <i data-lucide="play"></i> Agent ဖြင့် စစ်ဆေးဆန်းစစ်ပါ
+      </button>
+      <div id="sandbox-result-container" class="sandbox-results" style="display: none;">
+        <!-- Injected via JavaScript -->
+      </div>
+    </div>
   </div>
 
   <!-- Scripts moved to <head> with defer/async; see the comment there. -->

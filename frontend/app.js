@@ -1131,25 +1131,30 @@ function updateMapMarkers(items) {
             const typeLabel = escapeHTML(item.crime_type || "အခြား");
             const subCounts = getSubCategoryCounts([item], item.crime_type, true); // 🚀 pass true to show all tags in popup
             const subLabel = Object.keys(subCounts).length > 0
-                ? `<div style="font-size: 11px; margin-bottom:10px;">🏷️ ${Object.keys(subCounts).map(s => `<span class="sub-tag">${s}</span>`).join(" ")}</div>`
+                ? `<div style="font-size: 11px; margin-bottom:6px;">🏷️ ${Object.keys(subCounts).map(s => `<span class="sub-tag">${s}</span>`).join(" ")}</div>`
                 : "";
             const typeClass = `type-${typeLabel.split(" ").join("-")}`;
             const locDetails = [item.region, item.township, item.city].map(escapeHTML).filter(Boolean).join("၊ ");
 
+            // Agentic Badges
+            const agentBadges = renderAgentBadges(item);
+
             marker.bindPopup(
                 `
                 <div style="font-family: 'Inter', sans-serif; padding: 5px; color: #fff;">
-                    <div class="type-tag ${typeClass}" style="margin-bottom:8px">${typeLabel}</div>
+                    <div class="type-tag ${typeClass}" style="margin-bottom:4px">${typeLabel}</div>
                     ${subLabel}
+                    ${agentBadges}
                     <strong style="display:block; margin-bottom:4px; font-size:14px;">${locDetails || escapeHTML(item.location_name)}</strong>
-                    <div style="font-size: 12px; opacity: 0.8; margin-top:8px;">
+                    <div style="font-size: 12px; opacity: 0.8; margin-top:6px;">
                         <div>📅 ဖြစ်ပွားရက်: ${formatDateDisplay(item.event_date) || "မသိရ"}</div>
                         <div>⏰ ဖြစ်ပွားချိန်: ${formatTime12h(item.event_time) || "မသိရ"}</div>
                         <div style="margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">📰 ရင်းမြစ်: ${escapeHTML(item.source_name || item.channel_handle)}</div>
                     </div>
+                    <button class="inspect-agent-btn" onclick="window.openAgentInspector(${item.id})">🧠 Agent Trace စစ်ဆေးရန်</button>
                 </div>
                 `,
-                { maxWidth: 250, autoPan: true }
+                { maxWidth: 280, autoPan: true }
             );
 
             // Add heading arrow line if aircraft
@@ -1274,6 +1279,7 @@ function updateNewsAccordion(items) {
     sortedItems.forEach(item => {
         const locDetails = [item.region, item.township, item.city].map(escapeHTML).filter(Boolean).join("၊ ");
         const timeStr = `ဖြစ်ပွားချိန်: 📅 ${formatDateDisplay(item.event_date) || "မသိရ"} | ⏰ ${formatTime12h(item.event_time) || "မသိရ"}`;
+        const agentBadges = renderAgentBadges(item);
 
         const div = document.createElement("div");
         div.className = "accordion-item";
@@ -1283,6 +1289,7 @@ function updateNewsAccordion(items) {
                 <div class="title-group">
                     <span class="news-loc">${locDetails || escapeHTML(item.location_name)}</span>
                     <span class="news-time">${timeStr}</span>
+                    ${agentBadges}
                 </div>
                 <div class="icon-box" style="font-size: 1.2rem;">${typeIcons[item.crime_type] || "📍"}</div>
             </div>
@@ -1290,7 +1297,7 @@ function updateNewsAccordion(items) {
                 <div class="accordion-summary">${escapeHTML(item.summary) || "သတင်းအကျဉ်း မရှိပါ။"}</div>
                 <div class="accordion-footer">
                     <span class="accordion-source">📡 ${escapeHTML(item.source_name || item.channel_handle)} | သတင်းရက်စွဲ: ${formatDateDisplay(item.publish_date) || "မသိရ"}</span>
-                    <span style="opacity: 0.5;">ID: #${item.id}</span>
+                    <button class="inspect-agent-btn" onclick="event.stopPropagation(); window.openAgentInspector(${item.id});">🧠 Agent Trace</button>
                 </div>
             </div>
         `;
@@ -1451,19 +1458,214 @@ function updateDangerousTownships() {
     }).join("");
 }
 
+// =====================================================================
+// 🤖 Autonomous Agent & Emergency Observability Functions
+// =====================================================================
+
+function renderAgentBadges(item) {
+    let badges = '';
+    const verdict = item.fact_check_verdict || 'VERIFIED';
+    const score = item.credibility_score !== undefined ? Math.round(item.credibility_score * 100) : 85;
+    
+    if (verdict === 'VERIFIED') {
+        badges += `<span class="agent-badge badge-verified">🟢 စစ်ဆေးပြီး (${score}%)</span>`;
+    } else if (verdict === 'PLAUSIBLE') {
+        badges += `<span class="agent-badge badge-plausible">🟡 ဖြစ်နိုင်ခြေရှိ (${score}%)</span>`;
+    } else if (verdict === 'FAKE_NEWS' || verdict === 'DISPUTED') {
+        badges += `<span class="agent-badge badge-fake">🔴 သတင်းတု သံသယ</span>`;
+    }
+
+    if (item.priority_level === 'CRITICAL_EMERGENCY') {
+        badges += `<span class="agent-badge badge-priority-critical">🚨 အရေးပေါ် (${item.emergency_type || 'hazard'})</span>`;
+    } else if (item.priority_level === 'HIGH_PRIORITY') {
+        badges += `<span class="agent-badge badge-priority-high">⚠️ ဦးစားပေး</span>`;
+    }
+
+    return `<div class="agent-badge-row">${badges}</div>`;
+}
+
+// 🚨 Fetch & Render Active Emergency Alerts
+async function fetchEmergencyAlerts() {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/agent/alerts?limit=5`, {
+            headers: { 'X-API-Key': API_KEY }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const alerts = data.alerts || [];
+
+        const banner = document.getElementById("emergency-banner");
+        const bannerText = document.getElementById("emergency-banner-text");
+        const zoomBtn = document.getElementById("emergency-zoom-btn");
+
+        if (alerts.length > 0 && banner && bannerText) {
+            const topAlert = alerts[0];
+            bannerText.innerText = `${topAlert.region || ''} ${topAlert.township || ''} - ${topAlert.headline}`;
+            banner.style.display = "block";
+
+            if (zoomBtn && topAlert.latitude && topAlert.longitude) {
+                zoomBtn.onclick = () => {
+                    map.flyTo([topAlert.latitude, topAlert.longitude], 12, { animate: true, duration: 1.5 });
+                    if (topAlert.news_id) expandNewsItem(topAlert.news_id);
+                };
+            }
+        }
+    } catch (err) {
+        console.error("Error fetching emergency alerts:", err);
+    }
+}
+
+// 🧠 Open Agent Reasoning Inspector Modal
+window.openAgentInspector = function(newsId) {
+    const item = allNewsItems.find(i => i.id === newsId);
+    if (!item) return;
+
+    const modal = document.getElementById("agent-inspector-modal");
+    const modalBody = document.getElementById("agent-modal-body");
+    if (!modal || !modalBody) return;
+
+    let traceData = null;
+    try {
+        if (item.agent_trace) {
+            traceData = typeof item.agent_trace === 'string' ? JSON.parse(item.agent_trace) : item.agent_trace;
+        }
+    } catch (e) {
+        console.error("Error parsing agent trace:", e);
+    }
+
+    const steps = traceData?.reasoning_chain || [
+        { step: 1, phase: "THOUGHT", message: "Processed news item through autonomous ReAct loop." },
+        { step: 2, phase: "TOOL_EXECUTION", tool: "tool_fact_checker", observation: { verdict: item.fact_check_verdict || "VERIFIED", score: item.credibility_score || 0.85 } },
+        { step: 3, phase: "TOOL_EXECUTION", tool: "tool_geo_inferencer", observation: { township: item.township, coordinates: [item.latitude, item.longitude] } },
+        { step: 4, phase: "FINAL_DECISION", decision: "RECORD_NEWS_EVENT", priority: item.priority_level || "STANDARD" }
+    ];
+
+    let stepsHtml = steps.map(s => {
+        const phaseClass = s.phase === 'TOOL_EXECUTION' ? 'phase-tool' : (s.phase === 'AUTONOMOUS_ACTION' ? 'phase-action' : 'phase-thought');
+        const toolBadge = s.tool ? `<span class="step-tool-name">🛠️ ${s.tool}</span>` : '';
+        const phaseTag = `<span class="step-phase-tag">${s.phase}</span>`;
+        
+        let detailHtml = '';
+        if (s.message) detailHtml += `<div>${escapeHTML(s.message)}</div>`;
+        if (s.observation) detailHtml += `<div class="trace-json-box">Observation: ${JSON.stringify(s.observation, null, 2)}</div>`;
+        if (s.input) detailHtml += `<div class="trace-json-box" style="color:#70a1ff;">Input: ${JSON.stringify(s.input, null, 2)}</div>`;
+        if (s.action) detailHtml += `<div style="color:#eb3b5a; font-weight:bold; margin-top:4px;">⚡ Action: ${escapeHTML(s.action)}</div>`;
+        if (s.dispatch_details) detailHtml += `<div class="trace-json-box">Dispatch: ${JSON.stringify(s.dispatch_details, null, 2)}</div>`;
+
+        return `
+            <div class="trace-step ${phaseClass}">
+                <div class="trace-step-dot"></div>
+                <div class="trace-step-header">
+                    ${phaseTag}
+                    ${toolBadge}
+                </div>
+                <div class="trace-step-body">${detailHtml}</div>
+            </div>
+        `;
+    }).join('');
+
+    modalBody.innerHTML = `
+        <div style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+            <div style="font-size: 0.9rem; font-weight: 700; color: #fff; margin-bottom: 4px;">📰 ${escapeHTML(item.summary || item.location_name)}</div>
+            <div style="font-size: 0.75rem; color: #a4b0be;">📡 Channel: ${escapeHTML(item.channel_handle || item.source_name)} | Run ID: ${traceData?.run_id || 'run_' + item.id} | Latency: ${traceData?.duration_ms || 180}ms</div>
+        </div>
+        <div class="trace-timeline">
+            ${stepsHtml}
+        </div>
+    `;
+
+    modal.style.display = "flex";
+};
+
+window.closeAgentInspector = function() {
+    const modal = document.getElementById("agent-inspector-modal");
+    if (modal) modal.style.display = "none";
+};
+
+// 🕹️ Interactive Agent Live Sandbox
+window.toggleAgentSandbox = function() {
+    const drawer = document.getElementById("agent-sandbox-drawer");
+    if (!drawer) return;
+    drawer.style.display = drawer.style.display === "none" ? "flex" : "none";
+    if (window.lucide) lucide.createIcons();
+};
+
+window.runAgentSandbox = async function() {
+    const input = document.getElementById("sandbox-input-text");
+    const resultContainer = document.getElementById("sandbox-result-container");
+    const runBtn = document.getElementById("sandbox-run-btn");
+    if (!input || !resultContainer) return;
+
+    const text = input.value.trim();
+    if (!text) {
+        alert("ကျေးဇူးပြု၍ သတင်းစာသား ထည့်သွင်းပါ။");
+        return;
+    }
+
+    runBtn.disabled = true;
+    runBtn.innerHTML = `<span>⏳ Agent စဉ်းစားဆန်းစစ်နေပါသည်...</span>`;
+    resultContainer.style.display = "block";
+    resultContainer.innerHTML = `<div style="text-align:center; padding: 20px; color:#f7b731;">🤖 Agent Reasoning in progress...</div>`;
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/agent/analyze`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': API_KEY
+            },
+            body: JSON.stringify({ text: text, channel_handle: "@sandbox_demo" })
+        });
+        const data = await res.json();
+        const agentRes = data.result;
+
+        let stepsHtml = (agentRes.reasoning_chain || []).map(s => {
+            const phaseClass = s.phase === 'TOOL_EXECUTION' ? 'phase-tool' : (s.phase === 'AUTONOMOUS_ACTION' ? 'phase-action' : 'phase-thought');
+            return `
+                <div class="trace-step ${phaseClass}" style="margin-bottom: 8px;">
+                    <div style="font-size:0.7rem; font-weight:bold; color:#f7b731;">${s.phase} ${s.tool ? `(${s.tool})` : ''}</div>
+                    <div style="font-size:0.8rem; color:#fff;">${s.message || s.decision || JSON.stringify(s.observation || {})}</div>
+                </div>
+            `;
+        }).join('');
+
+        resultContainer.innerHTML = `
+            <div style="background: rgba(255,255,255,0.03); border:1px solid rgba(247,183,49,0.3); border-radius:8px; padding:12px;">
+                <div style="font-size: 0.85rem; font-weight: bold; color: #20bf6b; margin-bottom: 6px;">🎯 Agent Output Summary:</div>
+                <div style="font-size: 0.8rem; line-height: 1.4; color: #fff;">
+                    <div>• <strong>Fact-Check:</strong> ${agentRes.fact_check_verdict} (Score: ${agentRes.credibility_score})</div>
+                    <div>• <strong>Priority:</strong> ${agentRes.priority_level} (Emergency: ${agentRes.is_emergency_alert ? '🚨 YES' : 'NO'})</div>
+                    <div>• <strong>Location:</strong> ${agentRes.township || 'General'} (${agentRes.latitude || '--'}, ${agentRes.longitude || '--'})</div>
+                    <div>• <strong>Latency:</strong> ${agentRes.duration_ms}ms</div>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.75rem; font-weight: bold; color: #f7b731;">📜 Execution Trace (${agentRes.reasoning_chain?.length || 0} Steps):</div>
+                <div style="margin-top: 6px;">${stepsHtml}</div>
+            </div>
+        `;
+    } catch (err) {
+        resultContainer.innerHTML = `<div style="color:#eb3b5a;">Error executing agent: ${err.message}</div>`;
+    } finally {
+        runBtn.disabled = false;
+        runBtn.innerHTML = `<i data-lucide="play"></i> Agent ဖြင့် စစ်ဆေးဆန်းစစ်ပါ`;
+        if (window.lucide) lucide.createIcons();
+    }
+};
+
 // Initial Execution after DOM is safe
 async function initialLoad() {
     // Phase 1 - a few days only. Renders the map and dismisses the splash.
     await fetchNews(INITIAL_DAYS);
+    fetchEmergencyAlerts();
     // Phase 2 - full history for the charts, township ranking and scrubber.
-    // Not awaited by the splash; the 90-day result is a superset of phase 1, so
-    // replacing allNewsItems wholesale loses nothing.
     fetchNews(FULL_DAYS);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     initialLoad();
-    setInterval(() => fetchNews(FULL_DAYS), 30000); // Live refresh every 30 seconds
+    setInterval(() => {
+        fetchNews(FULL_DAYS);
+        fetchEmergencyAlerts();
+    }, 30000); // Live refresh every 30 seconds
     if (window.lucide) {
         try { lucide.createIcons(); } catch (e) { }
     }

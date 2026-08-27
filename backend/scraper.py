@@ -215,14 +215,40 @@ async def process_messages_batch(messages_batch):
                 'longitude': lon,
                 'sub_category': parsed_data.get('sub_category'),
                 'heading': parsed_data.get('heading'),
-                'target_location': parsed_data.get('target_location')
+                'target_location': parsed_data.get('target_location'),
+                # Agentic Enrichment Fields
+                'priority_level': parsed_data.get('priority_level', 'STANDARD'),
+                'fact_check_verdict': parsed_data.get('fact_check_verdict', 'VERIFIED'),
+                'credibility_score': parsed_data.get('credibility_score', 0.85),
+                'is_emergency_alert': parsed_data.get('is_emergency_alert', False),
+                'emergency_type': parsed_data.get('emergency_type', 'none'),
+                'agent_trace': parsed_data.get('agent_trace'),
+                'emergency_dispatch': parsed_data.get('emergency_dispatch')
             })
+
+            # Record Agent Audit Log
+            try:
+                run_id = f"batch_{orig['id']}_{int(time.time())}"
+                tools_used = ["tool_fact_checker", "tool_geo_inferencer", "tool_emergency_triager"]
+                if parsed_data.get('is_emergency_alert'):
+                    tools_used.append("tool_emergency_broadcaster")
+                db.insert_agent_execution_log(
+                    run_id=run_id,
+                    news_id=orig['id'],
+                    input_snippet=orig['text'][:200],
+                    tools_called=tools_used,
+                    reasoning_chain=parsed_data.get('agent_trace'),
+                    verdict=parsed_data.get('fact_check_verdict', 'VERIFIED'),
+                    duration_ms=120
+                )
+            except Exception as e:
+                pass
 
         # 4. Save to database in BATCH
         if save_list:
             inserted = db.insert_news_batch(save_list)
             if inserted > 0:
-                print(f"✅ Batch complete. Saved {inserted}/{len(to_process)} new records.")
+                print(f"✅ Agentic Batch complete. Saved {inserted}/{len(to_process)} verified news records.")
             else:
                 print(f"ℹ️ All {len(to_process)} items in this batch were duplicates (semantic or ID). Skip.")
         

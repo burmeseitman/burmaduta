@@ -1,6 +1,8 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
+import json
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 # Load .env from project root
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -15,28 +17,49 @@ class DBManager:
         "user_sessions": {},
         "news_comments": {},
         "conflict_forecasts": [],
+        "emergency_alerts": [
+            {
+                "id": 1,
+                "news_id": 1,
+                "alert_level": "CRITICAL",
+                "emergency_type": "landslide",
+                "region": "ကချင်",
+                "township": "ဖားကန့်",
+                "headline": "⚠️ ဖားကန့် ကျောက်စိမ်းမြေပြိုကျမှု အရေးပေါ်သတိပေးချက်",
+                "action_required": "ချက်ချင်း ဘေးလွတ်ရာသို့ ရွှေ့ပြောင်းကြရန်နှင့် ကယ်ဆယ်ရေးအဖွဲ့များ အဆင်သင့်ရှိကြရန်။",
+                "is_active": True,
+                "created_at": "2026-08-27T10:00:00Z"
+            }
+        ],
+        "agent_execution_logs": [],
         "news_events": [
             {
                 "id": 1,
                 "channel_handle": "@burma_duta_mock",
                 "internal_id": 1001,
-                "summary": "ဗမာဒူတ နယူးဖိဒ် တိုက်ရိုက်စနစ် local test verification update. ဖြစ်စဉ်မှတ်တမ်းများအား dynamic categorizations filtering ဖြင့် ဤဖိဒ်တွင် လွယ်ကူစွာ ဖတ်ရှုနိုင်ပါသည်။",
-                "crime_type": "စစ်ရေးသတင်း",
-                "sub_category": "ပစ်ခတ်မှု",
-                "publish_date": "2026-07-18",
+                "summary": "ဖားကန့်မြို့နယ်တွင် မိုးသည်းထန်စွာရွာသွန်းပြီးနောက် မြေပြိုကျမှုဖြစ်ပွားရာ ဒေသခံများ သတိထားရှောင်ရှားရန် လိုအပ်နေပါသည်။",
+                "crime_type": "သဘာဝဘေးအန္တရာယ်",
+                "sub_category": "မြေပြိုမှု",
+                "publish_date": "2026-08-27",
                 "publish_time": "12:00:00",
-                "event_date": "2026-07-18",
+                "event_date": "2026-08-27",
                 "event_time": "12:00:00",
-                "region": "ရန်ကုန်",
-                "township": "ကမာရွတ်",
-                "city": "ရန်ကုန်",
-                "location_name": "ကမာရွတ်",
-                "latitude": 16.82,
-                "longitude": 96.13,
-                "heading": "သတင်းအချက်အလက်",
-                "target_location": "ရန်ကုန်",
+                "region": "ကချင်",
+                "township": "ဖားကန့်",
+                "city": "ဖားကန့်",
+                "location_name": "ဖားကန့်",
+                "latitude": 25.61,
+                "longitude": 96.31,
+                "heading": "မြေပြိုမှု အရေးပေါ်သတိပေးချက်",
+                "target_location": "ဖားကန့်မြို့နယ်",
+                "priority_level": "CRITICAL_EMERGENCY",
+                "fact_check_verdict": "VERIFIED",
+                "credibility_score": 0.94,
+                "is_emergency_alert": True,
+                "emergency_type": "landslide",
+                "agent_trace": '{"run_id": "mock_run_1", "duration_ms": 320, "reasoning_chain": [{"step": 1, "phase": "THOUGHT", "message": "Analyzing natural hazard alert."}, {"step": 2, "phase": "TOOL_EXECUTION", "tool": "tool_fact_checker", "observation": {"verdict": "VERIFIED", "credibility_score": 0.94}}, {"step": 3, "phase": "TOOL_EXECUTION", "tool": "tool_geo_inferencer", "observation": {"resolved_township": "ဖားကန့်", "spatial_confidence": 0.95}}, {"step": 4, "phase": "AUTONOMOUS_ACTION", "tool": "tool_emergency_broadcaster", "action": "DISPATCH_EMERGENCY_BROADCAST"}]}',
                 "created_at": None, # Will be set to current time
-                "source_name": "BurmaDuta Mobile"
+                "source_name": "BurmaDuta Agent"
             },
             {
                 "id": 2,
@@ -45,9 +68,9 @@ class DBManager:
                 "summary": "မှုခင်းဖြစ်စဉ် သတင်းအချက်အလက် - ရန်ကုန်တိုင်းအတွင်း ဆိုင်ကယ်ခိုးယူမှုများ မကြာခဏ ဖြစ်ပွားနေသဖြင့် သတိပြုကြရန်။",
                 "crime_type": "မှုခင်းသတင်း",
                 "sub_category": "ခိုးယူမှု",
-                "publish_date": "2026-07-18",
+                "publish_date": "2026-08-27",
                 "publish_time": "14:30:00",
-                "event_date": "2026-07-18",
+                "event_date": "2026-08-27",
                 "event_time": "14:30:00",
                 "region": "ရန်ကုန်",
                 "township": "လှိုင်",
@@ -55,8 +78,14 @@ class DBManager:
                 "location_name": "လှိုင်",
                 "latitude": 16.84,
                 "longitude": 96.12,
-                "heading": "သတင်းအချက်အလက်",
+                "heading": "မှုခင်းသတင်းအချက်အလက်",
                 "target_location": "လှိုင်မြို့နယ်",
+                "priority_level": "STANDARD",
+                "fact_check_verdict": "VERIFIED",
+                "credibility_score": 0.88,
+                "is_emergency_alert": False,
+                "emergency_type": "none",
+                "agent_trace": '{"run_id": "mock_run_2", "duration_ms": 280, "reasoning_chain": [{"step": 1, "phase": "THOUGHT", "message": "Evaluating local crime report."}, {"step": 2, "phase": "TOOL_EXECUTION", "tool": "tool_fact_checker", "observation": {"verdict": "VERIFIED", "credibility_score": 0.88}}, {"step": 3, "phase": "TOOL_EXECUTION", "tool": "tool_emergency_triager", "observation": {"priority_level": "STANDARD", "is_emergency": false}}]}',
                 "created_at": None,
                 "source_name": "Crime Records MM"
             }
@@ -111,6 +140,8 @@ class DBManager:
             self.conn = psycopg2.connect(INTERNAL_STORE_URI)
 
     def create_table(self):
+        if not self.conn:
+            return
         # Configuration for migration transparency
         TABLE = 'news_events'
         
@@ -139,6 +170,12 @@ class DBManager:
                     longitude FLOAT8,
                     heading VARCHAR(50),
                     target_location VARCHAR(255),
+                    priority_level VARCHAR(30) DEFAULT 'STANDARD',
+                    fact_check_verdict VARCHAR(50) DEFAULT 'VERIFIED',
+                    credibility_score REAL DEFAULT 0.85,
+                    is_emergency_alert BOOLEAN DEFAULT FALSE,
+                    emergency_type VARCHAR(50) DEFAULT 'none',
+                    agent_trace TEXT,
                     created_at TIMESTAMPTZ DEFAULT NOW(),
                     UNIQUE(channel_handle, internal_id)
                 );
@@ -164,9 +201,9 @@ class DBManager:
             cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_channel_handle ON {TABLE} (channel_handle);")
             cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_channel_handle_lower ON {TABLE} (LOWER(channel_handle));")
             cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_created_at ON {TABLE} (created_at DESC);")
-
-            # NOTE: the source_mappings index lives in ensure_tables(), which is where
-            # that table is created. Indexing it here fails on a fresh database.
+            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_priority ON {TABLE} (priority_level);")
+            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_emergency ON {TABLE} (is_emergency_alert);")
+            cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_fact_check ON {TABLE} (fact_check_verdict);")
 
             # 4. Content Uniqueness Index (MD5-based to handle large text)
             cur.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{TABLE}_raw_text_unique ON {TABLE} (MD5(raw_text));")
@@ -178,7 +215,6 @@ class DBManager:
         # 4. Migrations (Independent transactions to avoid aborted state)
         def check_col(col):
             with self.conn.cursor() as cur:
-                # Explicitly check current schema to avoid issues with search_path
                 cur.execute("SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = %s AND column_name = %s", (TABLE, col))
                 return cur.fetchone() is not None
 
@@ -189,45 +225,52 @@ class DBManager:
                     print(f"🔄 Migration: Renaming source_id to internal_id in {TABLE}...")
                     cur.execute(f"ALTER TABLE {TABLE} RENAME COLUMN telegram_id TO internal_id;")
                     self.conn.commit()
-                    print(f"✅ Migration successful: Renamed source_id to internal_id in {TABLE}.")
             except Exception as e:
                 self.conn.rollback()
                 print(f"❌ Migration failed: Renaming source_id to internal_id in {TABLE}. Error: {e}")
-        elif check_col('telegram_id') and check_col('internal_id'):
-            print(f"ℹ️ Migration skipped: Both source_id and internal_id exist in {TABLE}.")
-        else:
-            print(f"ℹ️ Migration skipped: legacy source_id column not found in {TABLE}.")
-
 
         # Add sub_category
         if not check_col('sub_category'):
             try:
                 with self.conn.cursor() as cur:
-                    print(f"🔄 Migration: Adding sub_category column to {TABLE}...")
                     cur.execute(f"ALTER TABLE {TABLE} ADD COLUMN sub_category VARCHAR(100);")
                     self.conn.commit()
-                    print(f"✅ Migration successful: Added sub_category column to {TABLE}.")
             except Exception as e:
                 self.conn.rollback()
-                print(f"❌ Migration failed: Adding sub_category column to {TABLE}. Error: {e}")
-        else:
-            print(f"ℹ️ Migration skipped: sub_category column already exists in {TABLE}.")
 
         # Add heading and target_location
         if not check_col('heading'):
             try:
                 with self.conn.cursor() as cur:
-                    print(f"🔄 Migration: Adding heading and target_location columns to {TABLE}...")
                     cur.execute(f"ALTER TABLE {TABLE} ADD COLUMN heading VARCHAR(50);")
                     cur.execute(f"ALTER TABLE {TABLE} ADD COLUMN target_location VARCHAR(255);")
                     self.conn.commit()
-                    print(f"✅ Migration successful: Added heading and target_location columns to {TABLE}.")
             except Exception as e:
                 self.conn.rollback()
-                print(f"❌ Migration failed: Adding heading/target_location columns to {TABLE}. Error: {e}")
+
+        # Agentic Upgrades: priority_level, fact_check_verdict, credibility_score, is_emergency_alert, emergency_type, agent_trace
+        agent_cols = [
+            ("priority_level", "VARCHAR(30) DEFAULT 'STANDARD'"),
+            ("fact_check_verdict", "VARCHAR(50) DEFAULT 'VERIFIED'"),
+            ("credibility_score", "REAL DEFAULT 0.85"),
+            ("is_emergency_alert", "BOOLEAN DEFAULT FALSE"),
+            ("emergency_type", "VARCHAR(50) DEFAULT 'none'"),
+            ("agent_trace", "TEXT")
+        ]
+        for col_name, col_type in agent_cols:
+            if not check_col(col_name):
+                try:
+                    with self.conn.cursor() as cur:
+                        print(f"🔄 Migration: Adding {col_name} column to {TABLE}...")
+                        cur.execute(f"ALTER TABLE {TABLE} ADD COLUMN {col_name} {col_type};")
+                        self.conn.commit()
+                except Exception as e:
+                    self.conn.rollback()
 
     def ensure_tables(self):
         """Creates required tables if they don't exist. Does NOT populate data auto."""
+        if not self.conn:
+            return
         try:
             with self.conn.cursor() as cur:
                 # 1. Source Mappings Table
@@ -287,8 +330,43 @@ class DBManager:
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_conflict_forecasts_township ON conflict_forecasts (township);")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_conflict_forecasts_date ON conflict_forecasts (forecast_date);")
 
+                # 6. Emergency Alerts Table (Autonomous Broadcast Alerts)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS emergency_alerts (
+                        id SERIAL PRIMARY KEY,
+                        news_id INTEGER REFERENCES news_events(id) ON DELETE CASCADE,
+                        alert_level VARCHAR(30) NOT NULL,
+                        emergency_type VARCHAR(50) NOT NULL,
+                        region VARCHAR(100),
+                        township VARCHAR(100),
+                        headline TEXT NOT NULL,
+                        action_required TEXT,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                    );
+                """)
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_emergency_alerts_active ON emergency_alerts (is_active, created_at DESC);")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_emergency_alerts_type ON emergency_alerts (emergency_type);")
+
+                # 7. Agent Execution Logs (Observability & Audit Trail)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS agent_execution_logs (
+                        id SERIAL PRIMARY KEY,
+                        run_id VARCHAR(64) UNIQUE NOT NULL,
+                        news_id INTEGER,
+                        input_snippet TEXT,
+                        tools_called TEXT[],
+                        reasoning_chain TEXT,
+                        verdict VARCHAR(50),
+                        duration_ms INTEGER,
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                    );
+                """)
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_agent_logs_created ON agent_execution_logs (created_at DESC);")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_agent_logs_run_id ON agent_execution_logs (run_id);")
+
                 self.conn.commit()
-                print("✅ Users, Sessions, Comments, and Forecasts schema ensured.")
+                print("✅ Users, Sessions, Comments, Forecasts, Emergency Alerts, and Agent Execution Logs schema ensured.")
         except Exception as e:
             print(f"❌ Error creating tables: {e}")
             self.conn.rollback()
@@ -546,9 +624,11 @@ class DBManager:
                             publish_date, publish_time, event_date, event_time, 
                             region, township, city,
                             location_name, latitude, longitude,
-                            heading, target_location
+                            heading, target_location,
+                            priority_level, fact_check_verdict, credibility_score,
+                            is_emergency_alert, emergency_type, agent_trace
                         ) 
-                        SELECT %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        SELECT %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                         WHERE NOT EXISTS (
                             SELECT 1 FROM news_events 
                             WHERE (channel_handle = %s AND internal_id = %s)
@@ -569,7 +649,8 @@ class DBManager:
                                 )
                             )
                         )
-                        ON CONFLICT (channel_handle, internal_id) DO NOTHING;
+                        ON CONFLICT (channel_handle, internal_id) DO NOTHING
+                        RETURNING id;
                     """
                     
                     params = (
@@ -591,6 +672,12 @@ class DBManager:
                         data.get('longitude'),
                         data.get('heading'),
                         data.get('target_location'),
+                        data.get('priority_level', 'STANDARD'),
+                        data.get('fact_check_verdict', 'VERIFIED'),
+                        data.get('credibility_score', 0.85),
+                        data.get('is_emergency_alert', False),
+                        data.get('emergency_type', 'none'),
+                        data.get('agent_trace'),
                         # For the WHERE NOT EXISTS clause (ID check)
                         data.get('channel_handle'),
                         data.get('internal_id'),
@@ -610,8 +697,24 @@ class DBManager:
                     )
                     
                     cur.execute(query, params)
-                    if cur.rowcount > 0:
+                    inserted_row = cur.fetchone()
+                    if inserted_row:
                         inserted_count += 1
+                        new_news_id = inserted_row[0]
+                        
+                        # If emergency alert was triggered, insert into emergency_alerts table
+                        if data.get('is_emergency_alert') and data.get('emergency_dispatch'):
+                            disp = data.get('emergency_dispatch')
+                            self.insert_emergency_alert_cursor(
+                                cur,
+                                news_id=new_news_id,
+                                alert_level=disp.get('alert_level', 'CRITICAL'),
+                                emergency_type=disp.get('emergency_type', 'disaster'),
+                                region=disp.get('region'),
+                                township=disp.get('township'),
+                                headline=disp.get('headline'),
+                                action_required=disp.get('action_required')
+                            )
                 
                 self.conn.commit()
                 return inserted_count
@@ -619,6 +722,121 @@ class DBManager:
             print(f"Error in batch insert: {e}")
             self.conn.rollback()
             return 0
+
+    def insert_emergency_alert_cursor(self, cur, news_id, alert_level, emergency_type, region, township, headline, action_required):
+        """Helper to insert emergency alert within an active transaction."""
+        try:
+            cur.execute("""
+                INSERT INTO emergency_alerts (news_id, alert_level, emergency_type, region, township, headline, action_required)
+                VALUES (%s, %s, %s, %s, %s, %s, %s);
+            """, (news_id, alert_level, emergency_type, region, township, headline, action_required))
+        except Exception as e:
+            print(f"Error inserting emergency alert: {e}")
+
+    def insert_emergency_alert(self, news_id, alert_level, emergency_type, region, township, headline, action_required):
+        if self.mock_mode:
+            alert_id = len(DBManager._mock_data["emergency_alerts"]) + 1
+            DBManager._mock_data["emergency_alerts"].append({
+                "id": alert_id,
+                "news_id": news_id,
+                "alert_level": alert_level,
+                "emergency_type": emergency_type,
+                "region": region,
+                "township": township,
+                "headline": headline,
+                "action_required": action_required,
+                "is_active": True,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+            return alert_id
+
+        self._ensure_connection()
+        if not self.conn: return None
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO emergency_alerts (news_id, alert_level, emergency_type, region, township, headline, action_required)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id;
+                """, (news_id, alert_level, emergency_type, region, township, headline, action_required))
+                alert_id = cur.fetchone()[0]
+                self.conn.commit()
+                return alert_id
+        except Exception as e:
+            print(f"Error inserting emergency alert: {e}")
+            self.conn.rollback()
+            return None
+
+    def get_active_emergency_alerts(self, limit=10):
+        if self.mock_mode:
+            return [a for a in DBManager._mock_data["emergency_alerts"] if a.get("is_active", True)][:limit]
+
+        self._ensure_connection()
+        if not self.conn: return []
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT e.id, e.news_id, e.alert_level, e.emergency_type, e.region, e.township,
+                           e.headline, e.action_required, e.is_active, e.created_at,
+                           n.latitude, n.longitude, n.location_name
+                    FROM emergency_alerts e
+                    LEFT JOIN news_events n ON e.news_id = n.id
+                    WHERE e.is_active = TRUE
+                    ORDER BY e.created_at DESC
+                    LIMIT %s;
+                """, (limit,))
+                return cur.fetchall()
+        except Exception as e:
+            print(f"Error fetching emergency alerts: {e}")
+            return []
+
+    def insert_agent_execution_log(self, run_id, news_id, input_snippet, tools_called, reasoning_chain, verdict, duration_ms):
+        if self.mock_mode:
+            DBManager._mock_data["agent_execution_logs"].append({
+                "run_id": run_id,
+                "news_id": news_id,
+                "input_snippet": input_snippet[:200],
+                "tools_called": tools_called,
+                "reasoning_chain": reasoning_chain,
+                "verdict": verdict,
+                "duration_ms": duration_ms,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+            return True
+
+        self._ensure_connection()
+        if not self.conn: return False
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO agent_execution_logs (run_id, news_id, input_snippet, tools_called, reasoning_chain, verdict, duration_ms)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s);
+                """, (run_id, news_id, input_snippet[:300], tools_called, json.dumps(reasoning_chain, ensure_ascii=False) if isinstance(reasoning_chain, (dict, list)) else reasoning_chain, verdict, duration_ms))
+                self.conn.commit()
+                return True
+        except Exception as e:
+            print(f"Error inserting agent execution log: {e}")
+            self.conn.rollback()
+            return False
+
+    def get_recent_agent_logs(self, limit=20):
+        if self.mock_mode:
+            return sorted(DBManager._mock_data["agent_execution_logs"], key=lambda x: x.get("created_at", ""), reverse=True)[:limit]
+
+        self._ensure_connection()
+        if not self.conn: return []
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT id, run_id, news_id, input_snippet, tools_called, reasoning_chain, verdict, duration_ms, created_at
+                    FROM agent_execution_logs
+                    ORDER BY created_at DESC
+                    LIMIT %s;
+                """, (limit,))
+                return cur.fetchall()
+        except Exception as e:
+            print(f"Error fetching agent execution logs: {e}")
+            return []
 
     def insert_news(self, data):
         """Single insert wrapper around batch insert."""
@@ -669,7 +887,9 @@ class DBManager:
                 "n.id", "n.channel_handle", "n.internal_id", "n.crime_type",
                 "n.sub_category", "n.summary", "n.publish_date", "n.publish_time", "n.event_date",
                 "n.event_time", "n.region", "n.township", "n.city", "n.location_name",
-                "n.latitude", "n.longitude", "n.heading", "n.target_location", "n.created_at"
+                "n.latitude", "n.longitude", "n.heading", "n.target_location",
+                "n.priority_level", "n.fact_check_verdict", "n.credibility_score",
+                "n.is_emergency_alert", "n.emergency_type", "n.agent_trace", "n.created_at"
             ]
             columns_str = ", ".join(columns)
             query = f"""
@@ -686,7 +906,9 @@ class DBManager:
                 "n.id", "n.channel_handle", "n.internal_id", "n.summary", "n.crime_type",
                 "n.sub_category", "n.publish_date", "n.publish_time", "n.event_date",
                 "n.event_time", "n.region", "n.township", "n.city", "n.location_name",
-                "n.latitude", "n.longitude", "n.heading", "n.target_location", "n.created_at"
+                "n.latitude", "n.longitude", "n.heading", "n.target_location",
+                "n.priority_level", "n.fact_check_verdict", "n.credibility_score",
+                "n.is_emergency_alert", "n.emergency_type", "n.agent_trace", "n.created_at"
             ]
             if include_raw:
                 columns.append("n.raw_text")
