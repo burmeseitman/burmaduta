@@ -56,9 +56,14 @@ const map = L.map("map", {
     zoomControl: false,
 }).setView([19.7633, 96.0785], 6);
 
-// Dark Layer (OpenStreetMap Carto Dark)
-L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    attribution: "&copy; CartoDB & OpenStreetMap contributors",
+// Dark Layer (ESRI World Dark Gray - No API Key & No Watermark)
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
+    attribution: "&copy; Esri &mdash; OpenStreetMap contributors",
+    maxZoom: 16
+}).addTo(map);
+
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", {
+    maxZoom: 16
 }).addTo(map);
 
 // Move zoom control to bottom right
