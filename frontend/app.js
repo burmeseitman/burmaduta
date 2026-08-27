@@ -1626,29 +1626,46 @@ window.runAgentSandbox = async function() {
 
         let stepsHtml = (agentRes.reasoning_chain || []).map(s => {
             const phaseClass = s.phase === 'TOOL_EXECUTION' ? 'phase-tool' : (s.phase === 'AUTONOMOUS_ACTION' ? 'phase-action' : 'phase-thought');
+            const phaseTitle = `${s.phase}${s.tool ? ` (${s.tool})` : ''}`;
+            
+            let contentHtml = '';
+            if (s.message) {
+                contentHtml = `<div style="font-size:0.8rem; color:#e2e8f0; line-height:1.4;">${escapeHTML(s.message)}</div>`;
+            } else if (s.observation) {
+                const obsEntries = Object.entries(s.observation).map(([k, v]) => {
+                    const valStr = typeof v === 'object' ? JSON.stringify(v) : v;
+                    return `<div style="font-size:0.75rem; color:#cbd5e1; margin-top:3px; word-break:break-word;"><span style="color:#20bf6b; font-weight:600;">${escapeHTML(k)}:</span> ${escapeHTML(String(valStr))}</div>`;
+                }).join('');
+                contentHtml = `<div style="display:flex; flex-direction:column; gap:2px; margin-top:4px; max-width:100%; word-break:break-word;">${obsEntries}</div>`;
+            } else if (s.decision) {
+                contentHtml = `<div style="font-size:0.8rem; font-weight:bold; color:#20bf6b; margin-top:2px;">${escapeHTML(s.decision)}</div>`;
+            } else if (s.action) {
+                contentHtml = `<div style="font-size:0.8rem; font-weight:bold; color:#eb3b5a; margin-top:2px;">⚡ ${escapeHTML(s.action)}</div>`;
+            }
+
             return `
-                <div class="trace-step ${phaseClass}" style="margin-bottom: 8px;">
-                    <div style="font-size:0.7rem; font-weight:bold; color:#f7b731;">${s.phase} ${s.tool ? `(${s.tool})` : ''}</div>
-                    <div style="font-size:0.8rem; color:#fff;">${s.message || s.decision || JSON.stringify(s.observation || {})}</div>
+                <div class="trace-step ${phaseClass}" style="margin-bottom: 8px; padding: 10px 12px; max-width: 100%; box-sizing: border-box;">
+                    <div style="font-size:0.7rem; font-weight:bold; color:#f7b731; margin-bottom: 4px; word-break:break-word;">${escapeHTML(phaseTitle)}</div>
+                    <div class="trace-step-body" style="max-width: 100%; word-break:break-word;">${contentHtml}</div>
                 </div>
             `;
         }).join('');
 
         resultContainer.innerHTML = `
-            <div style="background: rgba(255,255,255,0.03); border:1px solid rgba(247,183,49,0.3); border-radius:8px; padding:12px;">
+            <div style="background: rgba(255,255,255,0.03); border:1px solid rgba(247,183,49,0.3); border-radius:8px; padding:12px; max-width:100%; box-sizing:border-box; word-break:break-word;">
                 <div style="font-size: 0.85rem; font-weight: bold; color: #20bf6b; margin-bottom: 6px;">🎯 Agent Output Summary:</div>
                 <div style="font-size: 0.8rem; line-height: 1.4; color: #fff;">
-                    <div>• <strong>Fact-Check:</strong> ${agentRes.fact_check_verdict} (Score: ${agentRes.credibility_score})</div>
-                    <div>• <strong>Priority:</strong> ${agentRes.priority_level} (Emergency: ${agentRes.is_emergency_alert ? '🚨 YES' : 'NO'})</div>
-                    <div>• <strong>Location:</strong> ${agentRes.township || 'General'} (${agentRes.latitude || '--'}, ${agentRes.longitude || '--'})</div>
+                    <div>• <strong>Fact-Check:</strong> ${escapeHTML(agentRes.fact_check_verdict || '')} (Score: ${agentRes.credibility_score})</div>
+                    <div>• <strong>Priority:</strong> ${escapeHTML(agentRes.priority_level || '')} (Emergency: ${agentRes.is_emergency_alert ? '🚨 YES' : 'NO'})</div>
+                    <div>• <strong>Location:</strong> ${escapeHTML(agentRes.township || 'General')} (${agentRes.latitude || '--'}, ${agentRes.longitude || '--'})</div>
                     <div>• <strong>Latency:</strong> ${agentRes.duration_ms}ms</div>
                 </div>
                 <div style="margin-top: 10px; font-size: 0.75rem; font-weight: bold; color: #f7b731;">📜 Execution Trace (${agentRes.reasoning_chain?.length || 0} Steps):</div>
-                <div style="margin-top: 6px;">${stepsHtml}</div>
+                <div style="margin-top: 6px; max-width:100%;">${stepsHtml}</div>
             </div>
         `;
     } catch (err) {
-        resultContainer.innerHTML = `<div style="color:#eb3b5a;">Error executing agent: ${err.message}</div>`;
+        resultContainer.innerHTML = `<div style="color:#eb3b5a; word-break:break-word;">Error executing agent: ${escapeHTML(err.message)}</div>`;
     } finally {
         runBtn.disabled = false;
         runBtn.innerHTML = `<i data-lucide="play"></i> Agent ဖြင့် စစ်ဆေးဆန်းစစ်ပါ`;

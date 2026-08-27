@@ -2122,9 +2122,13 @@ footer {
 .trace-step {
   position: relative;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   padding: 12px 14px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .trace-step-dot {
@@ -2153,6 +2157,8 @@ footer {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 6px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .step-phase-tag {
@@ -2165,17 +2171,22 @@ footer {
 
 .step-tool-name {
   font-family: monospace;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #20bf6b;
-  background: rgba(32, 191, 107, 0.1);
+  background: rgba(32, 191, 107, 0.12);
+  border: 1px solid rgba(32, 191, 107, 0.25);
   padding: 2px 6px;
   border-radius: 4px;
+  word-break: break-all;
 }
 
 .trace-step-body {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   line-height: 1.5;
   color: #e2e8f0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }
 
 .trace-json-box {
@@ -2183,11 +2194,16 @@ footer {
   border-radius: 6px;
   padding: 8px 10px;
   font-family: monospace;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: #38ef7d;
   margin-top: 6px;
   overflow-x: auto;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* 🕹️ Interactive Agent Sandbox Drawer */
