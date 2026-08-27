@@ -85,6 +85,23 @@ function getLast30Days() {
   return days;
 }
 
+function renderAgentBadges(item) {
+  if (!item) return '';
+  let badges = '';
+  if (item.priority_level === 'CRITICAL_EMERGENCY') {
+    badges += `<span class="agent-badge badge-priority-critical">🚨 အရေးပေါ်</span>`;
+  }
+  if (item.fact_check_verdict === 'VERIFIED') {
+    const score = item.credibility_score ? Math.round(item.credibility_score * 100) : 90;
+    badges += `<span class="agent-badge badge-verified">✓ စိစစ်ပြီး (${score}%)</span>`;
+  } else if (item.fact_check_verdict === 'PLAUSIBLE') {
+    badges += `<span class="agent-badge badge-plausible">~ ဖြစ်နိုင်ခြေရှိ</span>`;
+  } else if (item.fact_check_verdict === 'FAKE_NEWS' || item.fact_check_verdict === 'SPAM') {
+    badges += `<span class="agent-badge badge-fake">✕ သတင်းမှား</span>`;
+  }
+  return badges ? `<div class="agent-badge-row">${badges}</div>` : '';
+}
+
 function initMap() {
   map = L.map('map', {
     zoomControl: false,
@@ -231,6 +248,7 @@ function renderMap() {
     const popupContent = `
       <div class="popup-title">${item.crime_type}</div>
       ${item.sub_category ? `<div class="popup-sub">${item.sub_category}</div>` : ''}
+      ${renderAgentBadges(item)}
       <p class="popup-text">${item.summary || item.township}</p>
     `;
 
@@ -260,22 +278,29 @@ function renderMap() {
 
 function checkAlerts() {
   const critical = filteredNews.find(item => {
+    if (item.is_emergency_alert || item.priority_level === 'CRITICAL_EMERGENCY') return true;
     const text = `${item.sub_category||''} ${item.summary||''} ${item.raw_text||''}`;
-    return text.includes('လေကြောင်းရန်') || text.includes('မြေငလျင်');
+    return text.includes('လေကြောင်းရန်') || text.includes('မြေငလျင်') || text.includes('မြေပြို');
   });
 
   if (critical) {
-    const isAir = (critical.sub_category||'').includes('လေကြောင်းရန်') || (critical.summary||'').includes('လေကြောင်းရန်');
-    document.getElementById('alert-title').innerText = isAir ? '⚠️ လေကြောင်းရန် သတိပေးချက်' : '⚠️ မြေငလျင် သတိပေးချက်';
-    document.getElementById('alert-title').style.color = isAir ? '#ff4757' : '#ffa502';
-    document.querySelector('.pulse-indicator').style.backgroundColor = isAir ? '#ff4757' : '#ffa502';
-    document.querySelector('.pulse-indicator').style.boxShadow = `0 0 8px ${isAir ? '#ff4757' : '#ffa502'}`;
+    const isAir = (critical.sub_category||'').includes('လေကြောင်း') || (critical.emergency_type === 'airstrike');
+    let title = '⚠️ အရေးပေါ် သတိပေးချက်';
+    if (isAir) title = '⚠️ လေကြောင်းရန် သတိပေးချက်';
+    else if (critical.emergency_type === 'landslide') title = '⚠️ မြေပြိုကျမှု သတိပေးချက်';
+    else if (critical.emergency_type === 'flood') title = '⚠️ ရေကြီးရေလျှံမှု သတိပေးချက်';
+    else if (critical.emergency_type === 'earthquake') title = '⚠️ မြေငလျင် သတိပေးချက်';
+
+    document.getElementById('alert-title').innerText = title;
+    document.getElementById('alert-title').style.color = '#ff4757';
+    document.querySelector('.pulse-indicator').style.backgroundColor = '#ff4757';
+    document.querySelector('.pulse-indicator').style.boxShadow = `0 0 8px #ff4757`;
     
-    document.getElementById('alert-desc').innerText = critical.summary || critical.raw_text;
-    document.getElementById('alert-time').innerText = `${critical.publish_date} ${critical.time||''}`;
+    document.getElementById('alert-desc').innerText = critical.heading || critical.summary || critical.raw_text;
+    document.getElementById('alert-time').innerText = `${critical.publish_date} ${critical.publish_time||''}`;
     
     alertCard.classList.remove('hidden');
-    document.body.classList.add('alert-visible'); // For recenter button positioning
+    document.body.classList.add('alert-visible');
   } else {
     alertCard.classList.add('hidden');
     document.body.classList.remove('alert-visible');
