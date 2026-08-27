@@ -1822,38 +1822,40 @@ footer {
    Autonomous Agent & Emergency Alert Styles
    ===================================================================== */
 
-/* 🚨 Top Emergency Broadcast Banner (Positioned below top-5 stat cards to avoid overlap) */
+/* 🚨 Bottom Floating Emergency Toast (Google Maps / Crisis Alert Style) */
 .emergency-banner {
   position: fixed;
-  top: 105px;
+  bottom: 28px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1200;
   background: linear-gradient(135deg, rgba(235, 59, 90, 0.95), rgba(180, 20, 50, 0.95));
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 30px;
-  padding: 8px 18px;
-  box-shadow: 0 8px 32px rgba(235, 59, 90, 0.4), 0 0 20px rgba(235, 59, 90, 0.3);
-  animation: emergency-slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1), emergency-glow 2s infinite alternate;
-  max-width: 85vw;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 40px;
+  padding: 10px 20px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6), 0 0 28px rgba(235, 59, 90, 0.4);
+  animation: emergency-slide-up 0.45s cubic-bezier(0.16, 1, 0.3, 1), emergency-glow 2.5s infinite alternate;
+  max-width: 800px;
+  width: auto;
 }
 
-@keyframes emergency-slide-down {
-  from { top: 50px; opacity: 0; }
-  to { top: 105px; opacity: 1; }
+@keyframes emergency-slide-up {
+  from { bottom: -60px; opacity: 0; transform: translate(-50%, 20px) scale(0.95); }
+  to { bottom: 28px; opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
 
 @media (max-width: 768px) {
   .emergency-banner {
-    top: 16px;
-    max-width: 94vw;
-    padding: 6px 12px;
+    bottom: 80px;
+    max-width: 92vw;
+    padding: 8px 14px;
+    border-radius: 25px;
   }
-  @keyframes emergency-slide-down {
-    from { top: -60px; opacity: 0; }
-    to { top: 16px; opacity: 1; }
+  @keyframes emergency-slide-up {
+    from { bottom: -60px; opacity: 0; transform: translate(-50%, 20px) scale(0.95); }
+    to { bottom: 80px; opacity: 1; transform: translate(-50%, 0) scale(1); }
   }
 }
 
