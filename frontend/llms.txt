@@ -1,0 +1,26 @@
+# Burma Duta (ဗမာဒူတ) — Real-Time News Intelligence & Visualization for Myanmar
+
+> Burma Duta is an autonomous real-time news intelligence platform monitoring public streams across Myanmar. Powered by Google Gemini 3.5 Flash and a multi-tool ReAct autonomous agent framework, it ingests, fact-checks, geo-tags, and categorizes crisis incidents across 330+ administrative townships in Myanmar.
+
+## Core Capabilities
+- **Autonomous Multi-Tool Agent**: Uses Google Gemini 3.5 Flash with ReAct reasoning loop to analyze chaotic Burmese news streams without human latency.
+- **Fact-Checking & Credibility Scoring**: Detects rumors, clickbait, and disinformation, assigning verdicts (`VERIFIED`, `PLAUSIBLE`, `DISPUTED`, `FAKE_NEWS`, `SPAM`) and 0-100% credibility scores.
+- **Geospatial Inference**: Resolves missing coordinates to Myanmar townships and coordinates using spatial ontology and Nominatim fallback.
+- **Emergency Broadcast Alerting**: Dispatches life-safety alerts for natural disasters (landslides, flash floods, earthquakes) and conflict hazards.
+- **Explainability**: Complete step-by-step reasoning trace (`agent_trace`) recorded for auditability and verification.
+
+## Public Web Endpoints
+- Web Dashboard: https://www.burmaduta.com
+- Mobile Optimized View: https://www.burmaduta.com/mobile.html
+- News Feed View: https://www.burmaduta.com/feed.html
+- Community Discussions: https://www.burmaduta.com/comments.html
+
+## Key Incident Categories
+- `စစ်ရေးသတင်း` (Armed Conflict / Clashes)
+- `မှုခင်းသတင်း` (Crime & Law Enforcement)
+- `မတော်တဆဖြစ်မှု` (Accidents & Traffic)
+- `သဘာဝဘေးအန္တရာယ်` (Natural Disasters / Hazards)
+- `အထွေထွေ` (General Social & Humanitarian)
+
+## Data Provenance
+Data is synthesized, geo-tagged, and verified in real time from public citizen journalism networks and verified Myanmar media sources. All credits go to original sources.

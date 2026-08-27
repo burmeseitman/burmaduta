@@ -4,19 +4,80 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Burma Duta | Real-Time News Map</title>
+  <title>Burma Duta (ဗမာဒူတ) | Real-Time News Intelligence & Crisis Map</title>
+  
+  <!-- Primary SEO Meta Tags -->
+  <meta name="title" content="Burma Duta (ဗမာဒူတ) | Real-Time News Intelligence & Crisis Map" />
+  <meta name="description" content="Burma Duta is an autonomous real-time news intelligence platform monitoring Myanmar crisis events with Google Gemini 3.5 Flash AI, multi-tool fact-checking, geospatial mapping, and emergency broadcast alerts." />
+  <meta name="keywords" content="Burma Duta, Myanmar news map, Burma crisis map, real-time Myanmar intelligence, Autonomous AI Agent, Gemini 3.5 Flash, fact-checking Myanmar, ဗမာဒူတ, မြန်မာသတင်းမြေပုံ, အရေးပေါ်သတိပေးချက်" />
+  <meta name="author" content="Burma Duta" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <link rel="canonical" href="https://www.burmaduta.com/" />
+
+  <!-- Open Graph / Facebook / Telegram / WhatsApp -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.burmaduta.com/" />
+  <meta property="og:title" content="Burma Duta (ဗမာဒူတ) | Real-Time News Intelligence & Crisis Map" />
+  <meta property="og:description" content="Autonomous real-time news intelligence for Myanmar. Fact-checked, geo-tagged, and visualized with Google Gemini AI." />
+  <meta property="og:image" content="https://www.burmaduta.com/assets/dashboard.png" />
+  <meta property="og:site_name" content="Burma Duta" />
+  <meta property="og:locale" content="my_MM" />
+  <meta property="og:locale:alternate" content="en_US" />
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://www.burmaduta.com/" />
+  <meta name="twitter:title" content="Burma Duta (ဗမာဒူတ) | Real-Time News Intelligence & Crisis Map" />
+  <meta name="twitter:description" content="Autonomous real-time news intelligence for Myanmar. Fact-checked, geo-tagged, and visualized with Google Gemini AI." />
+  <meta name="twitter:image" content="https://www.burmaduta.com/assets/dashboard.png" />
+
+  <!-- 🤖 Agentic Engine Optimization (AEO / GEO) & Schema.org JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "@id": "https://www.burmaduta.com/#webapp",
+        "name": "Burma Duta",
+        "alternateName": "ဗမာဒူတ",
+        "url": "https://www.burmaduta.com",
+        "applicationCategory": "NewsApplication, CrisisManagement",
+        "operatingSystem": "All",
+        "description": "Real-time Autonomous AI News Intelligence & Geospatial Incident Mapping for Myanmar powered by Google Gemini 3.5 Flash.",
+        "creator": {
+          "@type": "Organization",
+          "name": "Burma Duta Team"
+        }
+      },
+      {
+        "@type": "Dataset",
+        "@id": "https://www.burmaduta.com/#dataset",
+        "name": "Myanmar Real-Time Crisis Incident Dataset",
+        "description": "Geo-tagged, fact-checked, and prioritized incident reports covering 330+ Myanmar administrative townships.",
+        "url": "https://www.burmaduta.com",
+        "license": "https://opensource.org/licenses/MIT",
+        "spatialCoverage": {
+          "@type": "Place",
+          "geo": {
+            "@type": "GeoShape",
+            "box": "9.5 92.1 28.5 101.2"
+          }
+        }
+      }
+    ]
+  }
+  </script>
+
   <script>
     if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
       window.location.href = "mobile.html";
     }
   </script>
-  <!-- Warm up the TLS handshakes before anything needs them. On high-latency
-       mobile networks each cold DNS+TLS round trip is 200-400ms, and the page
-       otherwise pays that serially once each script or fetch is discovered. -->
+  <!-- Warm up the TLS handshakes before anything needs them. -->
   <link rel="preconnect" href="__INJECT_API_ORIGIN__" crossorigin />
   <link rel="preconnect" href="https://unpkg.com" crossorigin />
   <link rel="preconnect" href="https://fastly.jsdelivr.net" crossorigin />
-  <link rel="preconnect" href="https://basemaps.cartocdn.com" crossorigin />
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"

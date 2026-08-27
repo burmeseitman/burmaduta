@@ -1,0 +1,28 @@
+# Burma Duta (ဗမာဒူတ) Robots.txt
+# Allows search engines and AI agents to index real-time Myanmar news intelligence
+
+User-agent: *
+Allow: /
+Allow: /mobile.html
+Allow: /feed.html
+Allow: /comments.html
+Allow: /llms.txt
+Disallow: /api/
+
+# AI Crawlers & Agentic Engine Indexing
+User-agent: GPTBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+Sitemap: https://www.burmaduta.com/sitemap.xml
