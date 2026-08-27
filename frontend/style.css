@@ -1822,13 +1822,13 @@ footer {
    Autonomous Agent & Emergency Alert Styles
    ===================================================================== */
 
-/* 🚨 Bottom Floating Emergency Toast (Google Maps / Crisis Alert Style) */
+/* 🚨 Emergency Toast (Positioned cleanly directly above the Timeline Slider) */
 .emergency-banner {
   position: fixed;
-  bottom: 28px;
+  bottom: 140px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 1200;
+  z-index: 1250;
   background: linear-gradient(135deg, rgba(235, 59, 90, 0.95), rgba(180, 20, 50, 0.95));
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -1842,20 +1842,20 @@ footer {
 }
 
 @keyframes emergency-slide-up {
-  from { bottom: -60px; opacity: 0; transform: translate(-50%, 20px) scale(0.95); }
-  to { bottom: 28px; opacity: 1; transform: translate(-50%, 0) scale(1); }
+  from { bottom: 60px; opacity: 0; transform: translate(-50%, 20px) scale(0.95); }
+  to { bottom: 140px; opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
 
 @media (max-width: 768px) {
   .emergency-banner {
-    bottom: 80px;
+    bottom: 230px;
     max-width: 92vw;
     padding: 8px 14px;
     border-radius: 25px;
   }
   @keyframes emergency-slide-up {
-    from { bottom: -60px; opacity: 0; transform: translate(-50%, 20px) scale(0.95); }
-    to { bottom: 80px; opacity: 1; transform: translate(-50%, 0) scale(1); }
+    from { bottom: 150px; opacity: 0; transform: translate(-50%, 20px) scale(0.95); }
+    to { bottom: 230px; opacity: 1; transform: translate(-50%, 0) scale(1); }
   }
 }
 
