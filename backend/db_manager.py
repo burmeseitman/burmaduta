@@ -140,12 +140,14 @@ class DBManager:
             self.conn = psycopg2.connect(INTERNAL_STORE_URI)
 
     def create_table(self):
-        if not self.conn:
+        if not self.conn or self.mock_mode:
             return
         TABLE = 'news_events'
         
         try:
             with self.conn.cursor() as cur:
+                # Use PostgreSQL Transaction Advisory Lock to serialize schema initialization across API and Scraper workers
+                cur.execute("SELECT pg_advisory_xact_lock(847291);")
                 cur.execute("SET lock_timeout = '5s';")
                 
                 # 1. Main Table
@@ -180,7 +182,6 @@ class DBManager:
                         UNIQUE(channel_handle, internal_id)
                     );
                 """)
-                self.conn.commit()
 
                 # 2. System Config Table
                 cur.execute("""
@@ -190,7 +191,6 @@ class DBManager:
                         updated_at TIMESTAMPTZ DEFAULT NOW()
                     );
                 """)
-                self.conn.commit()
 
                 # 3. Column Migrations (Ensure columns exist on pre-existing tables before indexing)
                 cur.execute(f"""
@@ -204,9 +204,8 @@ class DBManager:
                     ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS emergency_type VARCHAR(50) DEFAULT 'none';
                     ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS agent_trace TEXT;
                 """)
-                self.conn.commit()
 
-                # 4. Optimization Indexes (Completely safe because all columns exist)
+                # 4. Optimization Indexes (Completely safe because all columns exist and advisory lock is held)
                 cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_publish_date ON {TABLE} (publish_date);")
                 cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_crime_type ON {TABLE} (crime_type);")
                 cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_region ON {TABLE} (region);")
@@ -221,18 +220,24 @@ class DBManager:
                 cur.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{TABLE}_raw_text_unique ON {TABLE} (MD5(raw_text));")
                 
                 self.conn.commit()
-                print(f"✅ Optimization and Unique indexes ensured for {TABLE}.")
+                print(f"✅ Schema and optimization indexes ensured for {TABLE}.")
         except Exception as e:
             if self.conn:
-                self.conn.rollback()
-            print(f"⚠️ Schema setup notice for {TABLE}: {e}")
+                try:
+                    self.conn.rollback()
+                except Exception:
+                    pass
+            err_str = str(e).lower()
+            if "already exists" not in err_str:
+                print(f"⚠️ Schema setup notice for {TABLE}: {e}")
 
     def ensure_tables(self):
         """Creates required tables if they don't exist. Does NOT populate data auto."""
-        if not self.conn:
+        if not self.conn or self.mock_mode:
             return
         try:
             with self.conn.cursor() as cur:
+                cur.execute("SELECT pg_advisory_xact_lock(847292);")
                 # 1. Source Mappings Table
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS source_mappings (
@@ -326,10 +331,16 @@ class DBManager:
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_agent_logs_run_id ON agent_execution_logs (run_id);")
 
                 self.conn.commit()
-                print("✅ Users, Sessions, Comments, Forecasts, Emergency Alerts, and Agent Execution Logs schema ensured.")
+                print("✅ All database auxiliary tables and indexes ensured.")
         except Exception as e:
-            print(f"❌ Error creating tables: {e}")
-            self.conn.rollback()
+            if self.conn:
+                try:
+                    self.conn.rollback()
+                except Exception:
+                    pass
+            err_str = str(e).lower()
+            if "already exists" not in err_str:
+                print(f"⚠️ Tables setup notice: {e}")
 
     # --- User Management DB Methods ---
     def create_user(self, username, password_hash):
