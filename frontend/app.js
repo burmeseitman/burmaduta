@@ -1077,23 +1077,43 @@ function updateMapMarkers(items) {
             const color = typeColors[item.crime_type] || typeColors["Other"];
             const icon = typeIcons[item.crime_type] || typeIcons["Other"];
 
-            // Strictly identify Airstrikes, fall back old 'လေကြောင်း' data to Air Alerts (Orange)
-            let isAirstrike = item.sub_category && item.sub_category.includes("လေကြောင်းတိုက်ခိုက်မှု");
-            let isAirAlert = item.sub_category && (item.sub_category.includes("လေယာဉ်သတိပေးချက်") || item.sub_category.includes("လေကြောင်းသတိပေးချက်") || item.sub_category === "လေကြောင်း" || item.sub_category.includes("လေယာဉ်"));
-            let isAircraft = isAirstrike || isAirAlert;
+            // ✈️ Accurate Air Alert & Airstrike Detection
+            const combinedText = `${item.crime_type || ''} ${item.sub_category || ''} ${item.summary || ''} ${item.raw_text || ''} ${item.heading || ''}`.toLowerCase();
+            const isAircraft = item.emergency_type === 'airstrike' || (
+                combinedText.includes("လေကြောင်း") ||
+                combinedText.includes("လေယာဉ်") ||
+                combinedText.includes("ဂျက်ဖိုက်တာ") ||
+                combinedText.includes("ရဟတ်ယာဉ်") ||
+                combinedText.includes("ဗုံးကြဲ") ||
+                combinedText.includes("airstrike") ||
+                combinedText.includes("fighter jet")
+            );
+
             let customIconHtml = '';
             
             if (isAircraft) {
-                let rotation = 0; // Default if no heading
-                if (item.heading && item.heading.toLowerCase() !== 'null') {
-                    const h = item.heading.toLowerCase().trim().replace(" ", "");
-                    const rotMap = {
-                        "north": -45, "south": 135, "east": 45, "west": 225,
-                        "northeast": 0, "northwest": -90, "southeast": 90, "southwest": 180
-                    };
-                    if (rotMap[h] !== undefined) rotation = rotMap[h];
+                // Determine direction from Burmese text with Unicode plane (-45deg base offset)
+                let rotation = -45; // Default pointing UP / North
+                
+                if (combinedText.includes("အရှေ့မြောက်") || combinedText.includes("northeast") || combinedText.includes(" ne ")) {
+                    rotation = 0; // Northeast (45° true compass)
+                } else if (combinedText.includes("အနောက်မြောက်") || combinedText.includes("northwest") || combinedText.includes(" nw ")) {
+                    rotation = -90; // Northwest (315° true compass)
+                } else if (combinedText.includes("အရှေ့တောင်") || combinedText.includes("southeast") || combinedText.includes(" se ")) {
+                    rotation = 90; // Southeast (135° true compass)
+                } else if (combinedText.includes("အနောက်တောင်") || combinedText.includes("southwest") || combinedText.includes(" sw ")) {
+                    rotation = 180; // Southwest (225° true compass)
+                } else if (combinedText.includes("မြောက်ဘက်") || combinedText.includes("မြောက်သို့") || combinedText.includes(" north")) {
+                    rotation = -45; // North (0° true compass)
+                } else if (combinedText.includes("တောင်ဘက်") || combinedText.includes("တောင်သို့") || combinedText.includes(" south")) {
+                    rotation = 135; // South (180° true compass)
+                } else if (combinedText.includes("အရှေ့ဘက်") || combinedText.includes("အရှေ့သို့") || combinedText.includes(" east")) {
+                    rotation = 45; // East (90° true compass)
+                } else if (combinedText.includes("အနောက်ဘက်") || combinedText.includes("အနောက်သို့") || combinedText.includes(" west")) {
+                    rotation = 225; // West (270° true compass)
                 }
 
+                const isAirAlert = combinedText.includes("သတိပေးချက်") || combinedText.includes("ပျံသန်း") || combinedText.includes("ကင်းထောက်");
                 const radarClass = isAirAlert ? "radar-ping alert" : "radar-ping";
                 const bgColor = isAirAlert ? "#f39c12" : "#c0392b";
                 const shadowColor = isAirAlert ? "rgba(243, 156, 18, 0.8)" : "rgba(192, 57, 43, 0.8)";
