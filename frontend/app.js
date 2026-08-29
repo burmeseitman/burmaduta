@@ -429,7 +429,7 @@ function getLatestNewsDate(items) {
     // Group count by date for items with valid dates
     const dateCounts = {};
     items.forEach(i => {
-        const d = (i.publish_date || i.event_date || '').split('T')[0].split(' ')[0];
+        const d = (i.publish_date || i.event_date || i.created_at || '').split('T')[0].split(' ')[0];
         if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
             dateCounts[d] = (dateCounts[d] || 0) + 1;
         }
@@ -1091,7 +1091,8 @@ function updateMapMarkers(items) {
             // Group by Date, Heading, and approximate Location (2 decimal places ~ 1km radius)
             const latKey = parseFloat(item.latitude).toFixed(2);
             const lngKey = parseFloat(item.longitude).toFixed(2);
-            const key = `${item.event_date}_${latKey}_${lngKey}_${item.heading}`;
+            const itemDate = (item.publish_date || item.event_date || item.created_at || '').split('T')[0].split(' ')[0];
+            const key = `${itemDate}_${latKey}_${lngKey}_${item.heading || ''}`;
             if (!seenAircraft.has(key)) {
                 seenAircraft.add(key);
                 dedupedItems.push(item);
@@ -1103,7 +1104,9 @@ function updateMapMarkers(items) {
 
     const newItemsMap = new Map();
     dedupedItems.forEach(item => {
-        if (item.latitude && item.longitude) {
+        const lat = parseFloat(item.latitude);
+        const lng = parseFloat(item.longitude);
+        if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
             newItemsMap.set(String(item.id), item);
         }
     });
@@ -1188,7 +1191,10 @@ function updateMapMarkers(items) {
                 iconAnchor: [11, 11],
             });
 
-            const marker = L.marker([item.latitude, item.longitude], {
+            const lat = parseFloat(item.latitude);
+            const lng = parseFloat(item.longitude);
+
+            const marker = L.marker([lat, lng], {
                 icon: customIcon,
                 riseOnHover: true // Improves visibility depth
             });
