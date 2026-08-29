@@ -1248,6 +1248,7 @@ function updateMapMarkers(items) {
                 combinedText.includes("airstrike") ||
                 combinedText.includes("fighter jet")
             );
+            const isAirAlert = combinedText.includes("သတိပေးချက်") || combinedText.includes("ပျံသန်း") || combinedText.includes("ကင်းထောက်");
 
             let customIconHtml = '';
             
@@ -1273,7 +1274,6 @@ function updateMapMarkers(items) {
                     rotation = 225; // West (270° true compass)
                 }
 
-                const isAirAlert = combinedText.includes("သတိပေးချက်") || combinedText.includes("ပျံသန်း") || combinedText.includes("ကင်းထောက်");
                 const radarClass = isAirAlert ? "radar-ping alert" : "radar-ping";
                 const bgColor = isAirAlert ? "#f39c12" : "#c0392b";
                 const shadowColor = isAirAlert ? "rgba(243, 156, 18, 0.8)" : "rgba(192, 57, 43, 0.8)";
