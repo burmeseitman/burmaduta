@@ -726,7 +726,14 @@ window.__chartsReady = function () {
 
 function renderCharts(filteredItems, pieDataItems, fullItems) {
     lastChartArgs = [filteredItems, pieDataItems, fullItems];
-    if (!window.echarts) return; // __chartsReady() will re-invoke this on load
+    if (!window.echarts || typeof echarts === 'undefined') {
+        setTimeout(() => {
+            if ((window.echarts || typeof echarts !== 'undefined') && lastChartArgs) {
+                renderCharts.apply(null, lastChartArgs);
+            }
+        }, 300);
+        return;
+    }
 
     const selectedRegion = regionFilterInput.value || "All";
     const selectedDate = dateFilterInput.value || "";

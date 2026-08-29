@@ -95,17 +95,9 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script defer src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
   <script defer src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
   <script defer src="app.js"></script>
-
-  <!-- ECharts is ~1MB and nothing above the fold needs it, so it loads async and
-       off the critical path. renderCharts() no-ops until it arrives, then this
-       onload re-runs it with the data already fetched. -->
-  <script async src="https://fastly.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"
-    onload="window.__chartsReady && window.__chartsReady()"></script>
-  <!-- Pinned: this was lucide@latest, which is both a supply-chain risk and
-       uncacheable across releases. 1.28.0 is what @latest already resolved to. -->
-  <script async src="https://unpkg.com/lucide@1.28.0"
-    onload="window.lucide && window.lucide.createIcons()"></script>
 </head>
 
 <body>
