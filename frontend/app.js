@@ -1694,32 +1694,37 @@ function updateDangerousTownships() {
         thisMonthItems = allNewsItems;
     }
 
-    // Filter out "General" category
-    let nonGeneralItems = thisMonthItems.filter(i => i.crime_type !== "အထွေထွေ");
-    if (nonGeneralItems.length === 0) nonGeneralItems = thisMonthItems;
+    // Filter strictly for Conflict ('စစ်ရေးသတင်း') and Natural Disasters ('သဘာဝဘေးအန္တရာယ်')
+    const dangerousItems = thisMonthItems.filter(i => 
+        i.crime_type === "စစ်ရေးသတင်း" || i.crime_type === "သဘာဝဘေးအန္တရာယ်"
+    );
 
-    const weightMap = {
-        "စစ်ရေးသတင်း": 5,
-        "မှုခင်းသတင်း": 3,
-        "သဘာဝဘေးအန္တရာယ်": 2,
-        "မတော်တဆဖြစ်မှု": 1
-    };
+    if (dangerousItems.length === 0) {
+        listBody.innerHTML = `<div class="status" style="padding: 10px; color: #a4b0be; text-align: center;">ယခုလအတွက် ဒေတာမရှိပါ။</div>`;
+        return;
+    }
 
     const counts = {};
     const noiseFilter = ["မသိရ", "မသိရှိရ", "မသိရှိပါ။"];
 
-    nonGeneralItems.forEach(item => {
+    dangerousItems.forEach(item => {
         let ts = item.township || item.city || item.region;
         if (!ts || noiseFilter.includes(ts.trim())) return;
 
-        const weight = weightMap[item.crime_type] || 1;
+        const isConflict = item.crime_type === "စစ်ရေးသတင်း";
+        const isDisaster = item.crime_type === "သဘာဝဘေးအန္တရာယ်";
+        const isCritical = item.priority_level === 'CRITICAL_EMERGENCY' || item.is_emergency_alert;
 
-        // Count tags for this item
-        const subCounts = getSubCategoryCounts([item], item.crime_type);
-        const totalTags = Object.values(subCounts).reduce((a, b) => a + b, 0);
+        // Clean & realistic danger point weighting:
+        // - Military Conflict: Standard = 3 pts, Critical (Airstrike/Shelling) = 5 pts
+        // - Natural Disaster: Standard = 2 pts, Critical (Flood/Landslide/Quake) = 4 pts
+        let score = 1;
+        if (isConflict) {
+            score = isCritical ? 5 : 3;
+        } else if (isDisaster) {
+            score = isCritical ? 4 : 2;
+        }
 
-        // 🚀 ADVANCED SCORE: weight * (totalTags || 1)
-        const score = weight * (totalTags || 1);
         counts[ts] = (counts[ts] || 0) + score;
     });
 
@@ -1728,7 +1733,7 @@ function updateDangerousTownships() {
         .slice(0, 5);
 
     if (sorted.length === 0) {
-        listBody.innerHTML = `<div class="status" style="padding: 10px;">ဒေတာမရှိပါ။</div>`;
+        listBody.innerHTML = `<div class="status" style="padding: 10px; color: #a4b0be; text-align: center;">ဒေတာမရှိပါ။</div>`;
         return;
     }
 
