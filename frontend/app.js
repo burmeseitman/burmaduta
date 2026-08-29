@@ -302,6 +302,40 @@ const TOWNSHIP_COORDINATES = {
     "ပခုက္ကူ": [21.3333, 95.0833]
 };
 
+function hasPlottableLocation(item) {
+    const lat = parseFloat(item.latitude);
+    const lng = parseFloat(item.longitude);
+    const hasCoords = !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+    return Boolean(item.township || item.city || item.region || hasCoords);
+}
+
+// A row that reached us as bare coordinates has no administrative name to show,
+// so label it by where it actually is rather than leaving the header blank.
+function formatLocationLabel(item) {
+    const named = [item.region, item.township, item.city].map(escapeHTML).filter(Boolean).join("၊ ");
+    if (named) return named;
+    if (item.location_name) return escapeHTML(item.location_name);
+
+    const lat = parseFloat(item.latitude);
+    const lng = parseFloat(item.longitude);
+    if (!isNaN(lat) && !isNaN(lng)) return `📍 ${lat.toFixed(3)}, ${lng.toFixed(3)}`;
+    return "တည်နေရာ မသိရ";
+}
+
+// Township lookups all resolve to the same centroid, so every event in a township
+// landed on one pixel. The clustered views hid that behind a count bubble, but the
+// moment clustering drops out the pins stack exactly and only the top one is
+// visible. A deterministic ~1km offset keyed on the row id spreads them apart
+// without moving any of them out of their township.
+const TOWNSHIP_SPREAD = 0.01; // degrees, roughly 1km
+function spreadWithinTownship(coords, id) {
+    const idNum = Number(id) || 1;
+    return [
+        coords[0] + Math.sin(idNum * 12.9898) * TOWNSHIP_SPREAD,
+        coords[1] + Math.cos(idNum * 78.233) * TOWNSHIP_SPREAD
+    ];
+}
+
 function resolveItemCoordinates(item) {
     let lat = parseFloat(item.latitude);
     let lng = parseFloat(item.longitude);
@@ -312,14 +346,14 @@ function resolveItemCoordinates(item) {
     const ts = (item.township || item.city || "").trim();
     if (ts) {
         for (const [name, coords] of Object.entries(TOWNSHIP_COORDINATES)) {
-            if (ts.includes(name)) return coords;
+            if (ts.includes(name)) return spreadWithinTownship(coords, item.id);
         }
     }
 
     const locName = (item.location_name || "").trim();
     if (locName) {
         for (const [name, coords] of Object.entries(TOWNSHIP_COORDINATES)) {
-            if (locName.includes(name)) return coords;
+            if (locName.includes(name)) return spreadWithinTownship(coords, item.id);
         }
     }
 
@@ -678,11 +712,12 @@ function updateUI() {
     // Sync currentFilter variable (used by other functions) with dropdown
     currentFilter = selectedType;
 
-    // 🚀 STRICTOR LOCATION GUARD: If township, city AND region are all null, don't show.
-    const validItems = allNewsItems.filter(item => {
-        const hasLocation = item.township || item.city || item.region;
-        return hasLocation;
-    });
+    // 🚀 LOCATION GUARD: hide only what we genuinely cannot place. An item geocoded
+    // straight to GPS -- the OSM Nominatim fallback, or coordinates the model
+    // extracted itself -- carries no township/city/region, but resolveItemCoordinates
+    // plots it exactly. The old name-only guard dropped every one of those from the
+    // desktop map while the mobile view, which has no guard, kept showing them.
+    const validItems = allNewsItems.filter(hasPlottableLocation);
 
     // Unified Filtering Logic
     const filtered = validItems.filter((item) => {
@@ -1287,7 +1322,7 @@ function updateMapMarkers(items) {
                 ? `<div style="font-size: 11px; margin-bottom:6px;">🏷️ ${Object.keys(subCounts).map(s => `<span class="sub-tag">${s}</span>`).join(" ")}</div>`
                 : "";
             const typeClass = `type-${typeLabel.split(" ").join("-")}`;
-            const locDetails = [item.region, item.township, item.city].map(escapeHTML).filter(Boolean).join("၊ ");
+            const locDetails = formatLocationLabel(item);
 
             // Agentic Badges
             const agentBadges = renderAgentBadges(item);
@@ -1298,7 +1333,7 @@ function updateMapMarkers(items) {
                     <div class="type-tag ${typeClass}" style="margin-bottom:4px">${typeLabel}</div>
                     ${subLabel}
                     ${agentBadges}
-                    <strong style="display:block; margin-bottom:4px; font-size:14px;">${locDetails || escapeHTML(item.location_name)}</strong>
+                    <strong style="display:block; margin-bottom:4px; font-size:14px;">${locDetails}</strong>
                     <div style="font-size: 12px; opacity: 0.8; margin-top:6px;">
                         <div>📅 ဖြစ်ပွားရက်: ${formatDateDisplay(item.event_date) || "မသိရ"}</div>
                         <div>⏰ ဖြစ်ပွားချိန်: ${formatTime12h(item.event_time) || "မသိရ"}</div>
@@ -1431,7 +1466,7 @@ function updateNewsAccordion(items) {
 
     if (items.length === 0) {
         // Find latest available valid items from allNewsItems so the list is NEVER empty
-        const fallbackItems = allNewsItems.filter(i => i.township || i.city || i.region);
+        const fallbackItems = allNewsItems.filter(hasPlottableLocation);
         if (fallbackItems.length > 0) {
             renderItems = fallbackItems.slice(0, 30);
             isFallback = true;
@@ -1455,7 +1490,7 @@ function updateNewsAccordion(items) {
     const sortedItems = [...renderItems].sort((a, b) => b.id - a.id);
 
     sortedItems.forEach(item => {
-        const locDetails = [item.region, item.township, item.city].map(escapeHTML).filter(Boolean).join("၊ ");
+        const locDetails = formatLocationLabel(item);
         const timeStr = `ဖြစ်ပွားချိန်: 📅 ${formatDateDisplay(item.event_date) || "မသိရ"} | ⏰ ${formatTime12h(item.event_time) || "မသိရ"}`;
         const agentBadges = renderAgentBadges(item);
 
@@ -1465,7 +1500,7 @@ function updateNewsAccordion(items) {
         div.innerHTML = `
             <div class="accordion-header" onclick="expandNewsItem(${item.id})">
                 <div class="title-group">
-                    <span class="news-loc">${locDetails || escapeHTML(item.location_name)}</span>
+                    <span class="news-loc">${locDetails}</span>
                     <span class="news-time">${timeStr}</span>
                     ${agentBadges}
                 </div>

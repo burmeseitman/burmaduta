@@ -92,6 +92,20 @@ const TOWNSHIP_COORDINATES = {
   "ဟားခါး": [22.6500, 93.6000]
 };
 
+// Township lookups all resolve to the same centroid, so every event in a township
+// landed on one pixel. The clustered views hid that behind a count bubble, but the
+// moment clustering drops out the pins stack exactly and only the top one is
+// visible. A deterministic ~1km offset keyed on the row id spreads them apart
+// without moving any of them out of their township.
+const TOWNSHIP_SPREAD = 0.01; // degrees, roughly 1km
+function spreadWithinTownship(coords, id) {
+  const idNum = Number(id) || 1;
+  return [
+    coords[0] + Math.sin(idNum * 12.9898) * TOWNSHIP_SPREAD,
+    coords[1] + Math.cos(idNum * 78.233) * TOWNSHIP_SPREAD
+  ];
+}
+
 function resolveItemCoordinates(item) {
   let lat = parseFloat(item.latitude);
   let lng = parseFloat(item.longitude);
@@ -102,7 +116,7 @@ function resolveItemCoordinates(item) {
   const ts = (item.township || item.city || "").trim();
   if (ts) {
     for (const [name, coords] of Object.entries(TOWNSHIP_COORDINATES)) {
-      if (ts.includes(name)) return coords;
+      if (ts.includes(name)) return spreadWithinTownship(coords, item.id);
     }
   }
 
@@ -265,9 +279,38 @@ function applyFilters() {
     return true;
   });
 
+  filteredNews = dedupeAircraftAlerts(filteredNews);
+
   renderMap();
   checkAlerts();
   updateCriticalList();
+}
+
+// Aircraft sightings are reported by several channels at once, so one overflight
+// arrives as a handful of near-identical rows. Collapse them by day, heading and
+// ~1km bucket -- the desktop map has always done this, and without it the two
+// views disagree on how many air alerts a day had.
+function dedupeAircraftAlerts(items) {
+  const deduped = [];
+  const seenAircraft = new Set();
+
+  items.forEach(item => {
+    const isAircraft = item.sub_category && (item.sub_category.includes("လေကြောင်း") || item.sub_category.includes("လေယာဉ်"));
+    if (isAircraft && item.latitude && item.longitude) {
+      const latKey = parseFloat(item.latitude).toFixed(2);
+      const lngKey = parseFloat(item.longitude).toFixed(2);
+      const itemDate = (item.publish_date || item.event_date || item.created_at || '').split('T')[0].split(' ')[0];
+      const key = `${itemDate}_${latKey}_${lngKey}_${item.heading || ''}`;
+      if (!seenAircraft.has(key)) {
+        seenAircraft.add(key);
+        deduped.push(item);
+      }
+    } else {
+      deduped.push(item);
+    }
+  });
+
+  return deduped;
 }
 
 function renderMap() {

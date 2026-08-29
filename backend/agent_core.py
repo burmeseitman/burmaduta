@@ -205,6 +205,20 @@ class AgentTools:
                     data = resp.json()[0]
                     inferred["latitude"] = float(data['lat'])
                     inferred["longitude"] = float(data['lon'])
+                    # Nominatim answers with coordinates only. Leaving the admin
+                    # fields empty produces rows that map correctly but carry no
+                    # place name at all, which downstream filters treat as
+                    # "unlocated" -- so name what we queried and derive the
+                    # region from the nearest township we do know.
+                    inferred["location_name"] = location_name or query_loc
+                    if not inferred["township"]:
+                        inferred["township"] = township or query_loc
+                    nearest = AgentTools._nearest_known_township(
+                        inferred["latitude"], inferred["longitude"]
+                    )
+                    if nearest:
+                        inferred["region"] = inferred["region"] or nearest["region"]
+                        inferred["city"] = inferred["city"] or nearest["city"]
                     inferred["confidence"] = 0.70
                     inferred["source"] = "osm_nominatim"
                     return inferred
@@ -215,6 +229,28 @@ class AgentTools:
         inferred["confidence"] = 0.10
         inferred["source"] = "unresolved_location"
         return inferred
+
+    @staticmethod
+    def _nearest_known_township(lat: float, lon: float, max_degrees: float = 0.75):
+        """
+        Find the closest entry in the 330+ township ontology, used to name the
+        administrative area for coordinates that arrived without one. The cap
+        (~80km) keeps a stray geocode from being labelled with a far-away region.
+        """
+        if lat is None or lon is None:
+            return None
+
+        best = None
+        best_dist = None
+        for name, coord in MYANMAR_COORDINATES.items():
+            dist = (coord["lat"] - lat) ** 2 + (coord["lon"] - lon) ** 2
+            if best_dist is None or dist < best_dist:
+                best_dist = dist
+                best = coord
+
+        if best is None or best_dist > max_degrees ** 2:
+            return None
+        return best
 
     @staticmethod
     def tool_emergency_triager(
