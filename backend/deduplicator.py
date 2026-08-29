@@ -18,10 +18,10 @@ class NewsDeduplicator:
             return
             
         print("🧠 Loading Multilingual Sentence Transformer Model for De-duplication...")
+        model_name = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
         try:
             from sentence_transformers import SentenceTransformer
             # Multilingual model handling Burmese + English text embeddings efficiently
-            model_name = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
             self.model = SentenceTransformer(model_name)
             self.initialized = True
             self.degraded = False

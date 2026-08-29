@@ -311,17 +311,23 @@ class AgentTools:
         is_emergency = False
 
         if not is_past_or_metaphor:
-            # Check Natural Disasters
-            for dtype, keywords in NATURAL_DISASTERS.items():
-                if any(kw in combined for kw in keywords):
-                    detected_emergency_type = dtype
-                    is_emergency = True
-                    priority_level = "CRITICAL_EMERGENCY"
-                    action_required = f"Issue immediate civilian safety warning for active {dtype.upper()} hazard. Advise evacuation / emergency relief shelter coordination."
-                    break
+            # Check Natural Disasters (Only if event_type is a disaster, general news, or unclassified)
+            # If the news is specifically classified as "မှုခင်းသတင်း" (crime) or "မတော်တဆဖြစ်မှု" (accidents),
+            # do not trigger natural disaster critical emergencies to avoid false positives.
+            allow_natural = event_type not in ["မှုခင်းသတင်း", "မတော်တဆဖြစ်မှု"]
+            if allow_natural:
+                for dtype, keywords in NATURAL_DISASTERS.items():
+                    if any(kw in combined for kw in keywords):
+                        detected_emergency_type = dtype
+                        is_emergency = True
+                        priority_level = "CRITICAL_EMERGENCY"
+                        action_required = f"Issue immediate civilian safety warning for active {dtype.upper()} hazard. Advise evacuation / emergency relief shelter coordination."
+                        break
 
-            # Check Conflict Emergencies if no natural disaster
-            if not is_emergency:
+            # Check Conflict Emergencies (Only if event_type is conflict, general, or unclassified)
+            # If the news is specifically classified as "မှုခင်းသတင်း" or "မတော်တဆဖြစ်မှု", do not trigger military conflict critical emergencies.
+            allow_conflict = event_type not in ["မှုခင်းသတင်း", "မတော်တဆဖြစ်မှု"]
+            if not is_emergency and allow_conflict:
                 for ctype, keywords in CONFLICT_EMERGENCIES.items():
                     if any(kw in combined for kw in keywords):
                         detected_emergency_type = ctype

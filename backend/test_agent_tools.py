@@ -113,6 +113,32 @@ def test_triager_escalates_on_casualties():
     print("✅ Casualty escalation correct.")
 
 
+def test_triager_respects_category_guards():
+    """Crime news or accident reports with overlapping wording must never trigger natural disaster alerts."""
+    print("\n🧪 Emergency triage — category guards (crime/accident)...")
+    
+    # Crime report that happens to contain disaster/flood vocabulary
+    crime_report = "တောင်ဒဂုံမြို့နယ်တွင် လုယက်မှုဖြစ်ပွားပြီး ရေကြီးရေလျှံမှုသတင်းများကြောင့် ရဲတပ်ဖွဲ့ စုံစမ်းနေ"
+    res1 = AgentTools.tool_emergency_triager(crime_report, event_type="မှုခင်းသတင်း")
+    assert res1["is_emergency_alert"] is False, "Crime report should not trigger natural disaster emergency"
+    assert res1["emergency_type"] == "none", f"Expected 'none', got {res1['emergency_type']}"
+
+    # Accident report with drowning or water phrase
+    accident_report = "ချောင်းအတွင်း ရေနစ်သေဆုံးမှု ဖြစ်ပွားခဲ့သည်"
+    res2 = AgentTools.tool_emergency_triager(accident_report, event_type="မတော်တဆဖြစ်မှု")
+    assert res2["is_emergency_alert"] is False, "Accident report should not trigger disaster alert"
+    assert res2["emergency_type"] == "none", f"Expected 'none', got {res2['emergency_type']}"
+    assert res2["priority_level"] == "HIGH_PRIORITY", "Casualties in accident should escalate to HIGH_PRIORITY"
+
+    # Legitimate natural disaster report
+    disaster_report = "တောင်ဒဂုံတွင် ရေကြီးရေလျှံမှုကြောင့် လူနေအိမ်များ ရေနစ်မြုပ်နေ"
+    res3 = AgentTools.tool_emergency_triager(disaster_report, event_type="သဘာဝဘေးအန္တရာယ်")
+    assert res3["is_emergency_alert"] is True
+    assert res3["emergency_type"] == "flood"
+    assert res3["priority_level"] == "CRITICAL_EMERGENCY"
+    print("✅ Category guards properly suppress false disaster/conflict alarms for crime and accidents.")
+
+
 def test_triager_known_suppression_gap():
     """
     DOCUMENTS A KNOWN WEAKNESS -- these assertions describe behaviour that is
