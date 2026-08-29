@@ -89,7 +89,8 @@ const TOWNSHIP_COORDINATES = {
   "တောင်ကြီး": [20.7833, 97.0333],
   "ကော့သောင်း": [9.9833, 98.5500],
   "လွိုင်ကော်": [19.6833, 97.2167],
-  "ဟားခါး": [22.6500, 93.6000]
+  "ဟားခါး": [22.6500, 93.6000],
+  "တံတားဦး": [21.8100, 95.9700]
 };
 
 // Township lookups all resolve to the same centroid, so every event in a township

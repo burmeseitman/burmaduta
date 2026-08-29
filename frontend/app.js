@@ -308,6 +308,7 @@ const TOWNSHIP_COORDINATES = {
     "ပုသိမ်": [16.7833, 94.7333],
     "ပြည်": [18.8167, 95.2167],
     "တောင်ငူ": [18.9333, 96.4333],
+    "တံတားဦး": [21.8100, 95.9700],
     "ပခုက္ကူ": [21.3333, 95.0833]
 };
 
@@ -1707,9 +1708,23 @@ function updateDangerousTownships() {
     const counts = {};
     const noiseFilter = ["မသိရ", "မသိရှိရ", "မသိရှိပါ။"];
 
+    const AIRBASES = ["တံတားဦး", "အေလာ", "မကွေး", "မိတ္ထီလာ", "နမ့်ပေါင်", "မှော်ဘီ", "တောင်ငူ", "မြိတ်"];
+
     dangerousItems.forEach(item => {
         let ts = item.township || item.city || item.region;
         if (!ts || noiseFilter.includes(ts.trim())) return;
+
+        const summary = (item.summary || item.raw_text || '').toLowerCase();
+
+        // ✈️ If this is purely an airbase takeoff/landing alert, don't count the departure airbase as a dangerous conflict zone
+        const isAirbaseMention = AIRBASES.some(ab => ts.includes(ab));
+        const isTakeoffLanding = (summary.includes('လေတပ်မှ') || summary.includes('လေတပ်သို့') || summary.includes('လေတပ်စခန်း')) &&
+                                 (summary.includes('ပျံတက်') || summary.includes('ဆင်းသက်') || summary.includes('ပျံသန်း'));
+        const hasGroundClash = summary.includes('တိုက်ပွဲ') || summary.includes('ဗုံးကြဲခံရ') || summary.includes('တိုက်ခိုက်ခံရ') || summary.includes('ဒရုန်းဖြင့် တိုက်ခိုက်');
+
+        if (isAirbaseMention && isTakeoffLanding && !hasGroundClash) {
+            return;
+        }
 
         const isConflict = item.crime_type === "စစ်ရေးသတင်း";
         const isDisaster = item.crime_type === "သဘာဝဘေးအန္တရာယ်";

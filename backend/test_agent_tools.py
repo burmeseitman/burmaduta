@@ -230,11 +230,21 @@ def test_geo_inferencer_output_is_inside_myanmar():
     """Whatever path resolves, the coordinates must satisfy the storage guard."""
     from geolocator import is_within_myanmar
     print("\n🧪 Geo inferencer — output stays in Myanmar...")
-    for name in ["ကမာရွတ်", "မောင်တော", "ကိုကိုးကျွန်း", "မိတ္ထီလာ", "မြစ်ကြီးနား"]:
+    for name in ["ကမာရွတ်", "မောင်တော", "ကိုကိုးကျွန်း", "မိတ္ထီလာ", "မြစ်ကြီးနား", "တံတားဦး"]:
         result = AgentTools.tool_geo_inferencer(raw_text="", township=name)
         assert is_within_myanmar(result["latitude"], result["longitude"]), (
             f"{name} resolved outside Myanmar: {result['latitude']},{result['longitude']}")
     print("✅ Resolved coordinates all pass the storage guard.")
+
+
+def test_geo_inferencer_prioritizes_target_over_airbase():
+    """When text mentions both a departure airbase and a target township, target township must be preferred."""
+    print("\n🧪 Geo inferencer — airbase origin vs target township...")
+    air_scout_text = "တံတားဦးလေတပ်မှ Y-12 စစ်သုံးကုန်တင်လေယာဉ်တစ်စီးသည် ဝက်လက်နယ်ကိုဖြတ်၍ ပျံသန်းသွားသည်။"
+    result = AgentTools.tool_geo_inferencer(raw_text=air_scout_text)
+    assert result["township"] == "ဝက်လက်", f"Expected target township ဝက်လက်, got {result['township']}"
+    assert result["region"] == "စစ်ကိုင်း"
+    print("✅ Target township correctly prioritized over departure airbase.")
 
 
 # --- tool_emergency_broadcaster ---------------------------------------------

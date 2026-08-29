@@ -172,16 +172,27 @@ class AgentTools:
                 return inferred
 
         # Step B: Scan raw text for any known Myanmar Townships / Regions
+        # Airbase departure keywords (Origin bases vs actual target townships)
+        AIRBASE_KEYS = ["တံတားဦး", "အေလာ", "မကွေး", "မိတ္ထီလာ", "နမ့်ပေါင်", "မှော်ဘီ", "တောင်ငူ", "မြိတ်", "နမ့်စန်"]
+        found_matches = []
         for kw, coord in MYANMAR_COORDINATES.items():
             if len(kw) >= 3 and (kw in raw_text or f"{kw}မြို့နယ်" in raw_text or f"{kw}မြို့" in raw_text):
-                inferred["latitude"] = coord["lat"]
-                inferred["longitude"] = coord["lon"]
-                inferred["region"] = coord["region"]
-                inferred["city"] = coord["city"]
-                inferred["township"] = kw
-                inferred["confidence"] = 0.85
-                inferred["source"] = "text_spatial_ner"
-                return inferred
+                is_airbase_mention = any(ab in kw for ab in AIRBASE_KEYS) and ("လေတပ်" in raw_text)
+                found_matches.append((kw, coord, is_airbase_mention))
+
+        if found_matches:
+            # Prioritize non-airbase target townships if present (e.g. ဝက်လက်, ပေါက်, မင်းတပ် over တံတားဦးလေတပ်)
+            target_matches = [m for m in found_matches if not m[2]]
+            best_match = target_matches[0] if target_matches else found_matches[0]
+            kw, coord, _ = best_match
+            inferred["latitude"] = coord["lat"]
+            inferred["longitude"] = coord["lon"]
+            inferred["region"] = coord["region"]
+            inferred["city"] = coord["city"]
+            inferred["township"] = kw
+            inferred["confidence"] = 0.85
+            inferred["source"] = "text_spatial_ner"
+            return inferred
 
         # Step C: Offline Fallback Geolocator Helper
         resolved = resolve_location(township, city, region)
@@ -657,13 +668,20 @@ class AutonomousNewsAgent:
             result["heading"] = "သဘာဝဘေးအန္တရာယ် သတိပေးချက်"
 
         # 2. Location NER from known coordinates
+        AIRBASE_KEYS = ["တံတားဦး", "အေလာ", "မကွေး", "မိတ္ထီလာ", "နမ့်ပေါင်", "မှော်ဘီ", "တောင်ငူ", "မြိတ်", "နမ့်စန်"]
+        found_locs = []
         for kw, coord in MYANMAR_COORDINATES.items():
-            if kw in text:
-                result["township"] = kw
-                result["region"] = coord["region"]
-                result["city"] = coord["city"]
-                result["location_name"] = kw
-                break
+            if kw in text or f"{kw}မြို့နယ်" in text or f"{kw}မြို့" in text:
+                is_airbase = any(ab in kw for ab in AIRBASE_KEYS) and ("လေတပ်" in text)
+                found_locs.append((kw, coord, is_airbase))
+
+        if found_locs:
+            targets = [m for m in found_locs if not m[2]]
+            best_kw, best_coord, _ = targets[0] if targets else found_locs[0]
+            result["township"] = best_kw
+            result["region"] = best_coord["region"]
+            result["city"] = best_coord["city"]
+            result["location_name"] = best_kw
 
         # 3. Simple Summary formulation
         sentences = [s.strip() for s in re.split(r'[။!\n]', text) if len(s.strip()) > 10]
