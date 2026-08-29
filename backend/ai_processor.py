@@ -308,7 +308,9 @@ class AIProcessor:
 
                 # 4. Emergency Broadcast Tool if disaster/emergency confirmed
                 emergency_dispatch = None
-                if triage['is_emergency_alert'] and fc['credibility_score'] >= 0.40:
+                has_location = bool(data.get('township') or data.get('region'))
+                is_verified = (fc['credibility_score'] >= 0.70 and fc['verdict'] in ['VERIFIED', 'PLAUSIBLE'])
+                if triage['is_emergency_alert'] and is_verified and has_location:
                     emergency_dispatch = AgentTools.tool_emergency_broadcaster(
                         emergency_type=triage['emergency_type'],
                         alert_level=triage['priority_level'],

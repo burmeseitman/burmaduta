@@ -227,24 +227,34 @@ class AgentTools:
         """
         Tool 3: Emergency & Priority Level Triager.
         Identifies active life-threatening emergencies (Landslides, Floods, Earthquakes, Artillery Shelling, Airstrikes)
-        and classifies priority levels: CRITICAL_EMERGENCY, HIGH_PRIORITY, STANDARD, LOW_NOISE.
+        with robust false-positive suppression for past events, donations, ceremonies, and non-urgent metaphors.
         """
         combined = f"{text} {event_type} {sub_category} {casualties} {damage_report}".lower()
 
-        # 1. Natural Disaster Patterns
+        # 0. False Positive & Noise Suppressors
+        # Ignore past events, memorial ceremonies, donation events, or educational drills
+        NOISE_PATTERNS = [
+            "ပြီးခဲ့သော", "လွန်ခဲ့သည့်", "ယခင်က", "နှစ်ပတ်လည်", "အောက်မေ့ဖွယ်", "ပြန်လည်သတိရ",
+            "အလှူငွေ", "ထောက်ပံ့ငွေ", "ပြန်လည်ထူထောင်ရေး", "ရှင်းလင်းပွဲ", "အခမ်းအနား", "သင်တန်း",
+            "ဇာတ်တိုက်လေ့ကျင့်", "ဟောပြောပွဲ", "ကာကွယ်ရေး အစီအမံ", "ကဲ့သို့ လှုပ်ခတ်", "နိုင်ငံရေး ငလျင်",
+            "ဂယက်ရိုက်", "မီးခိုးကြွက်လျှောက်"
+        ]
+        is_past_or_metaphor = any(np in combined for np in NOISE_PATTERNS)
+
+        # 1. Natural Disaster Patterns (Active Urgent Disasters)
         NATURAL_DISASTERS = {
-            "landslide": ["မြေပြို", "မြေပြိုကျ", "တောင်ပြို", "landslide", "mudslide"],
-            "flood": ["ရေကြီး", "ရေလျှံ", "ရေနစ်မြုပ်", "မြစ်ရေတက်", "flood", "flash flood", "inundation"],
-            "earthquake": ["ငလျင်", "ငလျင်လှုပ်", "earthquake", "quake", "aftershock"],
-            "cyclone": ["မုန်တိုင်း", "လေပြင်း", "မုန်တိုင်းတိုက်ခတ်", "cyclone", "typhoon", "storm"],
-            "fire": ["မီးလောင်", "မီးလောင်ကျွမ်း", "တောမီး", "fire outbreak", "conflagration"]
+            "landslide": ["မြေပြို", "မြေပြိုကျ", "တောင်ပြို", "ရွှံ့ပြို", "landslide", "mudslide"],
+            "flood": ["ရေကြီးရေလျှံ", "မြစ်ရေတက်", "ရေဘေးသင့်", "ရွာလုံးကျွတ် ရေနစ်", "ရေနစ်မြုပ်နေ", "flash flood", "inundation"],
+            "earthquake": ["ငလျင်လှုပ်", "ငလျင်ဗဟိုပြု", "earthquake", "quake", "aftershock"],
+            "cyclone": ["မုန်တိုင်းတိုက်ခတ်", "လေပြင်းတိုက်ခတ်", "မုန်တိုင်းသင့်", "cyclone", "typhoon", "severe storm"],
+            "fire": ["မီးလောင်ကျွမ်းနေ", "ရွာလုံးကျွတ် မီးလောင်", "မီးအကြီးအကျယ်", "conflagration"]
         }
 
         # 2. Critical Conflict & Mass Casualty Patterns
         CONFLICT_EMERGENCIES = {
-            "airstrike": ["လေကြောင်းတိုက်ခိုက်", "ဂျက်ဖိုက်တာ", "ဗုံးကြဲ", "airstrike", "bombing"],
-            "artillery_shelling": ["လက်နက်ကြီးကျည်", "လက်နက်ကြီးပစ်ခတ်", "စိန်ပြောင်း", "artillery", "heavy shelling", "mortar"],
-            "mass_displacement": ["စစ်ဘေးရှောင်", "ထွက်ပြေးတိမ်းရှောင်", "ရွာလုံးကျွတ်", "evacuation", "displaced"]
+            "airstrike": ["လေကြောင်းတိုက်ခိုက်", "ဂျက်ဖိုက်တာဖြင့် ဗုံးကြဲ", "ဂျက်ဖိုက်တာ", "airstrike", "aerial bombardment"],
+            "artillery_shelling": ["လက်နက်ကြီးကျည်ကျရောက်", "လက်နက်ကြီးပစ်ခတ်နေ", "စိန်ပြောင်းကျည်", "heavy artillery barrage"],
+            "mass_displacement": ["စစ်ဘေးရှောင်နေရ", "ရွာလုံးကျွတ် ထွက်ပြေး", "အရေးပေါ် စစ်ဘေးရှောင်", "emergency evacuation"]
         }
 
         detected_emergency_type = "none"
@@ -252,24 +262,25 @@ class AgentTools:
         action_required = ""
         is_emergency = False
 
-        # Check Natural Disasters
-        for dtype, keywords in NATURAL_DISASTERS.items():
-            if any(kw in combined for kw in keywords):
-                detected_emergency_type = dtype
-                is_emergency = True
-                priority_level = "CRITICAL_EMERGENCY"
-                action_required = f"Issue immediate civilian safety warning for {dtype.upper()} hazard. Advise evacuation / relief shelter coordination."
-                break
-
-        # Check Conflict Emergencies if no natural disaster
-        if not is_emergency:
-            for ctype, keywords in CONFLICT_EMERGENCIES.items():
+        if not is_past_or_metaphor:
+            # Check Natural Disasters
+            for dtype, keywords in NATURAL_DISASTERS.items():
                 if any(kw in combined for kw in keywords):
-                    detected_emergency_type = ctype
+                    detected_emergency_type = dtype
                     is_emergency = True
-                    priority_level = "CRITICAL_EMERGENCY" if ctype in ["airstrike", "artillery_shelling"] else "HIGH_PRIORITY"
-                    action_required = f"Civilian alert for {ctype.upper()}. Urgent shelter and safe corridor notice."
+                    priority_level = "CRITICAL_EMERGENCY"
+                    action_required = f"Issue immediate civilian safety warning for active {dtype.upper()} hazard. Advise evacuation / emergency relief shelter coordination."
                     break
+
+            # Check Conflict Emergencies if no natural disaster
+            if not is_emergency:
+                for ctype, keywords in CONFLICT_EMERGENCIES.items():
+                    if any(kw in combined for kw in keywords):
+                        detected_emergency_type = ctype
+                        is_emergency = True
+                        priority_level = "CRITICAL_EMERGENCY" if ctype in ["airstrike", "artillery_shelling"] else "HIGH_PRIORITY"
+                        action_required = f"Civilian safety alert for {ctype.upper()}. Urgent shelter and safe corridor notice."
+                        break
 
         # Check Casualty / Critical Harm Keywords
         CASUALTY_KEYWORDS = ["သေဆုံး", "ဒဏ်ရာရ", "ပျက်စီး", "casualties", "killed", "injured", "fatalities"]
@@ -284,7 +295,7 @@ class AgentTools:
             "emergency_type": detected_emergency_type,
             "has_casualties": has_casualties,
             "action_required": action_required,
-            "confidence": 0.90 if is_emergency else 0.75
+            "confidence": 0.95 if is_emergency else 0.80
         }
 
     @staticmethod
@@ -465,13 +476,16 @@ class AutonomousNewsAgent:
 
         # Step 6: Tool Calling - Autonomous Emergency Broadcast Dispatch
         emergency_dispatch = None
-        if triage_result["is_emergency_alert"] and fc_result["credibility_score"] >= 0.40:
+        has_location = bool(geo_result["township"] or geo_result["region"] or extracted.get("township") or extracted.get("region"))
+        is_verified = (fc_result["credibility_score"] >= 0.70 and fc_result["verdict"] in ["VERIFIED", "PLAUSIBLE"])
+
+        if triage_result["is_emergency_alert"] and is_verified and has_location:
             headline = extracted.get("heading") or extracted.get("summary") or "Emergency Alert"
             emergency_dispatch = self.tools.tool_emergency_broadcaster(
                 emergency_type=triage_result["emergency_type"],
                 alert_level=triage_result["priority_level"],
-                region=geo_result["region"] or extracted.get("region"),
-                township=geo_result["township"] or extracted.get("township"),
+                region=geo_result["region"] or extracted.get("region") or "Myanmar",
+                township=geo_result["township"] or extracted.get("township") or "General",
                 headline=headline[:150],
                 action_required=triage_result["action_required"]
             )
