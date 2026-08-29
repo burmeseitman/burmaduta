@@ -306,6 +306,29 @@ const TOWNSHIP_COORDINATES = {
     "ပခုက္ကူ": [21.3333, 95.0833]
 };
 
+// Myanmar only, for every plotted layer. Foreign coordinates reach the table when
+// a geocode lands across a border or the model names a place abroad -- the
+// backend's foreign-place guard checks names, not coordinates -- and they showed
+// as pins and hotspots over Kunming, Hanoi and Bangkok.
+// A single rectangle around Myanmar necessarily swallows Bangkok, because the
+// country narrows to a thin coastal strip in the south while Shan reaches far
+// east in the north. Bound the longitude per latitude band instead.
+const MYANMAR_BANDS = [
+    { maxLat: 12.0, minLng: 98.0, maxLng: 99.7 },   // Tanintharyi south
+    { maxLat: 15.0, minLng: 97.3, maxLng: 99.3 },   // Dawei / Myeik
+    { maxLat: 18.0, minLng: 93.5, maxLng: 99.0 },   // delta, Yangon, Mon, Kayin
+    { maxLat: 19.5, minLng: 93.0, maxLng: 98.0 },   // Kayah, south Shan
+    { maxLat: 21.0, minLng: 92.5, maxLng: 101.2 },  // Rakhine across to Tachileik
+    { maxLat: 24.0, minLng: 92.2, maxLng: 101.2 },  // Chin across to Kengtung
+    { maxLat: 28.8, minLng: 93.0, maxLng: 98.9 },   // Sagaing north, Kachin
+];
+
+function isWithinMyanmar(lat, lng) {
+    if (lat < 9.0 || lat > 28.8) return false;
+    const band = MYANMAR_BANDS.find(b => lat <= b.maxLat);
+    return Boolean(band) && lng >= band.minLng && lng <= band.maxLng;
+}
+
 function hasPlottableLocation(item) {
     const lat = parseFloat(item.latitude);
     const lng = parseFloat(item.longitude);
@@ -1378,11 +1401,13 @@ function updateMapMarkers(items) {
     const newItemsMap = new Map();
     dedupedItems.forEach(item => {
         const coords = resolveItemCoordinates(item);
-        if (coords && coords.length === 2) {
-            item.latitude = coords[0];
-            item.longitude = coords[1];
-            newItemsMap.set(String(item.id), item);
-        }
+        if (!coords || coords.length !== 2) return;
+        // A row whose coordinates land abroad is a bad geocode, not foreign news
+        // the map should carry. It stays in the news list, off the map.
+        if (!isWithinMyanmar(coords[0], coords[1])) return;
+        item.latitude = coords[0];
+        item.longitude = coords[1];
+        newItemsMap.set(String(item.id), item);
     });
 
     // 1. Remove markers that are no longer in the filtered list
@@ -1407,29 +1432,6 @@ function updateMapMarkers(items) {
             console.error(`Skipped marker for item ${id}:`, e);
         }
     });
-}
-
-// Myanmar only. Foreign coordinates reach the table when a geocode lands across
-// a border or the model names a place abroad -- the backend's foreign-place guard
-// checks names, not coordinates -- and they showed as stray hotspots over Kunming
-// and Bangkok.
-// A single rectangle around Myanmar necessarily swallows Bangkok, because the
-// country narrows to a thin coastal strip in the south while Shan reaches far
-// east in the north. Bound the longitude per latitude band instead.
-const HEAT_BANDS = [
-    { maxLat: 12.0, minLng: 98.0, maxLng: 99.7 },   // Tanintharyi south
-    { maxLat: 15.0, minLng: 97.3, maxLng: 99.3 },   // Dawei / Myeik
-    { maxLat: 18.0, minLng: 93.5, maxLng: 99.0 },   // delta, Yangon, Mon, Kayin
-    { maxLat: 19.5, minLng: 93.0, maxLng: 98.0 },   // Kayah, south Shan
-    { maxLat: 21.0, minLng: 92.5, maxLng: 101.2 },  // Rakhine across to Tachileik
-    { maxLat: 24.0, minLng: 92.2, maxLng: 101.2 },  // Chin across to Kengtung
-    { maxLat: 28.8, minLng: 93.0, maxLng: 98.9 },   // Sagaing north, Kachin
-];
-
-function isWithinMyanmar(lat, lng) {
-    if (lat < 9.0 || lat > 28.8) return false;
-    const band = HEAT_BANDS.find(b => lat <= b.maxLat);
-    return Boolean(band) && lng >= band.minLng && lng <= band.maxLng;
 }
 
 // leaflet.heat draws in screen pixels, so a single radius only ever suits one
