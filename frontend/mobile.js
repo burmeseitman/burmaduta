@@ -38,12 +38,89 @@ const catChips = document.querySelectorAll('.cat-chip');
 const MYANMAR_CENTER = [21.9162, 95.9560];
 const ZOOM_LEVEL = 5;
 
-// Constants
-const REGIONS = [
-  'All', 'ရန်ကုန်', 'မန္တလေး', 'စစ်ကိုင်း', 'ပဲခူး', 'မကွေး',
-  'ဧရာဝတီ', 'တနင်္သာရီ', 'နေပြည်တော်', 'ရှမ်း', 'ကချင်',
-  'ကယား', 'ကရင်', 'ချင်း', 'မွန်', 'ရခိုင်',
-];
+const REGION_COORDINATES = {
+  "All": { center: [19.7633, 96.0785], zoom: 6 },
+  "ရန်ကုန်": { center: [16.8661, 96.1951], zoom: 10 },
+  "မန္တလေး": { center: [21.9162, 96.0898], zoom: 10 },
+  "စစ်ကိုင်း": { center: [22.8775, 95.4402], zoom: 8 },
+  "ပဲခူး": { center: [17.3304, 96.4814], zoom: 9 },
+  "မကွေး": { center: [20.1544, 94.9455], zoom: 8 },
+  "ဧရာဝတီ": { center: [17.0341, 94.9455], zoom: 8 },
+  "တနင်္သာရီ": { center: [13.2925, 98.7118], zoom: 7 },
+  "နေပြည်တော်": { center: [19.7633, 96.0785], zoom: 11 },
+  "ရှမ်း": { center: [21.1731, 98.0506], zoom: 7 },
+  "ကချင်": { center: [25.4045, 97.4646], zoom: 7 },
+  "ကယား": { center: [19.2342, 97.3323], zoom: 9 },
+  "ကရင်": { center: [16.9425, 97.9593], zoom: 8 },
+  "ချင်း": { center: [22.0163, 93.6450], zoom: 8 },
+  "မွန်": { center: [16.1432, 97.7475], zoom: 9 },
+  "ရခိုင်": { center: [19.3400, 93.5300], zoom: 7 }
+};
+
+const TOWNSHIP_COORDINATES = {
+  "မိုးကုတ်": [22.9234, 96.5056],
+  "ဖားကန့်": [25.6133, 96.3156],
+  "မင်းတပ်": [21.3667, 93.8167],
+  "ကန့်ဘလူ": [23.2081, 95.5214],
+  "ဆော": [21.4111, 94.1352],
+  "သပိတ်ကျင်း": [22.8878, 95.9791],
+  "မုံရွာ": [22.1142, 95.1325],
+  "ဘုတလင်": [22.3853, 95.1485],
+  "စဉ့်ကူး": [22.5480, 96.0150],
+  "အရာတော်": [22.2847, 95.4461],
+  "လယ်ဝေး": [19.5708, 96.2014],
+  "ဒီပဲယင်း": [22.5113, 95.5971],
+  "ရွှေဘို": [22.5694, 95.6982],
+  "ကလေး": [23.1812, 94.0514],
+  "ကျိုက်ထို": [17.3014, 97.0135],
+  "လှိုင်": [16.8400, 96.1200],
+  "ဝမ်းတွင်း": [20.9500, 96.1300],
+  "မြိုင်": [21.6167, 94.8500],
+  "မတ္တရာ": [22.2500, 96.1000],
+  "ကျောက်မဲ": [22.5333, 97.0333],
+  "သီပေါ": [22.6167, 97.3000],
+  "လားရှိုး": [22.9333, 97.7500],
+  "မြဝတီ": [16.6833, 98.5167],
+  "ဘားအံ": [16.8833, 97.6333],
+  "ထားဝယ်": [14.0833, 98.2000],
+  "မြိတ်": [12.4333, 98.6000],
+  "စစ်တွေ": [20.1500, 92.9000],
+  "မောင်တော": [20.8167, 92.3667],
+  "တောင်ကြီး": [20.7833, 97.0333],
+  "ကော့သောင်း": [9.9833, 98.5500],
+  "လွိုင်ကော်": [19.6833, 97.2167],
+  "ဟားခါး": [22.6500, 93.6000]
+};
+
+function resolveItemCoordinates(item) {
+  let lat = parseFloat(item.latitude);
+  let lng = parseFloat(item.longitude);
+  if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+    return [lat, lng];
+  }
+
+  const ts = (item.township || item.city || "").trim();
+  if (ts) {
+    for (const [name, coords] of Object.entries(TOWNSHIP_COORDINATES)) {
+      if (ts.includes(name)) return coords;
+    }
+  }
+
+  const reg = (item.region || "").trim();
+  if (reg) {
+    for (const [name, cfg] of Object.entries(REGION_COORDINATES)) {
+      if (name !== "All" && reg.includes(name)) {
+        const idNum = Number(item.id) || 1;
+        const offsetLat = (Math.sin(idNum * 12.9898) * 0.12);
+        const offsetLng = (Math.cos(idNum * 78.233) * 0.12);
+        return [cfg.center[0] + offsetLat, cfg.center[1] + offsetLng];
+      }
+    }
+  }
+
+  const idNum = Number(item.id) || 1;
+  return [19.7633 + (Math.sin(idNum) * 0.4), 96.0785 + (Math.cos(idNum) * 0.4)];
+}
 
 const typeColors = {
   စစ်ရေးသတင်း: "#e74c3c",
@@ -160,8 +237,11 @@ async function fetchNews() {
 
 function applyFilters() {
   filteredNews = allNews.filter(item => {
-    // Has coordinates
-    if (!item.latitude || !item.longitude) return false;
+    // Resolve coordinates
+    const coords = resolveItemCoordinates(item);
+    if (!coords || coords.length !== 2) return false;
+    item.latitude = coords[0];
+    item.longitude = coords[1];
 
     // Date filter
     const itemDate = (item.publish_date || item.event_date || item.created_at || '').split('T')[0].split(' ')[0];
