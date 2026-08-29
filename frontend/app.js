@@ -1190,6 +1190,152 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
     correlationChart.setOption(correlationOption, true);
 }
 
+// Builds one map marker. Split out of updateMapMarkers so the loop there can
+// catch a failure per item: this body reads a dozen optional fields off a row,
+// and it has thrown before -- when it did, every later row lost its marker and
+// the heatmap call at the end of the loop never ran.
+function createMarker(item) {
+    const color = typeColors[item.crime_type] || typeColors["Other"];
+    const icon = typeIcons[item.crime_type] || typeIcons["Other"];
+
+    // ✈️ Accurate Air Alert & Airstrike Detection
+    const combinedText = `${item.crime_type || ''} ${item.sub_category || ''} ${item.summary || ''} ${item.raw_text || ''} ${item.heading || ''}`.toLowerCase();
+    const isAircraft = item.emergency_type === 'airstrike' || (
+        combinedText.includes("လေကြောင်း") ||
+        combinedText.includes("လေယာဉ်") ||
+        combinedText.includes("ဂျက်ဖိုက်တာ") ||
+        combinedText.includes("ရဟတ်ယာဉ်") ||
+        combinedText.includes("ဗုံးကြဲ") ||
+        combinedText.includes("airstrike") ||
+        combinedText.includes("fighter jet")
+    );
+    const isAirAlert = combinedText.includes("သတိပေးချက်") || combinedText.includes("ပျံသန်း") || combinedText.includes("ကင်းထောက်");
+
+    let customIconHtml = '';
+    
+    if (isAircraft) {
+        // Determine direction from Burmese text with Unicode plane (-45deg base offset)
+        let rotation = -45; // Default pointing UP / North
+        
+        if (combinedText.includes("အရှေ့မြောက်") || combinedText.includes("northeast") || combinedText.includes(" ne ")) {
+            rotation = 0; // Northeast (45° true compass)
+        } else if (combinedText.includes("အနောက်မြောက်") || combinedText.includes("northwest") || combinedText.includes(" nw ")) {
+            rotation = -90; // Northwest (315° true compass)
+        } else if (combinedText.includes("အရှေ့တောင်") || combinedText.includes("southeast") || combinedText.includes(" se ")) {
+            rotation = 90; // Southeast (135° true compass)
+        } else if (combinedText.includes("အနောက်တောင်") || combinedText.includes("southwest") || combinedText.includes(" sw ")) {
+            rotation = 180; // Southwest (225° true compass)
+        } else if (combinedText.includes("မြောက်ဘက်") || combinedText.includes("မြောက်သို့") || combinedText.includes(" north")) {
+            rotation = -45; // North (0° true compass)
+        } else if (combinedText.includes("တောင်ဘက်") || combinedText.includes("တောင်သို့") || combinedText.includes(" south")) {
+            rotation = 135; // South (180° true compass)
+        } else if (combinedText.includes("အရှေ့ဘက်") || combinedText.includes("အရှေ့သို့") || combinedText.includes(" east")) {
+            rotation = 45; // East (90° true compass)
+        } else if (combinedText.includes("အနောက်ဘက်") || combinedText.includes("အနောက်သို့") || combinedText.includes(" west")) {
+            rotation = 225; // West (270° true compass)
+        }
+
+        const radarClass = isAirAlert ? "radar-ping alert" : "radar-ping";
+        const bgColor = isAirAlert ? "#f39c12" : "#c0392b";
+        const shadowColor = isAirAlert ? "rgba(243, 156, 18, 0.8)" : "rgba(192, 57, 43, 0.8)";
+
+        customIconHtml = `
+        <div class="map-marker-container radar-container" style="width:22px; height:22px;">
+            <div class="${radarClass}"></div>
+            <div style="background-color:${bgColor}; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1.5px solid #fff; font-size:12px; position:relative; z-index:2; box-shadow: 0 0 10px ${shadowColor};">
+                <span style="transform: rotate(${rotation}deg); display: inline-block;">✈️</span>
+            </div>
+        </div>`;
+    } else {
+        customIconHtml = `
+        <div class="map-marker-container" style="width:22px; height:22px;">
+            <div class="pulse-ring" style="background-color:${color};"></div>
+            <div style="background-color:${color}; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1.5px solid #fff; font-size:12px; position:relative; z-index:2;">
+                ${icon}
+            </div>
+        </div>`;
+    }
+
+    const customIcon = L.divIcon({
+        html: customIconHtml,
+        className: "custom-div-icon",
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+    });
+
+    const lat = parseFloat(item.latitude);
+    const lng = parseFloat(item.longitude);
+
+    const marker = L.marker([lat, lng], {
+        icon: customIcon,
+        riseOnHover: true // Improves visibility depth
+    });
+    // SYNC: When marker popup opens, expand accordion
+    marker.on('popupopen', () => {
+        expandNewsItem(item.id, false); // Pass 'false' to prevent map loops
+    });
+
+    const typeLabel = escapeHTML(item.crime_type || "အခြား");
+    const subCounts = getSubCategoryCounts([item], item.crime_type, true); // 🚀 pass true to show all tags in popup
+    const subLabel = Object.keys(subCounts).length > 0
+        ? `<div style="font-size: 11px; margin-bottom:6px;">🏷️ ${Object.keys(subCounts).map(s => `<span class="sub-tag">${s}</span>`).join(" ")}</div>`
+        : "";
+    const typeClass = `type-${typeLabel.split(" ").join("-")}`;
+    const locDetails = formatLocationLabel(item);
+
+    // Agentic Badges
+    const agentBadges = renderAgentBadges(item);
+
+    marker.bindPopup(
+        `
+        <div style="font-family: 'Inter', sans-serif; padding: 5px; color: #fff;">
+            <div class="type-tag ${typeClass}" style="margin-bottom:4px">${typeLabel}</div>
+            ${subLabel}
+            ${agentBadges}
+            <strong style="display:block; margin-bottom:4px; font-size:14px;">${locDetails}</strong>
+            <div style="font-size: 12px; opacity: 0.8; margin-top:6px;">
+                <div>📅 ဖြစ်ပွားရက်: ${formatDateDisplay(item.event_date) || "မသိရ"}</div>
+                <div>⏰ ဖြစ်ပွားချိန်: ${formatTime12h(item.event_time) || "မသိရ"}</div>
+                <div style="margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">📰 ရင်းမြစ်: ${escapeHTML(item.source_name || item.channel_handle)}</div>
+            </div>
+            <button class="inspect-agent-btn" onclick="window.openAgentInspector(${item.id})">🧠 Agent Trace စစ်ဆေးရန်</button>
+        </div>
+        `,
+        { maxWidth: 280, autoPan: true }
+    );
+
+    // Add heading arrow line if aircraft
+    let flightLine = null;
+    if (isAircraft && item.heading && item.heading.toLowerCase() !== 'null') {
+        const h = item.heading.toLowerCase().trim().replace(" ", "");
+        const headingMap = {
+            "north": [1, 0], "south": [-1, 0], "east": [0, 1], "west": [0, -1],
+            "northeast": [1, 1], "northwest": [1, -1], "southeast": [-1, 1], "southwest": [-1, -1]
+        };
+        const dir = headingMap[h] || [0,0];
+        if (dir[0] !== 0 || dir[1] !== 0) {
+            const destLat = item.latitude + (dir[0] * 0.3); // approx distance
+            const destLng = item.longitude + (dir[1] * 0.3);
+            const lineColor = isAirAlert ? '#f39c12' : '#ff4757';
+            flightLine = L.polyline([
+                [item.latitude, item.longitude],
+                [destLat, destLng]
+            ], {
+                color: lineColor,
+                weight: 3,
+                opacity: 0.3,
+                dashArray: '5, 10',
+                className: 'flight-path-animated'
+            }).addTo(map);
+        }
+    }
+
+
+    // Last: a partially built marker must never reach the map.
+    markerClusterGroup.addLayer(marker);
+    return { marker, flightLine, data: item };
+}
+
 function updateMapMarkers(items) {
     // Basic deduplication for aircraft alerts
     const dedupedItems = [];
@@ -1233,147 +1379,15 @@ function updateMapMarkers(items) {
 
     // 2. Add or Update markers
     newItemsMap.forEach((item, id) => {
-        if (!markers[id]) {
-            const color = typeColors[item.crime_type] || typeColors["Other"];
-            const icon = typeIcons[item.crime_type] || typeIcons["Other"];
-
-            // ✈️ Accurate Air Alert & Airstrike Detection
-            const combinedText = `${item.crime_type || ''} ${item.sub_category || ''} ${item.summary || ''} ${item.raw_text || ''} ${item.heading || ''}`.toLowerCase();
-            const isAircraft = item.emergency_type === 'airstrike' || (
-                combinedText.includes("လေကြောင်း") ||
-                combinedText.includes("လေယာဉ်") ||
-                combinedText.includes("ဂျက်ဖိုက်တာ") ||
-                combinedText.includes("ရဟတ်ယာဉ်") ||
-                combinedText.includes("ဗုံးကြဲ") ||
-                combinedText.includes("airstrike") ||
-                combinedText.includes("fighter jet")
-            );
-            const isAirAlert = combinedText.includes("သတိပေးချက်") || combinedText.includes("ပျံသန်း") || combinedText.includes("ကင်းထောက်");
-
-            let customIconHtml = '';
-            
-            if (isAircraft) {
-                // Determine direction from Burmese text with Unicode plane (-45deg base offset)
-                let rotation = -45; // Default pointing UP / North
-                
-                if (combinedText.includes("အရှေ့မြောက်") || combinedText.includes("northeast") || combinedText.includes(" ne ")) {
-                    rotation = 0; // Northeast (45° true compass)
-                } else if (combinedText.includes("အနောက်မြောက်") || combinedText.includes("northwest") || combinedText.includes(" nw ")) {
-                    rotation = -90; // Northwest (315° true compass)
-                } else if (combinedText.includes("အရှေ့တောင်") || combinedText.includes("southeast") || combinedText.includes(" se ")) {
-                    rotation = 90; // Southeast (135° true compass)
-                } else if (combinedText.includes("အနောက်တောင်") || combinedText.includes("southwest") || combinedText.includes(" sw ")) {
-                    rotation = 180; // Southwest (225° true compass)
-                } else if (combinedText.includes("မြောက်ဘက်") || combinedText.includes("မြောက်သို့") || combinedText.includes(" north")) {
-                    rotation = -45; // North (0° true compass)
-                } else if (combinedText.includes("တောင်ဘက်") || combinedText.includes("တောင်သို့") || combinedText.includes(" south")) {
-                    rotation = 135; // South (180° true compass)
-                } else if (combinedText.includes("အရှေ့ဘက်") || combinedText.includes("အရှေ့သို့") || combinedText.includes(" east")) {
-                    rotation = 45; // East (90° true compass)
-                } else if (combinedText.includes("အနောက်ဘက်") || combinedText.includes("အနောက်သို့") || combinedText.includes(" west")) {
-                    rotation = 225; // West (270° true compass)
-                }
-
-                const radarClass = isAirAlert ? "radar-ping alert" : "radar-ping";
-                const bgColor = isAirAlert ? "#f39c12" : "#c0392b";
-                const shadowColor = isAirAlert ? "rgba(243, 156, 18, 0.8)" : "rgba(192, 57, 43, 0.8)";
-
-                customIconHtml = `
-                <div class="map-marker-container radar-container" style="width:22px; height:22px;">
-                    <div class="${radarClass}"></div>
-                    <div style="background-color:${bgColor}; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1.5px solid #fff; font-size:12px; position:relative; z-index:2; box-shadow: 0 0 10px ${shadowColor};">
-                        <span style="transform: rotate(${rotation}deg); display: inline-block;">✈️</span>
-                    </div>
-                </div>`;
-            } else {
-                customIconHtml = `
-                <div class="map-marker-container" style="width:22px; height:22px;">
-                    <div class="pulse-ring" style="background-color:${color};"></div>
-                    <div style="background-color:${color}; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1.5px solid #fff; font-size:12px; position:relative; z-index:2;">
-                        ${icon}
-                    </div>
-                </div>`;
-            }
-
-            const customIcon = L.divIcon({
-                html: customIconHtml,
-                className: "custom-div-icon",
-                iconSize: [22, 22],
-                iconAnchor: [11, 11],
-            });
-
-            const lat = parseFloat(item.latitude);
-            const lng = parseFloat(item.longitude);
-
-            const marker = L.marker([lat, lng], {
-                icon: customIcon,
-                riseOnHover: true // Improves visibility depth
-            });
-            markerClusterGroup.addLayer(marker);
-
-            // SYNC: When marker popup opens, expand accordion
-            marker.on('popupopen', () => {
-                expandNewsItem(item.id, false); // Pass 'false' to prevent map loops
-            });
-
-            const typeLabel = escapeHTML(item.crime_type || "အခြား");
-            const subCounts = getSubCategoryCounts([item], item.crime_type, true); // 🚀 pass true to show all tags in popup
-            const subLabel = Object.keys(subCounts).length > 0
-                ? `<div style="font-size: 11px; margin-bottom:6px;">🏷️ ${Object.keys(subCounts).map(s => `<span class="sub-tag">${s}</span>`).join(" ")}</div>`
-                : "";
-            const typeClass = `type-${typeLabel.split(" ").join("-")}`;
-            const locDetails = formatLocationLabel(item);
-
-            // Agentic Badges
-            const agentBadges = renderAgentBadges(item);
-
-            marker.bindPopup(
-                `
-                <div style="font-family: 'Inter', sans-serif; padding: 5px; color: #fff;">
-                    <div class="type-tag ${typeClass}" style="margin-bottom:4px">${typeLabel}</div>
-                    ${subLabel}
-                    ${agentBadges}
-                    <strong style="display:block; margin-bottom:4px; font-size:14px;">${locDetails}</strong>
-                    <div style="font-size: 12px; opacity: 0.8; margin-top:6px;">
-                        <div>📅 ဖြစ်ပွားရက်: ${formatDateDisplay(item.event_date) || "မသိရ"}</div>
-                        <div>⏰ ဖြစ်ပွားချိန်: ${formatTime12h(item.event_time) || "မသိရ"}</div>
-                        <div style="margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">📰 ရင်းမြစ်: ${escapeHTML(item.source_name || item.channel_handle)}</div>
-                    </div>
-                    <button class="inspect-agent-btn" onclick="window.openAgentInspector(${item.id})">🧠 Agent Trace စစ်ဆေးရန်</button>
-                </div>
-                `,
-                { maxWidth: 280, autoPan: true }
-            );
-
-            // Add heading arrow line if aircraft
-            let flightLine = null;
-            if (isAircraft && item.heading && item.heading.toLowerCase() !== 'null') {
-                const h = item.heading.toLowerCase().trim().replace(" ", "");
-                const headingMap = {
-                    "north": [1, 0], "south": [-1, 0], "east": [0, 1], "west": [0, -1],
-                    "northeast": [1, 1], "northwest": [1, -1], "southeast": [-1, 1], "southwest": [-1, -1]
-                };
-                const dir = headingMap[h] || [0,0];
-                if (dir[0] !== 0 || dir[1] !== 0) {
-                    const destLat = item.latitude + (dir[0] * 0.3); // approx distance
-                    const destLng = item.longitude + (dir[1] * 0.3);
-                    const lineColor = isAirAlert ? '#f39c12' : '#ff4757';
-                    flightLine = L.polyline([
-                        [item.latitude, item.longitude],
-                        [destLat, destLng]
-                    ], {
-                        color: lineColor,
-                        weight: 3,
-                        opacity: 0.3,
-                        dashArray: '5, 10',
-                        className: 'flight-path-animated'
-                    }).addTo(map);
-                }
-            }
-
-            markers[id] = { marker, flightLine, data: item };
-        } else {
+        if (markers[id]) {
             markers[id].data = item; // Keep data fresh
+            return;
+        }
+        try {
+            markers[id] = createMarker(item);
+        } catch (e) {
+            // One unusable row costs its own marker, not the rest of the map.
+            console.error(`Skipped marker for item ${id}:`, e);
         }
     });
 
