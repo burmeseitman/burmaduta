@@ -83,6 +83,7 @@ const markerClusterGroup = L.markerClusterGroup({
 });
 markerClusterGroup.addTo(map);
 let firstLoadComplete = false;
+let lastChartArgs = null;
 
 // Helper for local YYYY-MM-DD
 function getLocalDateString() {
@@ -115,7 +116,8 @@ function formatTime12h(timeStr) {
 
 // Helper to format date as dd-mmm-yyyy
 function formatDateDisplay(dateStr) {
-    if (!dateStr || dateStr === "null" || dateStr === "မသိရ" || dateStr === "မသိရှိပါ။") return escapeHTML(dateStr);
+    if (!dateStr || dateStr === "All" || dateStr === "အားလုံး") return "အားလုံး";
+    if (dateStr === "null" || dateStr === "မသိရ" || dateStr === "မသိရှိပါ။") return "အားလုံး";
     try {
         const date = new Date(dateStr);
         if (isNaN(date.getTime())) return escapeHTML(dateStr);
@@ -377,13 +379,8 @@ if (searchQueryInput) {
 
 const toggleHeatmapInput = document.getElementById("toggle-heatmap");
 if (toggleHeatmapInput) {
-    toggleHeatmapInput.onchange = (e) => {
-        if (!heatLayer) return;
-        if (e.target.checked) {
-            if (!map.hasLayer(heatLayer)) heatLayer.addTo(map);
-        } else {
-            if (map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
-        }
+    toggleHeatmapInput.onchange = () => {
+        updateHeatmap();
     };
 }
 
@@ -799,9 +796,7 @@ function updateFilters(items) {
     });
 }
 
-// ECharts loads async and off the critical path, so it may not exist yet on the
-// first render. Remember the arguments and replay once the library arrives.
-let lastChartArgs = null;
+// ECharts replay function if library finishes loading after data
 window.__chartsReady = function () {
     if (lastChartArgs) {
         try { renderCharts.apply(null, lastChartArgs); } catch (e) { console.error("Chart replay failed:", e); }
@@ -1348,28 +1343,35 @@ function updateMapMarkers(items) {
     });
 
     // 3. Update Heatmap Layer
-    const points = items
-        .filter(i => i.latitude && i.longitude)
-        .map(i => [parseFloat(i.latitude), parseFloat(i.longitude), 0.8]); // Increased intensity
+    updateHeatmap();
+}
 
-    if (heatLayer) {
-        heatLayer.setLatLngs(points);
-        const toggleHeatmap = document.getElementById("toggle-heatmap");
-        if (toggleHeatmap && toggleHeatmap.checked && !map.hasLayer(heatLayer)) {
-            heatLayer.addTo(map);
+function updateHeatmap() {
+    const toggleHeatmap = document.getElementById("toggle-heatmap");
+    const isChecked = toggleHeatmap ? toggleHeatmap.checked : true;
+
+    if (isChecked) {
+        // Collect coordinates from all currently loaded news items
+        const points = (allNewsItems || [])
+            .map(i => resolveItemCoordinates(i))
+            .filter(c => c && c.length === 2)
+            .map(c => [c[0], c[1], 0.85]);
+
+        if (heatLayer) {
+            heatLayer.setLatLngs(points);
+            if (!map.hasLayer(heatLayer)) heatLayer.addTo(map);
+        } else if (points.length > 0 && typeof L.heatLayer === 'function') {
+            heatLayer = L.heatLayer(points, {
+                radius: 28,
+                blur: 16,
+                maxZoom: 15,
+                minOpacity: 0.35,
+                gradient: { 0.4: '#3498db', 0.6: '#2ecc71', 0.8: '#f1c40f', 1.0: '#e74c3c' }
+            }).addTo(map);
         }
     } else {
-        heatLayer = L.heatLayer(points, {
-            radius: 35, // Increased radius
-            blur: 20,
-            maxZoom: 14,
-            minOpacity: 0.4,
-            gradient: { 0.4: 'blue', 0.6: 'lime', 1: 'yellow' }
-        });
-
-        const toggleHeatmap = document.getElementById("toggle-heatmap");
-        if (toggleHeatmap && toggleHeatmap.checked) {
-            heatLayer.addTo(map);
+        if (heatLayer && map.hasLayer(heatLayer)) {
+            map.removeLayer(heatLayer);
         }
     }
 }
