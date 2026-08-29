@@ -426,19 +426,26 @@ if (timelineSlider) {
 function getLatestNewsDate(items) {
     if (!items || items.length === 0) return getLocalDateString();
     
-    // Check today first
-    const today = getLocalDateString();
-    const hasToday = items.some(i => (i.publish_date || '').split('T')[0].split(' ')[0] === today);
-    if (hasToday) return today;
-    
-    // If today has no data, pick the most recent date with news in the dataset
-    const validDates = items
-        .map(i => (i.publish_date || i.event_date || '').split('T')[0].split(' ')[0])
-        .filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d))
-        .sort()
-        .reverse();
+    // Group count by date for items with valid dates
+    const dateCounts = {};
+    items.forEach(i => {
+        const d = (i.publish_date || i.event_date || '').split('T')[0].split(' ')[0];
+        if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+            dateCounts[d] = (dateCounts[d] || 0) + 1;
+        }
+    });
 
-    return validDates[0] || today;
+    const dates = Object.keys(dateCounts).sort().reverse();
+    if (dates.length === 0) return getLocalDateString();
+
+    const today = getLocalDateString();
+    // If today has at least 3 items, show today
+    if (dateCounts[today] && dateCounts[today] >= 3) {
+        return today;
+    }
+
+    // Otherwise, pick the most recent date with real data
+    return dates[0];
 }
 
 function syncTimelineWithDate(newDate) {
@@ -1332,24 +1339,33 @@ function updateNewsAccordion(items) {
     const countBadge = document.getElementById("news-count-badge");
     container.innerHTML = "";
 
-    // Show all items but let CSS handle scrolling
-    countBadge.innerText = items.length;
+    let renderItems = items;
+    let isFallback = false;
 
     if (items.length === 0) {
-        container.innerHTML = `
-            <div class="status" style="padding: 24px 16px; text-align: center; color: #a4b0be; font-size: 13px;">
-                <div style="margin-bottom: 6px; font-weight: bold; color: #f7b731;">📅 ရွေးချယ်ထားသော ရက်စွဲတွင် သတင်းဖြစ်စဉ် မရှိသေးပါ။</div>
-                <div style="font-size: 11px; opacity: 0.8; margin-bottom: 14px;">အောက်ခြေရှိ အချိန်တိုင်းစက် (Timeline Slider) ကို ရွှေ့၍ ယခင်ရက်စွဲများကို ကြည့်ရှုနိုင်ပါသည်။</div>
-                <button onclick="window.viewAllRecentNews()" style="background: rgba(247,183,49,0.15); border: 1px solid rgba(247,183,49,0.5); color: #f7b731; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: bold;">
-                    ⚡ လတ်တလော ဖြစ်ပွားခဲ့သော သတင်းများ ကြည့်ရန်
-                </button>
-            </div>
-        `;
-        return;
+        // Find latest available valid items from allNewsItems so the list is NEVER empty
+        const fallbackItems = allNewsItems.filter(i => i.township || i.city || i.region);
+        if (fallbackItems.length > 0) {
+            renderItems = fallbackItems.slice(0, 30);
+            isFallback = true;
+        } else {
+            countBadge.innerText = "0";
+            container.innerHTML = `<div class="status" style="padding: 24px; text-align: center; color: #a4b0be;">သတင်းမှတ်တမ်း မရှိပါ။</div>`;
+            return;
+        }
+    }
+
+    countBadge.innerText = renderItems.length;
+
+    if (isFallback) {
+        const headerNotice = document.createElement("div");
+        headerNotice.style.cssText = "padding: 8px 12px; margin-bottom: 8px; background: rgba(247,183,49,0.12); border: 1px solid rgba(247,183,49,0.3); border-radius: 8px; font-size: 11px; color: #f7b731; text-align: center; line-height: 1.4;";
+        headerNotice.innerHTML = `📅 ရွေးချယ်ထားသော ရက်စွဲတွင် ဖြစ်စဉ်မရှိပါ။ <strong>လတ်တလော ဖြစ်ပွားခဲ့သော သတင်းမှတ်တမ်းများ</strong> ကို ပြသထားပါသည်။`;
+        container.appendChild(headerNotice);
     }
 
     // Pre-sort items to ensure newest are at the top
-    const sortedItems = [...items].sort((a, b) => b.id - a.id);
+    const sortedItems = [...renderItems].sort((a, b) => b.id - a.id);
 
     sortedItems.forEach(item => {
         const locDetails = [item.region, item.township, item.city].map(escapeHTML).filter(Boolean).join("၊ ");
