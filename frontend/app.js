@@ -1214,9 +1214,11 @@ function createMarker(item) {
     const color = typeColors[item.crime_type] || typeColors["Other"];
     const icon = typeIcons[item.crime_type] || typeIcons["Other"];
 
-    // ✈️ Accurate Air Alert & Airstrike Detection
+    // ✈️ Accurate Air Alert & Airstrike Detection (Strictly for 'စစ်ရေးသတင်း')
+    const isMilitaryNews = item.crime_type === "စစ်ရေးသတင်း";
     const combinedText = `${item.crime_type || ''} ${item.sub_category || ''} ${item.summary || ''} ${item.raw_text || ''} ${item.heading || ''}`.toLowerCase();
-    const isAircraft = item.emergency_type === 'airstrike' || (
+    const isAircraft = isMilitaryNews && (
+        item.emergency_type === 'airstrike' ||
         combinedText.includes("လေကြောင်း") ||
         combinedText.includes("လေယာဉ်") ||
         combinedText.includes("ဂျက်ဖိုက်တာ") ||
@@ -1783,9 +1785,32 @@ function renderAgentBadges(item) {
         badges += `<span class="agent-badge badge-fake">🔴 သတင်းတု သံသယ</span>`;
     }
 
-    if (item.priority_level === 'CRITICAL_EMERGENCY') {
-        badges += `<span class="agent-badge badge-priority-critical">🚨 အရေးပေါ် (${item.emergency_type || 'hazard'})</span>`;
-    } else if (item.priority_level === 'HIGH_PRIORITY') {
+    const emergencyType = (item.emergency_type || '').toLowerCase();
+    const isNaturalEmergency = ['flood', 'landslide', 'earthquake', 'cyclone', 'fire'].includes(emergencyType);
+    const isConflictEmergency = ['airstrike', 'artillery_shelling', 'mass_displacement'].includes(emergencyType);
+
+    // Strict validation: Disaster alerts require 'သဘာဝဘေးအန္တရာယ်', conflict alerts require 'စစ်ရေးသတင်း'
+    const isValidEmergency = item.priority_level === 'CRITICAL_EMERGENCY' && (
+        (isNaturalEmergency && item.crime_type === 'သဘာဝဘေးအန္တရာယ်') ||
+        (isConflictEmergency && item.crime_type === 'စစ်ရေးသတင်း') ||
+        (!isNaturalEmergency && !isConflictEmergency && item.is_emergency_alert && item.crime_type !== 'မှုခင်းသတင်း' && item.crime_type !== 'အထွေထွေ')
+    );
+
+    const emergencyLabelMap = {
+        'airstrike': 'လေကြောင်းရန်',
+        'artillery_shelling': 'လက်နက်ကြီး',
+        'mass_displacement': 'စစ်ဘေးရှောင်',
+        'flood': 'ရေဘေး',
+        'landslide': 'မြေပြို',
+        'earthquake': 'ငလျင်',
+        'cyclone': 'မုန်တိုင်း',
+        'fire': 'မီးဘေး'
+    };
+
+    if (isValidEmergency) {
+        const label = emergencyLabelMap[emergencyType] || item.emergency_type || 'အရေးပေါ်';
+        badges += `<span class="agent-badge badge-priority-critical">🚨 အရေးပေါ် (${label})</span>`;
+    } else if (item.priority_level === 'HIGH_PRIORITY' || (item.priority_level === 'CRITICAL_EMERGENCY' && !isValidEmergency)) {
         badges += `<span class="agent-badge badge-priority-high">⚠️ ဦးစားပေး</span>`;
     }
 

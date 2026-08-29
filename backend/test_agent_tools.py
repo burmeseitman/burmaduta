@@ -130,13 +130,19 @@ def test_triager_respects_category_guards():
     assert res2["emergency_type"] == "none", f"Expected 'none', got {res2['emergency_type']}"
     assert res2["priority_level"] == "HIGH_PRIORITY", "Casualties in accident should escalate to HIGH_PRIORITY"
 
-    # Legitimate natural disaster report
-    disaster_report = "တောင်ဒဂုံတွင် ရေကြီးရေလျှံမှုကြောင့် လူနေအိမ်များ ရေနစ်မြုပ်နေ"
-    res3 = AgentTools.tool_emergency_triager(disaster_report, event_type="သဘာဝဘေးအန္တရာယ်")
-    assert res3["is_emergency_alert"] is True
-    assert res3["emergency_type"] == "flood"
-    assert res3["priority_level"] == "CRITICAL_EMERGENCY"
-    print("✅ Category guards properly suppress false disaster/conflict alarms for crime and accidents.")
+    # Political report in 'အထွေထွေ' category with name 'Kim Aris / ကင်မ်အဲရစ်'
+    political_report = "သံအမတ်ကြီး ဦးကျော်မိုးထွန်းကို ဆက်လက်ထားရှိရန် ဒေါ်အောင်ဆန်းစုကြည်၏သား ကင်မ်အဲရစ်နှင့် CDM ဝန်ထမ်းများ တောင်းဆို"
+    res4 = AgentTools.tool_emergency_triager(political_report, event_type="အထွေထွေ", sub_category="နိုင်ငံရေး")
+    assert res4["is_emergency_alert"] is False, "Political report should not trigger airstrike emergency"
+    assert res4["emergency_type"] == "none", f"Expected 'none', got {res4['emergency_type']}"
+
+    # Legitimate airstrike in military category
+    airstrike_report = "ကရင်ပြည်နယ်တွင် စစ်ကောင်စီတပ်မှ ဂျက်ဖိုက်တာဖြင့် လေကြောင်းတိုက်ခိုက်မှု ပြုလုပ်"
+    res5 = AgentTools.tool_emergency_triager(airstrike_report, event_type="စစ်ရေးသတင်း", sub_category="လေကြောင်း")
+    assert res5["is_emergency_alert"] is True
+    assert res5["emergency_type"] == "airstrike"
+    assert res5["priority_level"] == "CRITICAL_EMERGENCY"
+    print("✅ Category guards properly suppress false disaster/conflict alarms for crime, accidents, and politics.")
 
 
 def test_triager_known_suppression_gap():

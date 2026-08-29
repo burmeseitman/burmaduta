@@ -341,7 +341,15 @@ function renderFeedList(isInitial = false) {
         } else if (verdict === 'FAKE_NEWS' || verdict === 'DISPUTED') {
             agentBadgeHtml += `<span style="color:#eb3b5a; font-size:0.75rem; font-weight:bold; background:rgba(235,59,90,0.15); padding:1px 6px; border-radius:4px; margin-right:4px;">🔴 Fake/Disputed</span>`;
         }
-        if (item.priority_level === 'CRITICAL_EMERGENCY' || item.is_emergency_alert) {
+        const emergencyType = (item.emergency_type || '').toLowerCase();
+        const isNaturalEmergency = ['flood', 'landslide', 'earthquake', 'cyclone', 'fire'].includes(emergencyType);
+        const isConflictEmergency = ['airstrike', 'artillery_shelling', 'mass_displacement'].includes(emergencyType);
+        const isValidEmergency = (item.priority_level === 'CRITICAL_EMERGENCY' || item.is_emergency_alert) && (
+            (isNaturalEmergency && item.crime_type === 'သဘာဝဘေးအန္တရာယ်') ||
+            (isConflictEmergency && item.crime_type === 'စစ်ရေးသတင်း')
+        );
+
+        if (isValidEmergency) {
             agentBadgeHtml += `<span style="color:#fff; font-size:0.75rem; font-weight:bold; background:#eb3b5a; padding:1px 6px; border-radius:4px; margin-right:4px;">🚨 Alert (${escapeHTML(item.emergency_type || 'hazard')})</span>`;
         }
 

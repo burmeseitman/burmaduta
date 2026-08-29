@@ -311,10 +311,18 @@ class AgentTools:
         is_emergency = False
 
         if not is_past_or_metaphor:
-            # Check Natural Disasters (Only if event_type is a disaster, general news, or unclassified)
-            # If the news is specifically classified as "မှုခင်းသတင်း" (crime) or "မတော်တဆဖြစ်မှု" (accidents),
-            # do not trigger natural disaster critical emergencies to avoid false positives.
-            allow_natural = event_type not in ["မှုခင်းသတင်း", "မတော်တဆဖြစ်မှု"]
+            # Category & Sub-category Guards
+            NON_EMERGENCY_SUBS = [
+                "နိုင်ငံရေး", "ပွဲတော်", "အခမ်းအနား", "စာမေးပွဲ", "ကုန်သွယ်မှု", 
+                "နာရေး", "သွေးလှူ", "လမ်းပိတ်", "ရာထူးတိုး", "ဆီပြတ်လပ်", "အသိပေး"
+            ]
+            is_non_emergency_sub = any(ns in sub_category for ns in NON_EMERGENCY_SUBS)
+
+            # Check Natural Disasters (Only for 'သဘာဝဘေးအန္တရာယ်' or clean 'အထွေထွေ')
+            # Exclude 'မှုခင်းသတင်း', 'မတော်တဆဖြစ်မှု', and non-emergency sub-categories like 'နိုင်ငံရေး'
+            allow_natural = (event_type == "သဘာဝဘေးအန္တရာယ်") or (
+                event_type == "အထွေထွေ" and not is_non_emergency_sub
+            )
             if allow_natural:
                 for dtype, keywords in NATURAL_DISASTERS.items():
                     if any(kw in combined for kw in keywords):
@@ -324,9 +332,11 @@ class AgentTools:
                         action_required = f"Issue immediate civilian safety warning for active {dtype.upper()} hazard. Advise evacuation / emergency relief shelter coordination."
                         break
 
-            # Check Conflict Emergencies (Only if event_type is conflict, general, or unclassified)
-            # If the news is specifically classified as "မှုခင်းသတင်း" or "မတော်တဆဖြစ်မှု", do not trigger military conflict critical emergencies.
-            allow_conflict = event_type not in ["မှုခင်းသတင်း", "မတော်တဆဖြစ်မှု"]
+            # Check Conflict Emergencies (Only for 'စစ်ရေးသတင်း' or clean 'အထွေထွေ')
+            # Airstrikes, shelling and combat emergencies must come from 'စစ်ရေးသတင်း' (or clean unclassified)
+            allow_conflict = (event_type == "စစ်ရေးသတင်း") or (
+                event_type == "အထွေထွေ" and not is_non_emergency_sub
+            )
             if not is_emergency and allow_conflict:
                 for ctype, keywords in CONFLICT_EMERGENCIES.items():
                     if any(kw in combined for kw in keywords):
