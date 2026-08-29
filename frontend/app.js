@@ -1644,7 +1644,27 @@ window.resetToHomeView = () => {
 
     // Update UI and map view
     updateUI();
+
+    // leaflet.heat repositions its canvas only on moveend, and flyTo animates
+    // the zoom without firing the zoomanim event the layer listens for. The
+    // heat therefore sits frozen at its old scale while the tiles and markers
+    // fly out from under it, which reads as the map sliding away from the heat.
+    // Take the layer off for the flight and rebuild it once the map settles.
+    const hadHeat = Boolean(heatLayer && map.hasLayer(heatLayer));
+    if (hadHeat) {
+        map.removeLayer(heatLayer);
+        heatLayer = null;
+    }
+
     map.flyTo([19.7633, 96.0785], 6, { animate: true, duration: 1.5 }); // Reset map center to Myanmar
+
+    if (hadHeat) {
+        // updateHeatmap rebuilds from scratch and honours the toggle, so this is
+        // correct even if the checkbox was switched off mid-flight.
+        map.once('moveend', () => {
+            try { updateHeatmap(); } catch (e) { console.error("updateHeatmap after flyTo failed:", e); }
+        });
+    }
 };
 // Global Window Resize Handler for all charts
 window.addEventListener('resize', () => {
