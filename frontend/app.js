@@ -635,15 +635,12 @@ function updateUI() {
         return matchesReg && matchesType;
     });
 
-    try {
-        updateFilters(forPieChart);
-        updateMapMarkers(filtered);
-        updateNewsAccordion(filtered);
-        updateDangerousTownships(); // 🚀 UPDATED: Calculates for the current month regardless of filters
-        renderCharts(filtered, forPieChart, forTrends);
-    } catch (e) {
-        console.error("Component update failed:", e);
-    }
+    // Each component is isolated so one failure doesn't cascade to the rest
+    try { updateFilters(forPieChart); } catch (e) { console.error("updateFilters failed:", e); }
+    try { updateMapMarkers(filtered); } catch (e) { console.error("updateMapMarkers failed:", e); }
+    try { updateNewsAccordion(filtered); } catch (e) { console.error("updateNewsAccordion failed:", e); }
+    try { updateDangerousTownships(); } catch (e) { console.error("updateDangerousTownships failed:", e); }
+    try { renderCharts(filtered, forPieChart, forTrends); } catch (e) { console.error("renderCharts failed:", e); }
 
     if (window.lucide) {
         try { lucide.createIcons(); } catch (e) { }
@@ -1337,6 +1334,7 @@ function exportToCSV(items) {
 function updateNewsAccordion(items) {
     const container = document.getElementById("news-accordion");
     const countBadge = document.getElementById("news-count-badge");
+    if (!container) return;
     container.innerHTML = "";
 
     let renderItems = items;
@@ -1349,13 +1347,13 @@ function updateNewsAccordion(items) {
             renderItems = fallbackItems.slice(0, 30);
             isFallback = true;
         } else {
-            countBadge.innerText = "0";
+            if (countBadge) countBadge.innerText = "0";
             container.innerHTML = `<div class="status" style="padding: 24px; text-align: center; color: #a4b0be;">သတင်းမှတ်တမ်း မရှိပါ။</div>`;
             return;
         }
     }
 
-    countBadge.innerText = renderItems.length;
+    if (countBadge) countBadge.innerText = renderItems.length;
 
     if (isFallback) {
         const headerNotice = document.createElement("div");
