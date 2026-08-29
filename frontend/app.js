@@ -423,6 +423,24 @@ if (timelineSlider) {
         timelinePlay.onclick = togglePlay;
     }
 }
+function getLatestNewsDate(items) {
+    if (!items || items.length === 0) return getLocalDateString();
+    
+    // Check today first
+    const today = getLocalDateString();
+    const hasToday = items.some(i => (i.publish_date || '').split('T')[0].split(' ')[0] === today);
+    if (hasToday) return today;
+    
+    // If today has no data, pick the most recent date with news in the dataset
+    const validDates = items
+        .map(i => (i.publish_date || i.event_date || '').split('T')[0].split(' ')[0])
+        .filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d))
+        .sort()
+        .reverse();
+
+    return validDates[0] || today;
+}
+
 function syncTimelineWithDate(newDate) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -436,7 +454,15 @@ function syncTimelineWithDate(newDate) {
         if (timelineSlider) timelineSlider.value = 30 - diffDays;
         if (timelineDateDisplay) timelineDateDisplay.innerText = formatDateDisplay(newDate);
     }
+    if (dateFilterInput) dateFilterInput.value = newDate;
+    dateFilter = newDate;
 }
+
+window.viewAllRecentNews = function() {
+    const latestDate = getLatestNewsDate(allNewsItems);
+    syncTimelineWithDate(latestDate);
+    updateUI();
+};
 
 // Sync timeline slider when manual date filter changes
 if (dateFilterInput) {
@@ -523,8 +549,8 @@ async function fetchNews(days = FULL_DAYS) {
         // which snapped the slider back to today while dateFilterInput kept the
         // user's chosen date -- the scrubber and the map silently disagreed.
         if (!firstLoadComplete) {
-            const todayStr = getLocalDateString();
-            syncTimelineWithDate(todayStr);
+            const initialDate = getLatestNewsDate(allNewsItems);
+            syncTimelineWithDate(initialDate);
         }
 
         updateUI();
@@ -737,6 +763,18 @@ function renderCharts(filteredItems, pieDataItems, fullItems) {
                 itemStyle: { color: typeColors[cat] || typeColors.Other }
             };
         }).filter(d => d.value > 0);
+
+        // Fallback to all items distribution if current date slice has 0 items
+        if (chartData.length === 0 && fullItems && fullItems.length > 0) {
+            chartData = ALL_CATEGORIES.map(cat => {
+                const catItems = fullItems.filter(i => i.crime_type === cat);
+                return {
+                    name: cat,
+                    value: catItems.length,
+                    itemStyle: { color: typeColors[cat] || typeColors.Other }
+                };
+            }).filter(d => d.value > 0);
+        }
     } else {
         // Show sub-categories of the CURRENTLY SELECTED main category
         const subCounts = getSubCategoryCounts(filteredItems, currentFilter);
@@ -1291,7 +1329,15 @@ function updateNewsAccordion(items) {
     countBadge.innerText = items.length;
 
     if (items.length === 0) {
-        container.innerHTML = `<div class="status">ရလဒ်မရှိပါ။</div>`;
+        container.innerHTML = `
+            <div class="status" style="padding: 24px 16px; text-align: center; color: #a4b0be; font-size: 13px;">
+                <div style="margin-bottom: 6px; font-weight: bold; color: #f7b731;">📅 ရွေးချယ်ထားသော ရက်စွဲတွင် သတင်းဖြစ်စဉ် မရှိသေးပါ။</div>
+                <div style="font-size: 11px; opacity: 0.8; margin-bottom: 14px;">အောက်ခြေရှိ အချိန်တိုင်းစက် (Timeline Slider) ကို ရွှေ့၍ ယခင်ရက်စွဲများကို ကြည့်ရှုနိုင်ပါသည်။</div>
+                <button onclick="window.viewAllRecentNews()" style="background: rgba(247,183,49,0.15); border: 1px solid rgba(247,183,49,0.5); color: #f7b731; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: bold;">
+                    ⚡ လတ်တလော ဖြစ်ပွားခဲ့သော သတင်းများ ကြည့်ရန်
+                </button>
+            </div>
+        `;
         return;
     }
 
@@ -1336,9 +1382,35 @@ function expandNewsItem(id) {
     const target = document.getElementById(`news-item-${id}`);
     if (target) {
         target.classList.toggle('expanded');
+        // Scroll into view if expanded
         if (target.classList.contains('expanded')) {
             target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
+    }
+
+    // 2. Center map and open popup
+    const targetObj = markers[String(id)];
+    if (targetObj && targetObj.marker) {
+        const item = targetObj.data;
+        const targetDate = (item.event_date || item.publish_date || "").toString().split('T')[0].split(' ')[0];
+
+        // Only switch dates if the item doesn't match the current UI filter
+        const currentActiveDate = dateFilterInput.value || dateFilter;
+        if (targetDate && targetDate !== currentActiveDate) {
+            dateFilterInput.value = targetDate;
+            dateFilter = targetDate;
+            syncTimelineWithDate(targetDate);
+            updateUI();
+        }
+
+        // Zoom map and open popup
+        setTimeout(() => {
+            const recheckObj = markers[String(id)];
+            if (recheckObj && recheckObj.marker) {
+                map.setView([item.latitude, item.longitude], 12, { animate: true });
+                recheckObj.marker.openPopup();
+            }
+        }, 150);
     }
 }
 
@@ -1393,15 +1465,19 @@ function updateDangerousTownships() {
     const selectedDate = dateFilterInput.value || getLocalDateString();
     const currentMonthPrefix = selectedDate.substring(0, 7);
 
-    // Filter allNewsItems for the selected month, ignoring local category/region filters
-    // to keep it as an 'overall' monthly trend for that period.
-    const thisMonthItems = allNewsItems.filter(item => {
+    // Filter allNewsItems for the selected month, or fallback to all items
+    let thisMonthItems = allNewsItems.filter(item => {
         const itemDateStr = item.publish_date || item.event_date || "";
         return itemDateStr.toString().startsWith(currentMonthPrefix);
     });
 
+    if (thisMonthItems.length === 0) {
+        thisMonthItems = allNewsItems;
+    }
+
     // Filter out "General" category
-    const nonGeneralItems = thisMonthItems.filter(i => i.crime_type !== "အထွေထွေ");
+    let nonGeneralItems = thisMonthItems.filter(i => i.crime_type !== "အထွေထွေ");
+    if (nonGeneralItems.length === 0) nonGeneralItems = thisMonthItems;
 
     const weightMap = {
         "စစ်ရေးသတင်း": 5,
