@@ -151,47 +151,6 @@ function escapeHTML(str) {
     return p.innerHTML;
 }
 
-// Helper to reliably count sub-categories across components
-function getSubCategoryCounts(items, mainCategory, returnAll = false) {
-    const subCounts = {};
-    const allowedSubs = SUB_CATEGORIES[mainCategory] || [];
-
-    const targetItems = mainCategory ? items.filter(i => i.crime_type === mainCategory) : items;
-
-    targetItems.forEach(item => {
-        const rawS = item.sub_category;
-        if (!rawS) return;
-
-        if (returnAll) {
-            // Count EVERYTHING for detailed views (Map Popups)
-            allowedSubs.forEach(spec => {
-                if (rawS.includes(spec)) {
-                    subCounts[spec] = (subCounts[spec] || 0) + 1;
-                }
-            });
-        } else {
-            // 🚀 ONE EVENT = ONE COUNT FIXED: 
-            // We only pick the FIRST matching sub-category from our specification list 
-            // for statistical balance (Header count == Sum of sub-categories).
-            const matchedSpec = allowedSubs.find(spec => rawS.includes(spec));
-            if (matchedSpec) {
-                subCounts[matchedSpec] = (subCounts[matchedSpec] || 0) + 1;
-            }
-        }
-
-        // Fallback for raw output (only if no mainCategory and no spec matched from allowedSubs)
-        if (!mainCategory && Object.keys(subCounts).length === 0) {
-            const cleaned = rawS.replace(/[{}]/g, '').split(/[,/]/);
-            cleaned.forEach(part => {
-                const s = part.trim();
-                if (!s || ["null", "none", "n/a", "undefined", "-", "မသိရ", "အခြား"].includes(s.toLowerCase())) return;
-                const shortName = s.length > 25 ? s.substring(0, 22) + "..." : s;
-                subCounts[shortName] = (subCounts[shortName] || 0) + 1;
-            });
-        }
-    });
-    return subCounts;
-}
 
 const typeColors = {
     စစ်ရေးသတင်း: "#e74c3c",    // Red for Conflict/War
@@ -236,6 +195,48 @@ const SUB_CATEGORIES = {
     "သဘာဝဘေးအန္တရာယ်": ["ရေကြီး", "မုန်တိုင်း", "ငလျင်", "မြေပြို", "မိုးကြီး"],
     "အထွေထွေ": ["အပူချိန်", "ပွဲတော်", "သွေးလှူ", "လမ်းပိတ်", "ယာဉ်ကြောပိတ်", "နာရေး", "အရေးပေါ်", "ဆီပြတ်လပ်", "ထီဖွင့်ပွဲ", "ဖွင့်ပွဲ", "ပြပွဲ", "အခမ်းအနား", "စာမေးပွဲ", "နိုင်ငံရေး", "လွတ်ငြိမ်း", "ကုန်သွယ်မှု", "ရင်းနှီး မြှုပ်နှံမှု", "ရန်ပုံငွေ", "ကံစမ်းမဲ", "ရာထူးတိုး", "အသိပေး", "သတိပေး"]
 };
+
+// Helper to reliably count sub-categories across components
+function getSubCategoryCounts(items, mainCategory, returnAll = false) {
+    const subCounts = {};
+    const allowedSubs = SUB_CATEGORIES[mainCategory] || [];
+
+    const targetItems = mainCategory ? items.filter(i => i.crime_type === mainCategory) : items;
+
+    targetItems.forEach(item => {
+        const rawS = item.sub_category;
+        if (!rawS) return;
+
+        if (returnAll) {
+            // Count EVERYTHING for detailed views (Map Popups)
+            allowedSubs.forEach(spec => {
+                if (rawS.includes(spec)) {
+                    subCounts[spec] = (subCounts[spec] || 0) + 1;
+                }
+            });
+        } else {
+            // 🚀 ONE EVENT = ONE COUNT FIXED: 
+            // We only pick the FIRST matching sub-category from our specification list 
+            // for statistical balance (Header count == Sum of sub-categories).
+            const matchedSpec = allowedSubs.find(spec => rawS.includes(spec));
+            if (matchedSpec) {
+                subCounts[matchedSpec] = (subCounts[matchedSpec] || 0) + 1;
+            }
+        }
+
+        // Fallback for raw output (only if no mainCategory and no spec matched from allowedSubs)
+        if (!mainCategory && Object.keys(subCounts).length === 0) {
+            const cleaned = rawS.replace(/[{}]/g, '').split(/[,/]/);
+            cleaned.forEach(part => {
+                const s = part.trim();
+                if (!s || ["null", "none", "n/a", "undefined", "-", "မသိရ", "အခြား"].includes(s.toLowerCase())) return;
+                const shortName = s.length > 25 ? s.substring(0, 22) + "..." : s;
+                subCounts[shortName] = (subCounts[shortName] || 0) + 1;
+            });
+        }
+    });
+    return subCounts;
+}
 
 // Chart Instances
 let categoryChart = null;

@@ -4,6 +4,7 @@
   "private": true,
   "description": "Burma Duta Frontend - Real-time News Map",
   "scripts": {
+    "lint": "eslint frontend",
     "build": "node build.js",
     "deploy": "wrangler deploy"
   },
@@ -11,6 +12,7 @@
     "node": ">=18"
   },
   "devDependencies": {
+    "eslint": "^9.39.5",
     "wrangler": "^3.100.0"
   }
 }

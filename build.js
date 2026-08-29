@@ -1,5 +1,41 @@
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
+
+// 0. Lint before building anything.
+//
+// Three separate outages in frontend/app.js came from the same mistake: a
+// binding read outside the block that declares it, or before it initialises.
+// Each threw at runtime inside a try/catch, so the page loaded, the console
+// logged, and the map silently went blank. Nothing failed until a person
+// looked at the site. The config catches that class at build time instead.
+//
+// A missing eslint is a warning rather than a failure, so a deploy environment
+// that installs production dependencies only still builds. Lint errors
+// themselves always abort.
+function lint() {
+    // Resolved as a file path: eslint 9 does not expose ./bin/eslint.js through
+    // its package exports, so require.resolve cannot reach it.
+    const eslintBin = path.join(__dirname, 'node_modules', 'eslint', 'bin', 'eslint.js');
+    if (!fs.existsSync(eslintBin)) {
+        console.warn('⚠️  eslint not installed - skipping lint. Run `npm install` to enable it.');
+        return;
+    }
+
+    console.log('Linting frontend/ ...');
+    const result = spawnSync(process.execPath, [eslintBin, 'frontend'], {
+        stdio: 'inherit',
+        cwd: __dirname,
+    });
+
+    if (result.status !== 0) {
+        console.error('\n❌ Lint failed. These are runtime errors, not style notes - a page');
+        console.error('   that trips one loads and then breaks silently. Build aborted.');
+        process.exit(result.status || 1);
+    }
+    console.log('✅ Lint passed.');
+}
+lint();
 
 // 1. Ensure dist directory exists
 if (!fs.existsSync('dist')) {

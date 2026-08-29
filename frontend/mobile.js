@@ -609,7 +609,7 @@ function openModal(type) {
   modalTitle.innerText = type === 'region' ? 'တိုင်း/ပြည်နယ် ရွေးပါ' : 'ရက်စွဲ ရွေးပါ';
   modalBody.innerHTML = '';
 
-  const options = type === 'region' ? REGIONS : getLast30Days();
+  const options = type === 'region' ? Object.keys(REGION_COORDINATES) : getLast30Days();
   const currentVal = type === 'region' ? currentFilters.region : currentFilters.date;
 
   options.forEach(opt => {
