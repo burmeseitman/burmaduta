@@ -517,8 +517,8 @@ async function fetchNews(days = FULL_DAYS) {
             return { ...item, crime_type: finalType };
         });
 
-        // Aggregate panels are only trustworthy once the full window is in hand.
-        if (days >= FULL_DAYS) historyLoaded = true;
+        // Aggregate panels are ready immediately once data arrives
+        historyLoaded = true;
         // Only on the very first render. This used to run on every 30s refresh,
         // which snapped the slider back to today while dateFilterInput kept the
         // user's chosen date -- the scrubber and the map silently disagreed.
@@ -701,9 +701,6 @@ window.__chartsReady = function () {
 function renderCharts(filteredItems, pieDataItems, fullItems) {
     lastChartArgs = [filteredItems, pieDataItems, fullItems];
     if (!window.echarts) return; // __chartsReady() will re-invoke this on load
-    // Trend and correlation charts span the full window; drawing them from a
-    // 3-day slice would render a real-looking but wrong series, then snap.
-    if (!historyLoaded) return;
 
     const selectedRegion = regionFilterInput.value || "All";
     const selectedDate = dateFilterInput.value || "";
@@ -1392,13 +1389,6 @@ function updateDangerousTownships() {
     const listBody = document.getElementById("township-list");
     if (!listBody) return;
 
-    // This ranks the whole selected month. Ranking a 3-day slice would show a
-    // confidently wrong top 5, so wait for the full history rather than guess.
-    if (!historyLoaded) {
-        listBody.innerHTML = `<div class="status" style="padding: 10px;">ခေတ္တစောင့်ဆိုင်းပေးပါ...</div>`;
-        return;
-    }
-
     // Get month prefix from the SELECTED DATE instead of today
     const selectedDate = dateFilterInput.value || getLocalDateString();
     const currentMonthPrefix = selectedDate.substring(0, 7);
@@ -1695,11 +1685,8 @@ window.runAgentSandbox = async function() {
 
 // Initial Execution after DOM is safe
 async function initialLoad() {
-    // Phase 1 - a few days only. Renders the map and dismisses the splash.
-    await fetchNews(INITIAL_DAYS);
+    await fetchNews(FULL_DAYS);
     fetchEmergencyAlerts();
-    // Phase 2 - full history for the charts, township ranking and scrubber.
-    fetchNews(FULL_DAYS);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
