@@ -241,16 +241,20 @@ class AgentTools:
             return None
 
         best = None
+        best_name = None
         best_dist = None
         for name, coord in MYANMAR_COORDINATES.items():
             dist = (coord["lat"] - lat) ** 2 + (coord["lon"] - lon) ** 2
             if best_dist is None or dist < best_dist:
                 best_dist = dist
                 best = coord
+                best_name = name
 
         if best is None or best_dist > max_degrees ** 2:
             return None
-        return best
+        # Copy rather than hand back the shared ontology entry, and carry the
+        # township name -- it is the dictionary key, not a field on the value.
+        return {**best, "name": best_name, "distance_degrees": best_dist ** 0.5}
 
     @staticmethod
     def tool_emergency_triager(
