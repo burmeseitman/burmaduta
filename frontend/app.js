@@ -609,21 +609,21 @@ function updateUI() {
 
     // Unified Filtering Logic
     const filtered = validItems.filter((item) => {
-        const itemDateStr = item.publish_date || "";
+        const itemDateStr = item.publish_date || item.event_date || item.created_at || "";
         const itemDate = itemDateStr.toString().split('T')[0].split(' ')[0];
         const matchesDate = !selectedDate || itemDate === selectedDate;
         const matchesReg = matchesLocation(item, selectedRegion);
         const matchesType = (currentFilter === "All" || item.crime_type === currentFilter);
 
         // Search Filter
-        const textToSearch = (item.raw_text || "" + item.summary || "" + item.location_name || "").toLowerCase();
+        const textToSearch = `${item.raw_text || ''} ${item.summary || ''} ${item.location_name || ''} ${item.township || ''}`.toLowerCase();
         const matchesSearch = !searchQuery || textToSearch.includes(searchQuery);
 
         return matchesDate && matchesReg && matchesType && matchesSearch;
     });
 
     const forPieChart = validItems.filter((item) => {
-        const itemDateStr = item.publish_date || "";
+        const itemDateStr = item.publish_date || item.event_date || item.created_at || "";
         const itemDate = itemDateStr.toString().split('T')[0].split(' ')[0];
         const matchesDate = !selectedDate || itemDate === selectedDate;
         return matchesDate && matchesLocation(item, selectedRegion);

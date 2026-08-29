@@ -856,8 +856,10 @@ class DBManager:
             # Minimal query: loads in milliseconds, excluding heavy text blocks (raw_text) but keeps summary for UI popups
             columns = [
                 "n.id", "n.channel_handle", "n.internal_id", "n.crime_type",
-                "n.sub_category", "n.summary", "n.publish_date", "n.publish_time", "n.event_date",
-                "n.event_time", "n.region", "n.township", "n.city", "n.location_name",
+                "n.sub_category", "n.summary", 
+                "COALESCE(n.publish_date, n.event_date, n.created_at::date)::TEXT as publish_date", 
+                "COALESCE(n.publish_time, n.event_time, n.created_at::time)::TEXT as publish_time", 
+                "n.event_date", "n.event_time", "n.region", "n.township", "n.city", "n.location_name",
                 "n.latitude", "n.longitude", "n.heading", "n.target_location",
                 "n.priority_level", "n.fact_check_verdict", "n.credibility_score",
                 "n.is_emergency_alert", "n.emergency_type", "n.agent_trace", "n.created_at"
@@ -875,8 +877,10 @@ class DBManager:
             # Define all columns EXCEPT large fields like raw_text by default
             columns = [
                 "n.id", "n.channel_handle", "n.internal_id", "n.summary", "n.crime_type",
-                "n.sub_category", "n.publish_date", "n.publish_time", "n.event_date",
-                "n.event_time", "n.region", "n.township", "n.city", "n.location_name",
+                "n.sub_category", 
+                "COALESCE(n.publish_date, n.event_date, n.created_at::date)::TEXT as publish_date", 
+                "COALESCE(n.publish_time, n.event_time, n.created_at::time)::TEXT as publish_time", 
+                "n.event_date", "n.event_time", "n.region", "n.township", "n.city", "n.location_name",
                 "n.latitude", "n.longitude", "n.heading", "n.target_location",
                 "n.priority_level", "n.fact_check_verdict", "n.credibility_score",
                 "n.is_emergency_alert", "n.emergency_type", "n.agent_trace", "n.created_at"
