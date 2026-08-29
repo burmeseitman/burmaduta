@@ -76,6 +76,11 @@ let currentFilter = "All";
 let regionFilter = "All";
 let searchQuery = "";
 let heatLayer = null;
+// What the heat layer draws: the current region/category/search selection
+// across the whole loaded window, deliberately ignoring the day filter --
+// a single day is too sparse to read as density. Held at module scope so
+// toggling the checkbox can redraw without recomputing the filters.
+let heatmapItems = [];
 const markers = {};
 const markerClusterGroup = L.markerClusterGroup({
     maxClusterRadius: 40,
@@ -741,6 +746,17 @@ function updateUI() {
         return matchesDate && matchesLocation(item, selectedRegion);
     });
 
+    // Same filters the markers use, minus the date: scrubbing the timeline should
+    // not empty the density map, but changing region or category should reshape it.
+    const forHeatmap = validItems.filter((item) => {
+        const matchesReg = matchesLocation(item, selectedRegion);
+        const matchesType = (currentFilter === "All" || item.crime_type === currentFilter);
+        const textToSearch = `${item.raw_text || ''} ${item.summary || ''} ${item.location_name || ''} ${item.township || ''}`.toLowerCase();
+        const matchesSearch = !searchQuery || textToSearch.includes(searchQuery);
+        return matchesReg && matchesType && matchesSearch;
+    });
+    heatmapItems = forHeatmap;
+
     const forTrends = validItems.filter(item => {
         const matchesReg = matchesLocation(item, selectedRegion);
         const matchesType = (selectedType === "All" || item.crime_type === selectedType);
@@ -750,6 +766,7 @@ function updateUI() {
     // Each component is isolated so one failure doesn't cascade to the rest
     try { updateFilters(forPieChart); } catch (e) { console.error("updateFilters failed:", e); }
     try { updateMapMarkers(filtered); } catch (e) { console.error("updateMapMarkers failed:", e); }
+    try { updateHeatmap(); } catch (e) { console.error("updateHeatmap failed:", e); }
     try { updateNewsAccordion(filtered); } catch (e) { console.error("updateNewsAccordion failed:", e); }
     try { updateDangerousTownships(); } catch (e) { console.error("updateDangerousTownships failed:", e); }
     try { renderCharts(filtered, forPieChart, forTrends); } catch (e) { console.error("renderCharts failed:", e); }
@@ -1390,9 +1407,29 @@ function updateMapMarkers(items) {
             console.error(`Skipped marker for item ${id}:`, e);
         }
     });
+}
 
-    // 3. Update Heatmap Layer
-    updateHeatmap();
+// leaflet.heat colours each point by intensity / max. A fixed max makes the layer
+// meaningless as the dataset changes size -- it read every lone incident as a
+// hotspot -- so calibrate against how dense this particular set actually is.
+// The 90th-percentile cell count means the busiest areas saturate and an
+// isolated event stays cool, whether the map is showing one day or ninety.
+const HEAT_CELL_DEGREES = 0.1;    // ~11km, close to the drawn radius at country zoom
+const HEAT_MIN_SATURATION = 3;    // never let a 2-event day paint the country red
+const HEAT_MAX_SATURATION = 40;   // nor a busy month wash everything out to cold
+
+function heatSaturationCount(points) {
+    if (points.length === 0) return HEAT_MIN_SATURATION;
+
+    const cells = new Map();
+    points.forEach(([lat, lng]) => {
+        const key = `${Math.round(lat / HEAT_CELL_DEGREES)}_${Math.round(lng / HEAT_CELL_DEGREES)}`;
+        cells.set(key, (cells.get(key) || 0) + 1);
+    });
+
+    const counts = [...cells.values()].sort((a, b) => a - b);
+    const p90 = counts[Math.min(counts.length - 1, Math.floor(counts.length * 0.9))];
+    return Math.min(HEAT_MAX_SATURATION, Math.max(HEAT_MIN_SATURATION, p90));
 }
 
 function updateHeatmap() {
@@ -1400,13 +1437,21 @@ function updateHeatmap() {
     const isChecked = toggleHeatmap ? toggleHeatmap.checked : true;
 
     if (isChecked) {
-        // Collect coordinates from all currently loaded news items
-        const points = (allNewsItems || [])
+        // Guard the input: resolveItemCoordinates never returns null -- its last
+        // resort drops the row next to Naypyitaw -- so anything unlocatable that
+        // reaches here becomes fake heat in the middle of the country. There is
+        // no point checking its output, which is always a pair by construction.
+        const points = (heatmapItems || [])
+            .filter(hasPlottableLocation)
             .map(i => resolveItemCoordinates(i))
-            .filter(c => c && c.length === 2)
-            .map(c => [c[0], c[1], 0.85]);
+            .map(c => [c[0], c[1], 1]);
+
+        const max = heatSaturationCount(points);
 
         if (heatLayer) {
+            // setLatLngs alone keeps the old max, so a filter change would
+            // recolour against a scale the data no longer matches.
+            if (typeof heatLayer.setOptions === 'function') heatLayer.setOptions({ max });
             heatLayer.setLatLngs(points);
             if (!map.hasLayer(heatLayer)) heatLayer.addTo(map);
         } else if (points.length > 0 && typeof L.heatLayer === 'function') {
@@ -1415,6 +1460,7 @@ function updateHeatmap() {
                 blur: 16,
                 maxZoom: 15,
                 minOpacity: 0.35,
+                max: max,
                 gradient: { 0.4: '#3498db', 0.6: '#2ecc71', 0.8: '#f1c40f', 1.0: '#e74c3c' }
             }).addTo(map);
         }
