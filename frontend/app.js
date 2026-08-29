@@ -52,8 +52,17 @@ setInterval(fetchWeather, 30 * 60 * 1000); // Update every 30 mins
 
 
 // Initialize Leaflet Map (Myanmar Centered)
+// Hold the view over Myanmar. Without this the map pans freely into China and
+// Thailand, across empty ocean and tiles that carry no data of ours -- and now
+// that out-of-country coordinates are refused, there is nothing to find there.
+// Padded well beyond the country so the edges are never clipped.
+const MYANMAR_VIEW_BOUNDS = L.latLngBounds([[7.5, 90.0], [30.5, 103.5]]);
+
 const map = L.map("map", {
     zoomControl: false,
+    maxBounds: MYANMAR_VIEW_BOUNDS,
+    maxBoundsViscosity: 0.7,   // resists dragging out, without feeling stuck
+    minZoom: 5,
 }).setView([19.7633, 96.0785], 6);
 
 // Dark Layer (ESRI World Dark Gray - No API Key & No Watermark)

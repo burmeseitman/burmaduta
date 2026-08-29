@@ -194,9 +194,14 @@ function renderAgentBadges(item) {
 }
 
 function initMap() {
+  // Matches the desktop view: the map stays over Myanmar, which is the only
+  // place coordinates are now allowed to be stored.
   map = L.map('map', {
     zoomControl: false,
-    attributionControl: false
+    attributionControl: false,
+    maxBounds: L.latLngBounds([[7.5, 90.0], [30.5, 103.5]]),
+    maxBoundsViscosity: 0.7,
+    minZoom: 5
   }).setView(MYANMAR_CENTER, ZOOM_LEVEL);
 
   // Dark Map Style (ESRI World Dark Gray - No API Key & No Watermark)
