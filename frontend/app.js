@@ -620,12 +620,6 @@ if (dateFilterInput) {
 }
 
 // Start at today on timeline
-// The brush is sized in pixels for the current zoom, so the layer has to be
-// recalibrated whenever the view changes.
-map.on('zoomend', () => {
-    try { updateHeatmap(); } catch (e) { console.error("updateHeatmap on zoom failed:", e); }
-});
-
 if (timelineSlider) {
     try {
         updateTimelineDisplay(30);
@@ -1434,91 +1428,47 @@ function updateMapMarkers(items) {
     });
 }
 
-// leaflet.heat draws in screen pixels, so a single radius only ever suits one
-// zoom: 28px reaches about 68km at country zoom and barely a block at street
-// zoom. Grow the brush as the view tightens so townships stay legible.
-function heatRadiusForZoom(zoom) {
-    if (zoom <= 5) return 20;
-    if (zoom <= 7) return 28;   // country view, the size mobile proves reads well
-    if (zoom <= 10) return 32;
-    return 38;
-}
-
-// Longitude degrees per pixel: 360 degrees across 256px tiles at zoom 0.
-function degreesPerPixel(zoom) {
-    return 360 / (256 * Math.pow(2, zoom));
-}
-
-// leaflet.heat colours each point by intensity / max. A fixed max makes the layer
-// meaningless as the dataset changes size -- it read every lone incident as a
-// hotspot -- so calibrate against how dense this particular set actually is.
-// The cell must match what actually gets drawn: measuring density at 11km while
-// the canvas piles everything within 68km into one spot overshoots max by orders
-// of magnitude, which is what turned the whole country red.
-const HEAT_MIN_SATURATION = 3;    // never let a 2-event day paint the country red
-const HEAT_MAX_SATURATION = 40;   // nor a busy month wash everything out to cold
-
-function heatSaturationCount(points, cellDegrees) {
-    if (points.length === 0) return HEAT_MIN_SATURATION;
-
-    const cell = Math.max(0.01, cellDegrees);
-    const cells = new Map();
-    points.forEach(([lat, lng]) => {
-        const key = `${Math.round(lat / cell)}_${Math.round(lng / cell)}`;
-        cells.set(key, (cells.get(key) || 0) + 1);
-    });
-
-    // Calibrate on the busiest cell, so the hottest place reads red and
-    // everywhere else scales below it. A percentile instead saturates the whole
-    // top slice: on a normal day the 90th percentile is 2 or 3 events, which
-    // painted every moderately active township the same red as the worst one.
-    const peak = Math.max(...cells.values());
-    return Math.min(HEAT_MAX_SATURATION, Math.max(HEAT_MIN_SATURATION, peak));
-}
+// Matched to the mobile view, which is the reference for how this should look:
+// a fixed brush and a gradient topping out at yellow rather than red.
+const HEAT_OPTIONS = {
+    radius: 35,
+    blur: 20,
+    maxZoom: 14,
+    minOpacity: 0.4,
+    gradient: { 0.4: 'blue', 0.6: 'lime', 1: 'yellow' }
+};
+const HEAT_INTENSITY = 0.8;
 
 function updateHeatmap() {
     const toggleHeatmap = document.getElementById("toggle-heatmap");
     const isChecked = toggleHeatmap ? toggleHeatmap.checked : true;
 
-    if (isChecked) {
-        // Guard the input: resolveItemCoordinates never returns null -- its last
-        // resort drops the row next to Naypyitaw -- so anything unlocatable that
-        // reaches here becomes fake heat in the middle of the country. There is
-        // no point checking its output, which is always a pair by construction.
-        const points = (heatmapItems || [])
-            .filter(hasPlottableLocation)
-            .map(i => resolveItemCoordinates(i))
-            .filter(c => isWithinMyanmar(c[0], c[1]))
-            .map(c => [c[0], c[1], 1]);
-
-        const zoom = map.getZoom();
-        const radius = heatRadiusForZoom(zoom);
-        // The footprint one drawn point covers, in degrees, at this zoom -- the
-        // scale at which the canvas actually accumulates, so the scale the
-        // saturation point has to be measured at.
-        const max = heatSaturationCount(points, 2 * radius * degreesPerPixel(zoom));
-
-        if (heatLayer) {
-            // setLatLngs alone keeps the old radius and max, so a zoom or filter
-            // change would recolour against a scale the view no longer matches.
-            if (typeof heatLayer.setOptions === 'function') heatLayer.setOptions({ radius, max });
-            heatLayer.setLatLngs(points);
-            if (!map.hasLayer(heatLayer)) heatLayer.addTo(map);
-        } else if (points.length > 0 && typeof L.heatLayer === 'function') {
-            heatLayer = L.heatLayer(points, {
-                radius: radius,
-                blur: 16,
-                maxZoom: 15,
-                minOpacity: 0.35,
-                max: max,
-                gradient: { 0.4: '#3498db', 0.6: '#2ecc71', 0.8: '#f1c40f', 1.0: '#e74c3c' }
-            }).addTo(map);
-        }
-    } else {
-        if (heatLayer && map.hasLayer(heatLayer)) {
-            map.removeLayer(heatLayer);
-        }
+    // Always rebuild rather than re-add. A removed leaflet.heat layer does not
+    // reliably redraw when added back -- its internal frame guard can be left
+    // set by a redraw that fired after removal and bailed out early, after which
+    // it never schedules another -- so switching the toggle off and on again left
+    // the map blank. The mobile view recreates the layer every time and works.
+    if (heatLayer) {
+        map.removeLayer(heatLayer);
+        heatLayer = null;
     }
+
+    if (!isChecked || typeof L.heatLayer !== 'function') return;
+
+    // resolveItemCoordinates never returns null -- its last resort drops the row
+    // next to Naypyitaw -- so unlocatable rows would otherwise become fake heat
+    // in the middle of the country. Foreign coordinates are refused too, the same
+    // as for markers.
+    const points = (heatmapItems || [])
+        .filter(hasPlottableLocation)
+        .map(i => resolveItemCoordinates(i))
+        .filter(c => isWithinMyanmar(c[0], c[1]))
+        .map(c => [c[0], c[1], HEAT_INTENSITY]);
+
+    if (points.length === 0) return;
+
+    heatLayer = L.heatLayer(points, { ...HEAT_OPTIONS });
+    map.addLayer(heatLayer);
 }
 
 function exportToCSV(items) {
