@@ -2,6 +2,7 @@ from telethon import TelegramClient, events
 import os
 import asyncio
 import re
+import time
 import random
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
@@ -12,6 +13,20 @@ from deduplicator import NewsDeduplicator
 import config
 
 load_dotenv()
+
+# asyncio holds only weak references to tasks, so a fire-and-forget task with no
+# strong reference of its own can be garbage collected part-way through. That is
+# a silent loss -- for process_messages_batch it would be scraped messages that
+# never reach the database. Hold each task until it finishes.
+_BACKGROUND_TASKS = set()
+
+
+def spawn_task(coro):
+    task = asyncio.create_task(coro)
+    _BACKGROUND_TASKS.add(task)
+    task.add_done_callback(_BACKGROUND_TASKS.discard)
+    return task
+
 
 db = DBManager()
 deduplicator = NewsDeduplicator()
@@ -104,8 +119,7 @@ async def process_messages_batch(messages_batch):
                 
             if channel_handle and not channel_handle.startswith('@') and not channel_handle.isdigit() and channel_handle != "unknown":
                 channel_handle = f"@{channel_handle}"
-        except Exception as e:
-            # print(f"DEBUG: Entity fetch error for msg {message_id}: {e}")
+        except Exception:
             channel_handle = "unknown"
 
         # DE-DUPE CHECK: Skip if already in DB (check by ID or Content)
@@ -250,7 +264,9 @@ async def process_messages_batch(messages_batch):
                     duration_ms=120
                 )
             except Exception as e:
-                pass
+                # Never silently: a bare pass here hid a NameError that stopped
+                # every agent audit log from being written.
+                print(f"⚠️ Could not record agent audit log for item {orig.get('id')}: {e}")
 
         # 4. Save to database in BATCH
         if save_list:
@@ -291,7 +307,7 @@ async def handle_new_message(event):
             if len(LIVE_BUFFER) >= 5:
                  batch = list(LIVE_BUFFER)
                  LIVE_BUFFER.clear()
-                 asyncio.create_task(process_messages_batch(batch))
+                 spawn_task(process_messages_batch(batch))
     except Exception as e:
         print(f"❌ Error in handle_new_message: {e}")
         import traceback
@@ -408,13 +424,14 @@ async def main():
     # Run backfill tasks for all channels in parallel
     if not is_quiet_hours():
         print("🚀 Starting initial backfill...")
-        backfill_tasks = [asyncio.create_task(backfill_channel(ch)) for ch in CHANNELS]
+        for ch in CHANNELS:
+            spawn_task(backfill_channel(ch))
     else:
         print("🤫 Quiet hours detected at startup. Skipping initial backfill. Catch-up will start at 8 AM SGT.")
     
     # Start the morning scheduler and live buffer worker
-    asyncio.create_task(run_morning_scheduler(CHANNELS))
-    asyncio.create_task(live_buffer_worker())
+    spawn_task(run_morning_scheduler(CHANNELS))
+    spawn_task(live_buffer_worker())
     
     await client.run_until_disconnected()
 

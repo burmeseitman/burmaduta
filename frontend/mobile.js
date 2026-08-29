@@ -199,7 +199,7 @@ function initMap() {
   map = L.map('map', {
     zoomControl: false,
     attributionControl: false,
-    maxBounds: L.latLngBounds([[7.5, 90.0], [30.5, 103.5]]),
+    maxBounds: L.latLngBounds(MYANMAR_VIEW_BOUNDS),
     maxBoundsViscosity: 0.7,
     minZoom: 5
   }).setView(MYANMAR_CENTER, ZOOM_LEVEL);
@@ -259,6 +259,9 @@ function applyFilters() {
     // Resolve coordinates
     const coords = resolveItemCoordinates(item);
     if (!coords || coords.length !== 2) return false;
+    // A row whose coordinates land abroad is a bad geocode, not foreign news
+    // this map should carry -- same rule the desktop map applies.
+    if (!isWithinMyanmar(coords[0], coords[1])) return false;
     item.latitude = coords[0];
     item.longitude = coords[1];
 

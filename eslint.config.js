@@ -16,6 +16,11 @@ const browserGlobals = {
     IntersectionObserver: 'readonly', AbortController: 'readonly',
     // Loaded from CDN script tags before our own bundles.
     L: 'readonly', echarts: 'readonly', lucide: 'readonly',
+    // Declared by frontend/geo-bounds.js, which both maps load ahead of their
+    // own bundle. Listed here so no-undef can still catch genuine typos in the
+    // files that consume them.
+    MYANMAR_BANDS: 'readonly', MYANMAR_ISLANDS: 'readonly',
+    MYANMAR_VIEW_BOUNDS: 'readonly', isWithinMyanmar: 'readonly',
 };
 
 module.exports = [
@@ -39,7 +44,9 @@ module.exports = [
             // The isAirAlert bug read a name that was out of scope entirely.
             'no-undef': 'error',
             // Redeclaring a binding hides which one a line actually refers to.
-            'no-redeclare': 'error',
+            // builtinGlobals off: geo-bounds.js legitimately declares the shared
+            // names listed above. Redeclaration within a scope is still caught.
+            'no-redeclare': ['error', { builtinGlobals: false }],
             'no-dupe-keys': 'error',
             'no-dupe-args': 'error',
             'no-unreachable': 'error',

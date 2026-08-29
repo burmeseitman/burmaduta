@@ -52,15 +52,10 @@ setInterval(fetchWeather, 30 * 60 * 1000); // Update every 30 mins
 
 
 // Initialize Leaflet Map (Myanmar Centered)
-// Hold the view over Myanmar. Without this the map pans freely into China and
-// Thailand, across empty ocean and tiles that carry no data of ours -- and now
-// that out-of-country coordinates are refused, there is nothing to find there.
-// Padded well beyond the country so the edges are never clipped.
-const MYANMAR_VIEW_BOUNDS = L.latLngBounds([[7.5, 90.0], [30.5, 103.5]]);
-
+// Hold the view over Myanmar; bounds live in geo-bounds.js, shared with mobile.
 const map = L.map("map", {
     zoomControl: false,
-    maxBounds: MYANMAR_VIEW_BOUNDS,
+    maxBounds: L.latLngBounds(MYANMAR_VIEW_BOUNDS),
     maxBoundsViscosity: 0.7,   // resists dragging out, without feeling stuck
     minZoom: 5,
 }).setView([19.7633, 96.0785], 6);
@@ -315,40 +310,6 @@ const TOWNSHIP_COORDINATES = {
     "တောင်ငူ": [18.9333, 96.4333],
     "ပခုက္ကူ": [21.3333, 95.0833]
 };
-
-// Myanmar only, for every plotted layer. Foreign coordinates reach the table when
-// a geocode lands across a border or the model names a place abroad -- the
-// backend's foreign-place guard checks names, not coordinates -- and they showed
-// as pins and hotspots over Kunming, Hanoi and Bangkok.
-// A single rectangle around Myanmar necessarily swallows Bangkok, because the
-// country narrows to a thin coastal strip in the south while Shan reaches far
-// east in the north. Bound the longitude per latitude band instead.
-const MYANMAR_BANDS = [
-    { maxLat: 12.0, minLng: 97.5, maxLng: 99.7 },   // Tanintharyi south, Mergui archipelago
-    { maxLat: 15.0, minLng: 97.2, maxLng: 99.3 },   // Dawei / Myeik
-    { maxLat: 18.0, minLng: 93.4, maxLng: 99.0 },   // delta, Yangon, Mon, Kayin
-    { maxLat: 19.5, minLng: 92.8, maxLng: 98.2 },   // Kayah, south Shan
-    { maxLat: 21.0, minLng: 92.1, maxLng: 101.2 },  // Rakhine (Maungdaw) across to Tachileik
-    { maxLat: 24.0, minLng: 92.1, maxLng: 101.2 },  // Chin across to Kengtung
-    { maxLat: 28.8, minLng: 92.9, maxLng: 98.9 },   // Sagaing north, Kachin
-];
-
-// Offshore territory the mainland bands cannot reach: the Coco Islands belong to
-// Yangon Region but sit 300km out in the Andaman Sea, Preparis further north.
-const MYANMAR_ISLANDS = [
-    { minLat: 13.9, maxLat: 15.6, minLng: 93.2, maxLng: 94.5 },
-];
-
-function isWithinMyanmar(lat, lng) {
-    if (lat < 9.0 || lat > 28.8) return false;
-
-    const island = MYANMAR_ISLANDS.find(i =>
-        lat >= i.minLat && lat <= i.maxLat && lng >= i.minLng && lng <= i.maxLng);
-    if (island) return true;
-
-    const band = MYANMAR_BANDS.find(b => lat <= b.maxLat);
-    return Boolean(band) && lng >= band.minLng && lng <= band.maxLng;
-}
 
 function hasPlottableLocation(item) {
     const lat = parseFloat(item.latitude);

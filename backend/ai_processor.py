@@ -334,7 +334,7 @@ class AIProcessor:
                 data['emergency_dispatch'] = emergency_dispatch
 
                 # 5. Build Agent Reasoning Trace
-                run_id = f"batch_run_{uuid_hex[:8]}" if 'uuid_hex' in locals() else f"run_{int(time.time()*1000)}"
+                run_id = f"run_{int(time.time() * 1000)}"
                 data['agent_trace'] = json.dumps({
                     "run_id": run_id,
                     "reasoning_chain": [
