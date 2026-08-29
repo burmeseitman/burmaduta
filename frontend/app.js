@@ -76,10 +76,9 @@ let currentFilter = "All";
 let regionFilter = "All";
 let searchQuery = "";
 let heatLayer = null;
-// What the heat layer draws: the current region/category/search selection
-// across the whole loaded window, deliberately ignoring the day filter --
-// a single day is too sparse to read as density. Held at module scope so
-// toggling the checkbox can redraw without recomputing the filters.
+// What the heat layer draws: the same filtered set as the markers. Held at
+// module scope so toggling the checkbox or zooming can redraw without
+// recomputing the filters.
 let heatmapItems = [];
 const markers = {};
 const markerClusterGroup = L.markerClusterGroup({
@@ -598,6 +597,12 @@ if (dateFilterInput) {
 }
 
 // Start at today on timeline
+// The brush is sized in pixels for the current zoom, so the layer has to be
+// recalibrated whenever the view changes.
+map.on('zoomend', () => {
+    try { updateHeatmap(); } catch (e) { console.error("updateHeatmap on zoom failed:", e); }
+});
+
 if (timelineSlider) {
     try {
         updateTimelineDisplay(30);
@@ -746,16 +751,11 @@ function updateUI() {
         return matchesDate && matchesLocation(item, selectedRegion);
     });
 
-    // Same filters the markers use, minus the date: scrubbing the timeline should
-    // not empty the density map, but changing region or category should reshape it.
-    const forHeatmap = validItems.filter((item) => {
-        const matchesReg = matchesLocation(item, selectedRegion);
-        const matchesType = (currentFilter === "All" || item.crime_type === currentFilter);
-        const textToSearch = `${item.raw_text || ''} ${item.summary || ''} ${item.location_name || ''} ${item.township || ''}`.toLowerCase();
-        const matchesSearch = !searchQuery || textToSearch.includes(searchQuery);
-        return matchesReg && matchesType && matchesSearch;
-    });
-    heatmapItems = forHeatmap;
+    // The heat layer draws exactly what the markers draw. Feeding it the whole
+    // ninety-day window instead melted the country into one saturated blob --
+    // roughly 8,000 points at country zoom, where the mobile view has always
+    // used the selected day (~90 points) and reads correctly.
+    heatmapItems = filtered;
 
     const forTrends = validItems.filter(item => {
         const matchesReg = matchesLocation(item, selectedRegion);
@@ -1409,27 +1409,69 @@ function updateMapMarkers(items) {
     });
 }
 
+// Myanmar only. Foreign coordinates reach the table when a geocode lands across
+// a border or the model names a place abroad -- the backend's foreign-place guard
+// checks names, not coordinates -- and they showed as stray hotspots over Kunming
+// and Bangkok.
+// A single rectangle around Myanmar necessarily swallows Bangkok, because the
+// country narrows to a thin coastal strip in the south while Shan reaches far
+// east in the north. Bound the longitude per latitude band instead.
+const HEAT_BANDS = [
+    { maxLat: 12.0, minLng: 98.0, maxLng: 99.7 },   // Tanintharyi south
+    { maxLat: 15.0, minLng: 97.3, maxLng: 99.3 },   // Dawei / Myeik
+    { maxLat: 18.0, minLng: 93.5, maxLng: 99.0 },   // delta, Yangon, Mon, Kayin
+    { maxLat: 19.5, minLng: 93.0, maxLng: 98.0 },   // Kayah, south Shan
+    { maxLat: 21.0, minLng: 92.5, maxLng: 101.2 },  // Rakhine across to Tachileik
+    { maxLat: 24.0, minLng: 92.2, maxLng: 101.2 },  // Chin across to Kengtung
+    { maxLat: 28.8, minLng: 93.0, maxLng: 98.9 },   // Sagaing north, Kachin
+];
+
+function isWithinMyanmar(lat, lng) {
+    if (lat < 9.0 || lat > 28.8) return false;
+    const band = HEAT_BANDS.find(b => lat <= b.maxLat);
+    return Boolean(band) && lng >= band.minLng && lng <= band.maxLng;
+}
+
+// leaflet.heat draws in screen pixels, so a single radius only ever suits one
+// zoom: 28px reaches about 68km at country zoom and barely a block at street
+// zoom. Grow the brush as the view tightens so townships stay legible.
+function heatRadiusForZoom(zoom) {
+    if (zoom <= 5) return 20;
+    if (zoom <= 7) return 28;   // country view, the size mobile proves reads well
+    if (zoom <= 10) return 32;
+    return 38;
+}
+
+// Longitude degrees per pixel: 360 degrees across 256px tiles at zoom 0.
+function degreesPerPixel(zoom) {
+    return 360 / (256 * Math.pow(2, zoom));
+}
+
 // leaflet.heat colours each point by intensity / max. A fixed max makes the layer
 // meaningless as the dataset changes size -- it read every lone incident as a
 // hotspot -- so calibrate against how dense this particular set actually is.
-// The 90th-percentile cell count means the busiest areas saturate and an
-// isolated event stays cool, whether the map is showing one day or ninety.
-const HEAT_CELL_DEGREES = 0.1;    // ~11km, close to the drawn radius at country zoom
+// The cell must match what actually gets drawn: measuring density at 11km while
+// the canvas piles everything within 68km into one spot overshoots max by orders
+// of magnitude, which is what turned the whole country red.
 const HEAT_MIN_SATURATION = 3;    // never let a 2-event day paint the country red
 const HEAT_MAX_SATURATION = 40;   // nor a busy month wash everything out to cold
 
-function heatSaturationCount(points) {
+function heatSaturationCount(points, cellDegrees) {
     if (points.length === 0) return HEAT_MIN_SATURATION;
 
+    const cell = Math.max(0.01, cellDegrees);
     const cells = new Map();
     points.forEach(([lat, lng]) => {
-        const key = `${Math.round(lat / HEAT_CELL_DEGREES)}_${Math.round(lng / HEAT_CELL_DEGREES)}`;
+        const key = `${Math.round(lat / cell)}_${Math.round(lng / cell)}`;
         cells.set(key, (cells.get(key) || 0) + 1);
     });
 
-    const counts = [...cells.values()].sort((a, b) => a - b);
-    const p90 = counts[Math.min(counts.length - 1, Math.floor(counts.length * 0.9))];
-    return Math.min(HEAT_MAX_SATURATION, Math.max(HEAT_MIN_SATURATION, p90));
+    // Calibrate on the busiest cell, so the hottest place reads red and
+    // everywhere else scales below it. A percentile instead saturates the whole
+    // top slice: on a normal day the 90th percentile is 2 or 3 events, which
+    // painted every moderately active township the same red as the worst one.
+    const peak = Math.max(...cells.values());
+    return Math.min(HEAT_MAX_SATURATION, Math.max(HEAT_MIN_SATURATION, peak));
 }
 
 function updateHeatmap() {
@@ -1444,19 +1486,25 @@ function updateHeatmap() {
         const points = (heatmapItems || [])
             .filter(hasPlottableLocation)
             .map(i => resolveItemCoordinates(i))
+            .filter(c => isWithinMyanmar(c[0], c[1]))
             .map(c => [c[0], c[1], 1]);
 
-        const max = heatSaturationCount(points);
+        const zoom = map.getZoom();
+        const radius = heatRadiusForZoom(zoom);
+        // The footprint one drawn point covers, in degrees, at this zoom -- the
+        // scale at which the canvas actually accumulates, so the scale the
+        // saturation point has to be measured at.
+        const max = heatSaturationCount(points, 2 * radius * degreesPerPixel(zoom));
 
         if (heatLayer) {
-            // setLatLngs alone keeps the old max, so a filter change would
-            // recolour against a scale the data no longer matches.
-            if (typeof heatLayer.setOptions === 'function') heatLayer.setOptions({ max });
+            // setLatLngs alone keeps the old radius and max, so a zoom or filter
+            // change would recolour against a scale the view no longer matches.
+            if (typeof heatLayer.setOptions === 'function') heatLayer.setOptions({ radius, max });
             heatLayer.setLatLngs(points);
             if (!map.hasLayer(heatLayer)) heatLayer.addTo(map);
         } else if (points.length > 0 && typeof L.heatLayer === 'function') {
             heatLayer = L.heatLayer(points, {
-                radius: 28,
+                radius: radius,
                 blur: 16,
                 maxZoom: 15,
                 minOpacity: 0.35,
