@@ -164,7 +164,7 @@ function applyFilters() {
     if (!item.latitude || !item.longitude) return false;
 
     // Date filter
-    const itemDate = (item.publish_date || '').split('T')[0].split(' ')[0];
+    const itemDate = (item.publish_date || item.event_date || item.created_at || '').split('T')[0].split(' ')[0];
     if (currentFilters.date && itemDate !== currentFilters.date) return false;
 
     // Region filter
