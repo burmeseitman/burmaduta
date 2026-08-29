@@ -182,6 +182,68 @@ MYANMAR_COORDINATES = {
     "ကျွန်းစု": {"lat": 12.18, "lon": 98.42, "region": "တနင်္သာရီ", "city": "ကျွန်းစု"}
 }
 
+# Myanmar's extent, bounded per latitude band. A single rectangle around the
+# country also contains Bangkok and Chiang Mai, because Myanmar narrows to a thin
+# coastal strip in the south while Shan reaches far east in the north.
+#
+# Kept identical to MYANMAR_BANDS in frontend/app.js. The map filters these out
+# on the way in; this stops them being stored in the first place. If you widen
+# one, widen the other, or a row will be saved that the map then refuses to draw.
+MYANMAR_MIN_LAT = 9.0
+MYANMAR_MAX_LAT = 28.8
+MYANMAR_BANDS = (
+    # (max_lat, min_lon, max_lon)
+    (12.0, 97.5, 99.7),    # Tanintharyi south, Mergui archipelago
+    (15.0, 97.2, 99.3),    # Dawei / Myeik
+    (18.0, 93.4, 99.0),    # delta, Yangon, Mon, Kayin
+    (19.5, 92.8, 98.2),    # Kayah, south Shan
+    (21.0, 92.1, 101.2),   # Rakhine (Maungdaw) across to Tachileik
+    (24.0, 92.1, 101.2),   # Chin across to Kengtung
+    (28.8, 92.9, 98.9),    # Sagaing north, Kachin
+)
+# Offshore territory the mainland bands cannot reach: the Coco Islands belong to
+# Yangon Region but sit 300km out in the Andaman Sea, and Preparis is further north.
+MYANMAR_ISLANDS = (
+    # (min_lat, max_lat, min_lon, max_lon)
+    (13.9, 15.6, 93.2, 94.5),
+)
+
+
+def is_within_myanmar(lat, lon) -> bool:
+    """
+    True when a coordinate falls inside Myanmar.
+
+    Used to refuse coordinates the pipeline should never store: a Nominatim
+    lookup that matched a same-named place across a border, or coordinates the
+    model produced for a location it misread. The foreign-place filter in
+    ai_processor matches on names, so those slip past it and land on the map.
+
+    Bands are rectangles, so towns within a few km of the border stay ambiguous.
+    That error is deliberately biased towards keeping Myanmar locations.
+    """
+    try:
+        lat = float(lat)
+        lon = float(lon)
+    except (TypeError, ValueError):
+        return False
+
+    if lat != lat or lon != lon:      # NaN
+        return False
+    if lat == 0.0 and lon == 0.0:     # the "no coordinate" sentinel
+        return False
+    if lat < MYANMAR_MIN_LAT or lat > MYANMAR_MAX_LAT:
+        return False
+
+    for min_lat, max_lat, min_lon, max_lon in MYANMAR_ISLANDS:
+        if min_lat <= lat <= max_lat and min_lon <= lon <= max_lon:
+            return True
+
+    for max_lat, min_lon, max_lon in MYANMAR_BANDS:
+        if lat <= max_lat:
+            return min_lon <= lon <= max_lon
+    return False
+
+
 def resolve_location(township: str, city: str = None, region: str = None):
     """
     Look up the coordinates and geographical data for a given township.

@@ -7,7 +7,7 @@ import hashlib
 import requests
 from datetime import datetime, timezone
 from dotenv import load_dotenv
-from geolocator import resolve_location, MYANMAR_COORDINATES
+from geolocator import resolve_location, MYANMAR_COORDINATES, is_within_myanmar
 
 load_dotenv()
 
@@ -203,8 +203,16 @@ class AgentTools:
                 resp = requests.get(url, headers=headers, timeout=5)
                 if resp.status_code == 200 and len(resp.json()) > 0:
                     data = resp.json()[0]
-                    inferred["latitude"] = float(data['lat'])
-                    inferred["longitude"] = float(data['lon'])
+                    osm_lat = float(data['lat'])
+                    osm_lon = float(data['lon'])
+                    # The query is suffixed with ", Myanmar" but Nominatim still
+                    # returns same-named places across the border. Accepting one
+                    # stores a plottable point in the wrong country, so fall
+                    # through to Step E instead.
+                    if not is_within_myanmar(osm_lat, osm_lon):
+                        raise ValueError(f"OSM result outside Myanmar: {osm_lat},{osm_lon}")
+                    inferred["latitude"] = osm_lat
+                    inferred["longitude"] = osm_lon
                     # Nominatim answers with coordinates only. Leaving the admin
                     # fields empty produces rows that map correctly but carry no
                     # place name at all, which downstream filters treat as

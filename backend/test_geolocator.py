@@ -1,5 +1,5 @@
 # backend/test_geolocator.py
-from geolocator import resolve_location
+from geolocator import resolve_location, is_within_myanmar, MYANMAR_COORDINATES
 
 def test_geolocator():
     print("🧪 Starting Geolocator Unit Tests...")
@@ -36,5 +36,51 @@ def test_geolocator():
 
     print("\n🎉 All Geolocator tests completed successfully!")
 
+def test_is_within_myanmar():
+    print("\n🧪 Starting Myanmar bounds Unit Tests...")
+
+    # Every township in the ontology must pass, or the guard would reject
+    # coordinates the pipeline produces itself. This caught Coco Island and
+    # Maungdaw when the bands were first written.
+    outside = [
+        (name, c) for name, c in MYANMAR_COORDINATES.items()
+        if not is_within_myanmar(c["lat"], c["lon"])
+    ]
+    assert not outside, f"Ontology entries rejected by the guard: {outside}"
+    print(f"✅ All {len(MYANMAR_COORDINATES)} ontology townships accepted.")
+
+    # Hard cases inside the country: the western tip, an offshore exclave,
+    # the eastern reach of Shan, and the southern tip.
+    for name, lat, lon in [
+        ("Maungdaw", 20.82, 92.36),
+        ("Coco Island", 14.11, 93.37),
+        ("Kengtung", 21.30, 99.60),
+        ("Tachileik", 20.45, 99.88),
+        ("Kawthaung", 9.98, 98.55),
+        ("Putao", 27.33, 97.40),
+    ]:
+        assert is_within_myanmar(lat, lon), f"{name} should be inside Myanmar"
+    print("✅ Border, offshore and extremity locations accepted.")
+
+    # Neighbours that a single bounding rectangle would wrongly swallow.
+    for name, lat, lon in [
+        ("Bangkok", 13.75, 100.50),
+        ("Chiang Mai", 18.79, 98.98),
+        ("Kunming", 25.03, 102.70),
+        ("Hanoi", 21.02, 105.80),
+        ("Dhaka", 23.81, 90.41),
+        ("Vientiane", 17.97, 102.60),
+    ]:
+        assert not is_within_myanmar(lat, lon), f"{name} should be outside Myanmar"
+    print("✅ Neighbouring capitals and border cities rejected.")
+
+    # Junk must be refused rather than raise: these arrive straight from the
+    # model and from the database.
+    for value in [(None, None), ("x", "y"), (0, 0), (0.0, 0.0), (float("nan"), 96.0), ("", "")]:
+        assert is_within_myanmar(*value) is False, f"{value} should be rejected"
+    print("✅ Null, zero and non-numeric coordinates rejected.")
+
+
 if __name__ == "__main__":
     test_geolocator()
+    test_is_within_myanmar()

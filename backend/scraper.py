@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from db_manager import DBManager
 from ai_processor import AIProcessor
-from geolocator import resolve_location
+from geolocator import resolve_location, is_within_myanmar
 from deduplicator import NewsDeduplicator
 import config
 
@@ -167,6 +167,14 @@ async def process_messages_batch(messages_batch):
             region = parsed_data.get('region')
             township = parsed_data.get('township')
             city = parsed_data.get('city')
+
+            # Anything outside the country is a bad geocode, not foreign news
+            # worth plotting. Drop the coordinates and let the name-based
+            # resolution below place the report properly -- the report itself is
+            # still kept, since the text is usually a real Myanmar incident.
+            if lat is not None and lon is not None and not is_within_myanmar(lat, lon):
+                print(f"⚠️ Coordinates {lat},{lon} fall outside Myanmar; re-resolving from '{township or city or region or 'unknown'}'.")
+                lat, lon = None, None
 
             # Fallback Geolocation Resolution (Solution B)
             resolved = resolve_location(township, city, region)

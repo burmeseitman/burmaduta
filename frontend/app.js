@@ -315,17 +315,28 @@ const TOWNSHIP_COORDINATES = {
 // country narrows to a thin coastal strip in the south while Shan reaches far
 // east in the north. Bound the longitude per latitude band instead.
 const MYANMAR_BANDS = [
-    { maxLat: 12.0, minLng: 98.0, maxLng: 99.7 },   // Tanintharyi south
-    { maxLat: 15.0, minLng: 97.3, maxLng: 99.3 },   // Dawei / Myeik
-    { maxLat: 18.0, minLng: 93.5, maxLng: 99.0 },   // delta, Yangon, Mon, Kayin
-    { maxLat: 19.5, minLng: 93.0, maxLng: 98.0 },   // Kayah, south Shan
-    { maxLat: 21.0, minLng: 92.5, maxLng: 101.2 },  // Rakhine across to Tachileik
-    { maxLat: 24.0, minLng: 92.2, maxLng: 101.2 },  // Chin across to Kengtung
-    { maxLat: 28.8, minLng: 93.0, maxLng: 98.9 },   // Sagaing north, Kachin
+    { maxLat: 12.0, minLng: 97.5, maxLng: 99.7 },   // Tanintharyi south, Mergui archipelago
+    { maxLat: 15.0, minLng: 97.2, maxLng: 99.3 },   // Dawei / Myeik
+    { maxLat: 18.0, minLng: 93.4, maxLng: 99.0 },   // delta, Yangon, Mon, Kayin
+    { maxLat: 19.5, minLng: 92.8, maxLng: 98.2 },   // Kayah, south Shan
+    { maxLat: 21.0, minLng: 92.1, maxLng: 101.2 },  // Rakhine (Maungdaw) across to Tachileik
+    { maxLat: 24.0, minLng: 92.1, maxLng: 101.2 },  // Chin across to Kengtung
+    { maxLat: 28.8, minLng: 92.9, maxLng: 98.9 },   // Sagaing north, Kachin
+];
+
+// Offshore territory the mainland bands cannot reach: the Coco Islands belong to
+// Yangon Region but sit 300km out in the Andaman Sea, Preparis further north.
+const MYANMAR_ISLANDS = [
+    { minLat: 13.9, maxLat: 15.6, minLng: 93.2, maxLng: 94.5 },
 ];
 
 function isWithinMyanmar(lat, lng) {
     if (lat < 9.0 || lat > 28.8) return false;
+
+    const island = MYANMAR_ISLANDS.find(i =>
+        lat >= i.minLat && lat <= i.maxLat && lng >= i.minLng && lng <= i.maxLng);
+    if (island) return true;
+
     const band = MYANMAR_BANDS.find(b => lat <= b.maxLat);
     return Boolean(band) && lng >= band.minLng && lng <= band.maxLng;
 }

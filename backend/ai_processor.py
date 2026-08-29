@@ -8,6 +8,7 @@ from google import genai
 from dotenv import load_dotenv
 from db_manager import DBManager
 from agent_core import AutonomousNewsAgent, AgentTools
+from geolocator import is_within_myanmar
 
 load_dotenv()
 
@@ -279,6 +280,17 @@ class AIProcessor:
                 data['credibility_score'] = fc['credibility_score']
 
                 # 2. Geo-Inference Tool if coordinates missing
+                # Coordinates the model supplied itself were trusted unchecked.
+                # A location it misreads becomes a pin in another country, and
+                # the foreign-place filter above only inspects names. Discard
+                # them so the geo tool re-derives from the text below.
+                if data.get('latitude') and data.get('longitude'):
+                    if not is_within_myanmar(data.get('latitude'), data.get('longitude')):
+                        print(f"⚠️ Discarding out-of-country coordinates "
+                              f"{data.get('latitude')},{data.get('longitude')} for '{str(data.get('township') or data.get('location_name') or '')[:40]}'")
+                        data['latitude'] = None
+                        data['longitude'] = None
+
                 if not data.get('latitude') or not data.get('longitude') or data.get('latitude') == 0.0:
                     geo = AgentTools.tool_geo_inferencer(
                         raw_text=full_raw_text,
