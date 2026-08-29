@@ -276,12 +276,76 @@ function renderMap() {
   }
 }
 
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+let currentCriticalItem = null;
+
+function openAlertDetails(item) {
+  if (!item) return;
+
+  if (item.latitude && item.longitude) {
+    map.setView([item.latitude, item.longitude], 13, { animate: true });
+  }
+
+  const isAir = (item.sub_category || '').includes('လေကြောင်း') || (item.emergency_type === 'airstrike');
+  const title = item.heading || item.crime_type || (isAir ? 'လေကြောင်းရန် သတိပေးချက်' : 'အရေးပေါ် သတိပေးချက်');
+
+  modalTitle.innerText = title;
+  modalBody.innerHTML = `
+    <div style="padding: 6px 0; color: #fff;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <span style="font-size: 0.8rem; color: #ff4757; font-weight: bold; background: rgba(255,71,87,0.15); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(255,71,87,0.3);">
+          🚨 ${escapeHTML(item.crime_type || 'အရေးပေါ်')} ${item.sub_category ? `• ${escapeHTML(item.sub_category)}` : ''}
+        </span>
+      </div>
+      ${renderAgentBadges(item)}
+      <div style="font-size: 0.92rem; line-height: 1.6; margin: 14px 0; color: #e2e8f0; word-break: break-word;">
+        ${escapeHTML(item.summary || item.raw_text || '')}
+      </div>
+      <div style="font-size: 0.8rem; color: #a4b0be; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; margin-top: 14px; display: flex; flex-direction: column; gap: 4px;">
+        <div>📍 <strong>တည်နေရာ:</strong> ${escapeHTML(item.township || item.city || item.region || 'မြန်မာ')}</div>
+        <div>🕒 <strong>အချိန်:</strong> ${escapeHTML(item.publish_date || '')} ${escapeHTML(item.publish_time || '')}</div>
+        ${item.channel_handle ? `<div>📡 <strong>သတင်းရင်းမြစ်:</strong> ${escapeHTML(item.channel_handle)}</div>` : ''}
+      </div>
+      <button id="modal-zoom-btn" style="width: 100%; margin-top: 16px; padding: 12px; background: linear-gradient(135deg, #ff4757, #eb3b5a); color: #fff; border: none; border-radius: 10px; font-weight: bold; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        📍 မြေပုံတွင် ကြည့်ရှုပါ
+      </button>
+    </div>
+  `;
+
+  const zoomBtn = document.getElementById('modal-zoom-btn');
+  if (zoomBtn) {
+    zoomBtn.onclick = () => {
+      modalOverlay.classList.add('hidden');
+      if (item.latitude && item.longitude) {
+        map.setView([item.latitude, item.longitude], 13, { animate: true });
+      }
+    };
+  }
+
+  modalOverlay.classList.remove('hidden');
+}
+
+alertCard.addEventListener('click', () => {
+  if (currentCriticalItem) openAlertDetails(currentCriticalItem);
+});
+
 function checkAlerts() {
   const critical = filteredNews.find(item => {
     if (item.is_emergency_alert || item.priority_level === 'CRITICAL_EMERGENCY') return true;
     const text = `${item.sub_category||''} ${item.summary||''} ${item.raw_text||''}`;
     return text.includes('လေကြောင်းရန်') || text.includes('မြေငလျင်') || text.includes('မြေပြို');
   });
+
+  currentCriticalItem = critical;
 
   if (critical) {
     const isAir = (critical.sub_category||'').includes('လေကြောင်း') || (critical.emergency_type === 'airstrike');
@@ -352,9 +416,7 @@ function updateCriticalList() {
       `;
       
       div.onclick = () => {
-        if (item.latitude && item.longitude) {
-          map.setView([item.latitude, item.longitude], 12);
-        }
+        openAlertDetails(item);
       };
       
       itemsContainer.appendChild(div);

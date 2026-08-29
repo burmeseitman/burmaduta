@@ -262,14 +262,21 @@ body, html {
   bottom: 24px;
   left: 16px;
   right: 16px;
-  background: rgba(25, 25, 30, 0.85);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(25, 25, 30, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-radius: 16px;
   padding: 16px;
-  border: 1px solid rgba(255,255,255,0.1);
-  box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255, 71, 87, 0.4);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.6);
   z-index: 1000;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.2s ease;
+}
+
+.alert-card:active {
+  transform: scale(0.98);
+  border-color: #ff4757;
 }
 
 .alert-header {
@@ -320,7 +327,11 @@ body, html {
 .alert-read-more {
   color: #f7b731;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
+  text-decoration: underline;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* Recenter Button */
