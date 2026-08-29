@@ -1560,7 +1560,12 @@ function updateNewsAccordion(items) {
     });
 }
 
-function expandNewsItem(id) {
+// focusMap=false means the call came from the marker's own popup: the item is
+// already on screen and the user is already looking at it, so re-filtering and
+// re-centring from there is wrong. That argument was passed from the popupopen
+// handler all along, but the parameter did not exist, so it was silently
+// dropped and the map re-navigated on every marker click.
+function expandNewsItem(id, focusMap = true) {
     // 1. Close all other items
     document.querySelectorAll('.accordion-item').forEach(el => {
         if (el.id !== `news-item-${id}`) el.classList.remove('expanded');
@@ -1577,9 +1582,14 @@ function expandNewsItem(id) {
 
     // 2. Center map and open popup
     const targetObj = markers[String(id)];
-    if (targetObj && targetObj.marker) {
+    if (targetObj && targetObj.marker && focusMap) {
         const item = targetObj.data;
-        const targetDate = (item.event_date || item.publish_date || "").toString().split('T')[0].split(' ')[0];
+        // Must match the precedence updateUI filters on (publish_date first).
+        // Reading event_date first meant clicking a marker for an incident that
+        // happened before it was reported switched the filter to a date the
+        // filter itself does not group that item under -- so the item fell out
+        // of the rebuilt marker set and its own marker vanished under the click.
+        const targetDate = (item.publish_date || item.event_date || item.created_at || "").toString().split('T')[0].split(' ')[0];
 
         // Only switch dates if the item doesn't match the current UI filter
         const currentActiveDate = dateFilterInput.value || dateFilter;
