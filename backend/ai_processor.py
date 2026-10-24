@@ -17,6 +17,11 @@ class AIProcessor:
     _current_cache_name = None
     _current_cache_hash = None
     _cache_expire_time = 0
+    _moderation_cache = {} # Normalized comment hash -> (result_dict, timestamp)
+    _MODERATION_CACHE_TTL = 86400 # 24 hours
+    _MAX_MODERATION_CACHE = 500
+    MAX_INPUT_TEXT_CHARS = 1200 # Cap individual news item text length to curb input token bloat
+    MIN_CACHE_CHARS = 90000 # Explicit Gemini context caching requires >= 32,768 tokens (~90k+ chars)
 
     def __init__(self, db=None):
         self.db = db if db else DBManager()
@@ -84,22 +89,29 @@ class AIProcessor:
             return []
 
         try:
-            # Prepare the batch text
-            batch_text = ""
+            # Prepare the batch text (truncate overly long essays/roundups to save input tokens)
+            current_date_str = self.get_current_date()
+            batch_text = f"Reference Date: {current_date_str}\n\n"
             for item in news_items:
-                batch_text += f"--- MSG_ID: {item['id']} ---\n{item['text']}\n\n"
+                item_text = (item.get('text') or '')[:self.MAX_INPUT_TEXT_CHARS]
+                batch_text += f"--- MSG_ID: {item['id']} ---\n{item_text}\n\n"
 
             active_prompt = self.get_active_prompt()
             if not active_prompt:
                 print("❌ Error: No AI_PROMPT available.")
                 return []
 
-            # 🛠️ CONTEXT CACHING REFACTOR: 
-            # Separate static instructions from dynamic message content
+            # 🛠️ CONTEXT CACHING & IMPLICIT CACHE OPTIMIZATION:
+            # Keep instructions_base 100% static across days so Gemini's implicit prefix caching
+            # automatically discounts input tokens without invalidating at midnight.
             instructions_base = active_prompt.replace("Message Text:", "Multiple Message Texts (delineated by MSG_ID):")
             instructions_base = instructions_base.replace("{{text}}", "\n[NEWS DATA LISTED BELOW]\n")
-            instructions_base += "\nReturn a JSON ARRAY containing objects for each MSG_ID. Each object MUST include 'internal_id' mapping back to the MSG_ID."
-            instructions_base = instructions_base.replace("{current_date_str}", self.get_current_date())
+            instructions_base = instructions_base.replace("{current_date_str}", "see Reference Date in user message")
+            instructions_base += (
+                "\nReturn a JSON ARRAY containing objects for each MSG_ID. "
+                "Each object MUST include 'internal_id' mapping back to the MSG_ID. "
+                "Omit null fields or set latitude/longitude to null (coordinates are resolved locally)."
+            )
             
             if not self.client:
                 print("❌ Error: AI Client not initialized. Please set PROCESSOR_KEY in database.")
@@ -113,7 +125,7 @@ class AIProcessor:
                 {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
             ]
 
-            # Try to use/create context cache
+            # Try to use/create explicit context cache only if prompt meets minimum size threshold
             cache_name = self._get_context_cache(instructions_base)
             
             max_retries = 3
@@ -123,26 +135,54 @@ class AIProcessor:
             while retry_count < max_retries:
                 try:
                     if cache_name:
-                        response = self.client.models.generate_content(
-                            model=self.model_name,
-                            contents=batch_text,
-                            config={
-                                'cached_content': cache_name,
-                                'safety_settings': safety_settings,
-                                'response_mime_type': 'application/json'
-                            }
-                        )
+                        gen_config = {
+                            'cached_content': cache_name,
+                            'safety_settings': safety_settings,
+                            'response_mime_type': 'application/json',
+                            'temperature': 0.1,
+                            'thinking_config': {'thinking_budget': 0},
+                        }
+                        try:
+                            response = self.client.models.generate_content(
+                                model=self.model_name,
+                                contents=batch_text,
+                                config=gen_config
+                            )
+                        except Exception as inner_e:
+                            if "thinking" in str(inner_e).lower():
+                                gen_config.pop('thinking_config', None)
+                                response = self.client.models.generate_content(
+                                    model=self.model_name,
+                                    contents=batch_text,
+                                    config=gen_config
+                                )
+                            else:
+                                raise
                     else:
-                        # Fallback to standard request
-                        full_prompt = instructions_base + "\n\n" + batch_text
-                        response = self.client.models.generate_content(
-                            model=self.model_name,
-                            contents=full_prompt,
-                            config={
-                                'safety_settings': safety_settings,
-                                'response_mime_type': 'application/json'
-                            }
-                        )
+                        # Standard request: use system_instruction so Gemini implicit caching hits on static prefix
+                        gen_config = {
+                            'system_instruction': instructions_base,
+                            'safety_settings': safety_settings,
+                            'response_mime_type': 'application/json',
+                            'temperature': 0.1,
+                            'thinking_config': {'thinking_budget': 0},
+                        }
+                        try:
+                            response = self.client.models.generate_content(
+                                model=self.model_name,
+                                contents=batch_text,
+                                config=gen_config
+                            )
+                        except Exception as inner_e:
+                            if "thinking" in str(inner_e).lower():
+                                gen_config.pop('thinking_config', None)
+                                response = self.client.models.generate_content(
+                                    model=self.model_name,
+                                    contents=batch_text,
+                                    config=gen_config
+                                )
+                            else:
+                                raise
                     # If success, break the retry loop
                     if response:
                         break
@@ -363,6 +403,11 @@ class AIProcessor:
 
     def _get_context_cache(self, instructions):
         """Creates or retrieves a context cache for the given instructions."""
+        # Fast-skip explicit cache creation if instructions are below Gemini's minimum token threshold (~32k tokens).
+        # Implicit caching via system_instruction handles smaller prompts automatically without failed API calls.
+        if not instructions or len(instructions) < self.MIN_CACHE_CHARS:
+            return None
+
         # Hash instructions to detect prompt changes
         instr_hash = hashlib.md5(instructions.encode()).hexdigest()
         
@@ -419,10 +464,13 @@ class AIProcessor:
     def moderate_comment(self, comment_text: str) -> dict:
         """
         Moderates a user comment for safety (hate speech, harassment, spam, explicit, dangerous).
-        Optimized to consume minimal tokens.
+        Optimized to consume minimal tokens via local filters, caching, and zero thinking budget.
         """
         if not comment_text or not comment_text.strip():
             return {"allowed": False, "reason": "Comment text is empty"}
+
+        cleaned_comment = " ".join(comment_text.strip().split())
+        lower_comment = cleaned_comment.lower()
 
         # 1. Regex Pre-Filter: Simple keyword checking to save tokens
         # Burmese common bad/harassment/slang phrases & English curse words
@@ -430,50 +478,78 @@ class AIProcessor:
             # Burmese vulgarity/hate speech
             "စောက်", "လိုး", "မအေလိုး", "ဖာသည်", "ခွေးမသား", "သေစမ်း", "ငါလိုးမ", "ဖာသယ်", "ခွေးမွေး", "စောက်ရူး", "အခြောက်", "အဖုတ်", "လီး", "စောက်ပတ်",
             # English vulgarity/harassment/dangerous
-            "fuck", "shit", "bitch", "asshole", "kill yourself", "kys", "bastard", "dick", "pussy", "cunt", "nigger", "retard", "scam", "crypto promotion"
+            "fuck", "shit", "bitch", "asshole", "kill yourself", "kys", "bastard", "dick", "pussy", "cunt", "nigger", "retard", "scam", "crypto promotion",
+            # Spam / commercial links
+            "http://", "https://", "t.me/", "viber.com", "2d 3d", "slot game"
         ]
         
-        lower_comment = comment_text.lower()
         for word in blacklist_words:
             if word in lower_comment:
                 return {
                     "allowed": False,
-                    "reason": f"Filtered by security policies (Hate speech/Harassment local check match: '{word}')",
+                    "reason": f"Filtered by security policies (Hate speech/Harassment/Spam local check match: '{word}')",
                     "category": "local_filter"
                 }
+
+        # 2. Check in-memory moderation cache to avoid duplicate LLM calls for repeated phrases
+        comment_hash = hashlib.md5(lower_comment.encode('utf-8')).hexdigest()
+        now = time.time()
+        cached_entry = AIProcessor._moderation_cache.get(comment_hash)
+        if cached_entry and (now - cached_entry[1]) < self._MODERATION_CACHE_TTL:
+            return cached_entry[0]
 
         if not self.client:
             # Fallback if no AI Client is configured (allow locally matched checks only)
             return {"allowed": True, "reason": "Passed local validation (AI client not configured)"}
 
-        # 2. AI validation layer - highly optimized, low token usage
+        # 3. AI validation layer - highly optimized, low token usage, thinking disabled
         prompt = (
-            "Determine if the user comment violates policies against: hate speech, harassment, spam, explicit language, dangerous instructions, or inauthentic behaviour.\n"
-            "Respond in JSON format with exactly: {\"allowed\": true/false, \"category\": \"none/hate/harassment/spam/explicit/dangerous\", \"reason\": \"brief explanation\"}\n"
-            f"Comment: {comment_text}"
+            "Classify if comment has hate speech, harassment, spam, explicit, or dangerous content.\n"
+            "Return JSON: {\"allowed\":bool,\"category\":\"none|hate|harassment|spam|explicit|dangerous\",\"reason\":\"short\"}\n"
+            f"Comment: {cleaned_comment[:500]}"
         )
         try:
-            # Using low token model from db or fallback
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=prompt,
-                config={
-                    'response_mime_type': 'application/json',
-                    'safety_settings': [
-                        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-                    ]
-                }
-            )
+            mod_config = {
+                'response_mime_type': 'application/json',
+                'temperature': 0.0,
+                'max_output_tokens': 80,
+                'thinking_config': {'thinking_budget': 0},
+                'safety_settings': [
+                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                ]
+            }
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=prompt,
+                    config=mod_config
+                )
+            except Exception as inner_e:
+                if "thinking" in str(inner_e).lower():
+                    mod_config.pop('thinking_config', None)
+                    response = self.client.models.generate_content(
+                        model=self.model_name,
+                        contents=prompt,
+                        config=mod_config
+                    )
+                else:
+                    raise
+
             if response and response.text:
                 res_data = json.loads(response.text.strip())
-                return {
+                result = {
                     "allowed": bool(res_data.get("allowed", True)),
                     "reason": res_data.get("reason", "Passed AI validation"),
                     "category": res_data.get("category", "none")
                 }
+                if len(AIProcessor._moderation_cache) >= self._MAX_MODERATION_CACHE:
+                    oldest_key = min(AIProcessor._moderation_cache, key=lambda k: AIProcessor._moderation_cache[k][1])
+                    del AIProcessor._moderation_cache[oldest_key]
+                AIProcessor._moderation_cache[comment_hash] = (result, now)
+                return result
         except Exception as e:
             print(f"Error in AI moderation: {e}")
             

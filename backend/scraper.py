@@ -8,6 +8,7 @@ from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from db_manager import DBManager
 from ai_processor import AIProcessor
+from agent_core import AgentTools
 from geolocator import resolve_location, is_within_myanmar
 from deduplicator import NewsDeduplicator
 import config
@@ -42,23 +43,73 @@ ENTITY_CACHE = {}
 # 📦 BUFFER: Batching live messages to reduce AI calls/token overhead
 LIVE_BUFFER = []
 BUFFER_LOCK = asyncio.Lock()
+LIVE_BATCH_SIZE = 15        # Accumulate up to 15 messages before early flush (reduces prompt overhead 3x)
+LIVE_FLUSH_INTERVAL = 180   # Flush live buffer every 180s (3 min) instead of 60s
+BACKFILL_BATCH_SIZE = 20    # Larger batch size during channel catch-up/backfill
+
+# 🛡️ MONITORED CHANNELS CACHE: Avoid hitting Postgres on every incoming Telegram event
+_MONITORED_CHANNELS_CACHE = []
+_MONITORED_CHANNELS_TS = 0
+_MONITORED_CHANNELS_TTL = 300 # Refresh monitored channels every 5 minutes
+
+
+def get_cached_monitored_channels():
+    global _MONITORED_CHANNELS_CACHE, _MONITORED_CHANNELS_TS
+    now = time.time()
+    if not _MONITORED_CHANNELS_CACHE or (now - _MONITORED_CHANNELS_TS) > _MONITORED_CHANNELS_TTL:
+        _MONITORED_CHANNELS_CACHE = db.get_monitored_channels()
+        _MONITORED_CHANNELS_TS = now
+    return _MONITORED_CHANNELS_CACHE
+
+
+def strip_telegram_boilerplate(text: str) -> str:
+    """Removes common Telegram channel footers, URLs, and hashtags to save input tokens and improve deduplication."""
+    if not text:
+        return ""
+    # Remove URLs
+    cleaned = re.sub(r'https?://\S+|t\.me/\S+', '', text)
+    # Remove trailing hashtag blocks or common channel signature lines
+    lines = []
+    for line in cleaned.splitlines():
+        s = line.strip()
+        if not s:
+            continue
+        low = s.lower()
+        if any(sig in low for sig in [
+            "join our channel", "subscribe", "follow us", "telegram channel",
+            "viber channel", "youtube channel", "သတင်းများကို အချိန်နှင့်တပြေးညီ"
+        ]):
+            continue
+        # Skip lines that are purely hashtags
+        if all(tok.startswith('#') for tok in s.split()):
+            continue
+        lines.append(s)
+    return " ".join(lines)
+
 
 def is_likely_relevant(text):
-    """Simple heuristic to filter out spam or non-news content before AI processing."""
-    if not text or len(text) < 20: 
+    """Heuristic pre-filter to discard spam, commercial ads, or non-news content BEFORE calling paid AI."""
+    if not text or len(text) < 25: 
         return False
         
-    # Common ignore patterns (spam, ads, simple links)
+    # Common ignore patterns (spam, ads, simple links, gambling)
     IGNORE_KEYWORDS = [
         "join our channel", "t.me/", "ဗွီဒီယိုကြည့်ရန်", 
-        "Telegram တွင်", "ကြော်ငြာ", "Link ကိုနှိပ်ပါ"
+        "telegram တွင်", "ကြော်ငြာ", "link ကိုနှိပ်ပါ",
+        "viber group", "ငွေသွင်းငွေထုတ်", "2d 3d", "slot",
+        "online game", "အကောင့်ဖွင့်ရန်", "တိုက်ရိုက်ကြည့်ရန်",
+        "vpn အခမဲ့", "free vpn", "click here", "promoted"
     ]
+    lower_text = text.lower()
     for word in IGNORE_KEYWORDS:
-        if word in text:
+        if word in lower_text:
             return False
-            
-    # Optional: If you want to ONLY send messages with certain keywords (e.g., location/events)
-    # can be added here once common news terms are identified.
+
+    # Use AgentTools.tool_fact_checker spam detector before paying for LLM tokens
+    fc_check = AgentTools.tool_fact_checker(text)
+    if fc_check.get("is_spam"):
+        return False
+
     return True
 
 def is_quiet_hours():
@@ -94,6 +145,8 @@ async def process_messages_batch(messages_batch):
         # 🧼 CLEANING: Remove emojis while preserving Burmese and English text
         # Using a regex that targets symbols/pictographs
         clean_text = re.sub(r'[\U00010000-\U0010ffff]', '', message_text)
+        # Strip common Telegram footers, hashtags, and URLs to reduce input tokens and normalize reposts
+        clean_text = strip_telegram_boilerplate(clean_text)
         # Also trim extra whitespace that might be left behind
         message_text = " ".join(clean_text.split())
 
@@ -122,10 +175,36 @@ async def process_messages_batch(messages_batch):
         except Exception:
             channel_handle = "unknown"
 
-        # DE-DUPE CHECK: Skip if already in DB (check by ID or Content)
+        # DE-DUPE CHECK 1: Skip if already in DB (check by ID or Content)
         if db.check_exists(channel_handle, message_id, message_text):
             print(f"Skipping {channel_handle} ({message_id}): Already processed (ID or Content duplication).")
             continue
+
+        # DE-DUPE CHECK 2 (INTRA-BATCH): Skip if another message in this same batch is a near-duplicate
+        is_intra_batch_dup = False
+        for existing_item in to_process:
+            if deduplicator.get_similarity_score(message_text[:500], existing_item['text'][:500]) > config.DEDUP_SIMILARITY_THRESHOLD:
+                print(f"Skipping {channel_handle} ({message_id}): Intra-batch semantic duplicate of msg {existing_item['id']}.")
+                is_intra_batch_dup = True
+                break
+        if is_intra_batch_dup:
+            continue
+
+        # DE-DUPE CHECK 3 (PRE-AI DB SEMANTIC): Infer township locally via ontology & check recent 24h DB items
+        # This prevents paying Gemini to parse the same breaking news reposted across 10+ Telegram channels.
+        pre_geo = AgentTools.tool_geo_inferencer(raw_text=message_text)
+        pre_township = pre_geo.get("township")
+        if pre_township and pre_geo.get("source") in ("myanmar_admin_dictionary", "text_spatial_ner"):
+            recent_cands = db.get_recent_news_by_township(pre_township, hours=24)
+            is_pre_ai_dup = False
+            for cand in recent_cands:
+                cand_raw = cand.get("raw_text") or cand.get("summary") or ""
+                if cand_raw and deduplicator.get_similarity_score(message_text[:500], cand_raw[:500]) > config.DEDUP_SIMILARITY_THRESHOLD:
+                    print(f"💰 Pre-AI duplicate skipped ({channel_handle} #{message_id} matches DB news #{cand['id']} in {pre_township}). Saved LLM tokens!")
+                    is_pre_ai_dup = True
+                    break
+            if is_pre_ai_dup:
+                continue
 
         to_process.append({
             'msg_obj': msg_obj,
@@ -294,8 +373,8 @@ async def handle_new_message(event):
         if channel_handle and not channel_handle.startswith('@') and not channel_handle.isdigit():
              channel_handle = f"@{channel_handle}"
         
-        # Pull latest channels list from source_mappings table
-        CHANNELS = db.get_monitored_channels()
+        # Pull latest channels list (cached for 5 minutes to avoid DB query per message)
+        CHANNELS = get_cached_monitored_channels()
         
         if channel_handle not in CHANNELS:
             return
@@ -303,8 +382,8 @@ async def handle_new_message(event):
         # 🕵️ STEALTH JITTER & BUFFER: Batch small live updates together
         async with BUFFER_LOCK:
             LIVE_BUFFER.append(event.message)
-            # If buffer gets too large, process it early
-            if len(LIVE_BUFFER) >= 5:
+            # If buffer reaches LIVE_BATCH_SIZE, process it early
+            if len(LIVE_BUFFER) >= LIVE_BATCH_SIZE:
                  batch = list(LIVE_BUFFER)
                  LIVE_BUFFER.clear()
                  spawn_task(process_messages_batch(batch))
@@ -323,7 +402,7 @@ async def backfill_channel(channel):
         print(f"➜ Backfill Initialized: {channel}")
         
         limit = int(db.get_config("FETCH_LIMIT", 50))
-        batch_size = 10
+        batch_size = BACKFILL_BATCH_SIZE
         current_batch = []
         
         async for message in client.iter_messages(entity, limit=limit):
@@ -340,11 +419,11 @@ async def backfill_channel(channel):
         print(f"Error backfilling {channel}: {e}")
 
 async def live_buffer_worker():
-    """Background task to empty the LIVE_BUFFER every 60 seconds."""
-    print("📦 Live message buffer worker started (60s flush).")
+    """Background task to empty the LIVE_BUFFER every LIVE_FLUSH_INTERVAL seconds."""
+    print(f"📦 Live message buffer worker started ({LIVE_FLUSH_INTERVAL}s flush, batch target={LIVE_BATCH_SIZE}).")
     while True:
         try:
-            await asyncio.sleep(60)
+            await asyncio.sleep(LIVE_FLUSH_INTERVAL)
             batch_to_process = []
             async with BUFFER_LOCK:
                 if LIVE_BUFFER:

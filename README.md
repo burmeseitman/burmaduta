@@ -50,6 +50,20 @@ Burma Duta is powered by an **Autonomous Multi-Tool Agentic Workflow** leveragin
 -   🔮 **Conflict Trend Forecasting**: A time-series ML engine (Facebook Prophet) predicting conflict trajectories for active townships.
 -   🧲 **Semantic De-duplication**: Sentence-BERT embedding similarity to eliminate duplicate cross-channel reports.
 -   👥 **Community Discussion & AI Moderation**: Authenticated comments protected by Gemini AI moderation filter against hate speech and harassment.
+-   💰 **Token-Optimized AI Pipeline**: Multi-stage pre-AI filtering, local spatial & semantic deduplication before LLM calls, implicit prefix caching (`system_instruction`), zero thinking-token overhead (`thinking_budget: 0`), and batched message buffering.
+
+---
+
+## ⚡ AI Cost & Token Optimization Architecture
+
+To operate sustainably at scale across dozens of high-volume Myanmar Telegram channels, Burma Duta minimizes paid LLM token consumption through a 6-layer optimization pipeline:
+
+1. **Pre-AI Boilerplate Stripping & Spam Filtering**: Channel footers, URLs, hashtag blocks, and commercial/gambling spam are stripped and filtered deterministically via `AgentTools.tool_fact_checker` *before* any LLM API call is made.
+2. **Pre-AI Intra-Batch & Cross-Channel Semantic Deduplication**: Incoming messages are geolocated locally via the 330+ township ontology (`tool_geo_inferencer`) and compared against both the current buffer and the last 24 hours of database records using local CPU Sentence-BERT embeddings (`paraphrase-multilingual-MiniLM-L12-v2`). Cross-channel reposts are dropped before reaching Gemini.
+3. **Adaptive Batch Buffering & Quiet Hours**: Live messages are buffered (up to 15 items or 180s flush intervals, and 20 items per backfill batch) to amortize prompt instructions across multiple events, while pausing ingestion during low-activity quiet hours (02:00–08:00 SGT).
+4. **Implicit Prefix Caching**: Static system instructions are isolated in `system_instruction` while dynamic metadata (such as reference dates) is placed in the user payload, ensuring high hit rates on Gemini's automatic prefix cache.
+5. **Zero Thinking-Token Overhead**: Structured JSON extraction and comment moderation run with `thinking_budget: 0` and capped input/output lengths (`MAX_INPUT_TEXT_CHARS = 1200`), avoiding hidden reasoning-token billing while relying on deterministic Python tools (`agent_core.py`) for post-processing.
+6. **Cached Comment Moderation**: User comments are pre-screened against a local Burmese/English profanity and link blacklist, with LLM moderation verdicts cached in memory by normalized MD5 hash (24h TTL).
 
 ---
 
