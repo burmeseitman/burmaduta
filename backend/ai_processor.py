@@ -36,8 +36,8 @@ class AIProcessor:
         # Strictly retrieve Model Name from database
         model_name = self.db.get_config("MODEL_NAME")
         if not model_name:
-            print("⚠️ Warning: MODEL_NAME not found in Database. Defaulting to Gemini 3.5 Flash.")
-            model_name = "gemini-3.5-flash"
+            print("⚠️ Warning: MODEL_NAME not found in Database. Defaulting to gemini-2.5-flash-lite.")
+            model_name = "gemini-2.5-flash-lite"
             
         self.model_name = model_name
         

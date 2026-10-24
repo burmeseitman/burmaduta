@@ -434,7 +434,7 @@ class AutonomousNewsAgent:
     and emergency broadcast decision-making.
     """
 
-    def __init__(self, db_manager=None, client=None, model_name: str = "gemini-3.5-flash"):
+    def __init__(self, db_manager=None, client=None, model_name: str = "gemini-2.5-flash-lite"):
         self.db = db_manager
         self.client = client
         self.model_name = model_name
