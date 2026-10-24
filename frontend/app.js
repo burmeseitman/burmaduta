@@ -312,24 +312,44 @@ const TOWNSHIP_COORDINATES = {
     "ပခုက္ကူ": [21.3333, 95.0833]
 };
 
+function isKnownLocationName(val) {
+    if (!val || typeof val !== "string") return false;
+    const trimmed = val.trim().toLowerCase();
+    return trimmed !== "" && !["null", "none", "n/a", "undefined", "-", "မသိရ", "မသိရှိရ", "မသိရှိပါ။"].includes(trimmed);
+}
+
 function hasPlottableLocation(item) {
     const lat = parseFloat(item.latitude);
     const lng = parseFloat(item.longitude);
-    const hasCoords = !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
-    return Boolean(item.township || item.city || item.region || hasCoords);
+    const hasCoords = !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0 && isWithinMyanmar(lat, lng);
+    if (
+        hasCoords ||
+        isKnownLocationName(item.township) ||
+        isKnownLocationName(item.city) ||
+        isKnownLocationName(item.region) ||
+        isKnownLocationName(item.location_name)
+    ) {
+        return true;
+    }
+    // Also allow items whose summary/raw_text mentions a known township or region,
+    // or let resolveItemCoordinates place them so valid news events are never dropped from the map.
+    return Boolean(item.summary || item.raw_text);
 }
 
 // A row that reached us as bare coordinates has no administrative name to show,
 // so label it by where it actually is rather than leaving the header blank.
 function formatLocationLabel(item) {
-    const named = [item.region, item.township, item.city].map(escapeHTML).filter(Boolean).join("၊ ");
+    const named = [item.region, item.township, item.city]
+        .filter(isKnownLocationName)
+        .map(escapeHTML)
+        .join("၊ ");
     if (named) return named;
-    if (item.location_name) return escapeHTML(item.location_name);
+    if (isKnownLocationName(item.location_name)) return escapeHTML(item.location_name);
 
     const lat = parseFloat(item.latitude);
     const lng = parseFloat(item.longitude);
-    if (!isNaN(lat) && !isNaN(lng)) return `📍 ${lat.toFixed(3)}, ${lng.toFixed(3)}`;
-    return "တည်နေရာ မသိရ";
+    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) return `📍 ${lat.toFixed(3)}, ${lng.toFixed(3)}`;
+    return "မြန်မာနိုင်ငံ";
 }
 
 // Township lookups all resolve to the same centroid, so every event in a township
@@ -349,28 +369,28 @@ function spreadWithinTownship(coords, id) {
 function resolveItemCoordinates(item) {
     let lat = parseFloat(item.latitude);
     let lng = parseFloat(item.longitude);
-    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0 && isWithinMyanmar(lat, lng)) {
+        if (!item._spreadApplied) {
+            const spread = spreadWithinTownship([lat, lng], item.id);
+            item._spreadApplied = true;
+            return spread;
+        }
         return [lat, lng];
     }
 
-    const ts = (item.township || item.city || "").trim();
-    if (ts) {
+    const searchFields = [item.township, item.city, item.location_name, item.summary, item.raw_text]
+        .filter(Boolean)
+        .map(s => String(s).trim());
+
+    for (const text of searchFields) {
         for (const [name, coords] of Object.entries(TOWNSHIP_COORDINATES)) {
-            if (ts.includes(name)) return spreadWithinTownship(coords, item.id);
+            if (text.includes(name)) return spreadWithinTownship(coords, item.id);
         }
     }
 
-    const locName = (item.location_name || "").trim();
-    if (locName) {
-        for (const [name, coords] of Object.entries(TOWNSHIP_COORDINATES)) {
-            if (locName.includes(name)) return spreadWithinTownship(coords, item.id);
-        }
-    }
-
-    const reg = (item.region || "").trim();
-    if (reg) {
+    for (const text of searchFields) {
         for (const [name, cfg] of Object.entries(REGION_COORDINATES)) {
-            if (name !== "All" && reg.includes(name)) {
+            if (name !== "All" && text.includes(name)) {
                 const idNum = Number(item.id) || 1;
                 // Add deterministic jitter so markers in the same region spread naturally
                 const offsetLat = (Math.sin(idNum * 12.9898) * 0.12);

@@ -900,7 +900,51 @@ class DBManager:
 
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(query, params)
-            return cur.fetchall()
+            rows = cur.fetchall()
+
+        # Enrich any historical rows missing coordinates/admin names on-the-fly using our 330+ township ontology
+        try:
+            from agent_core import AgentTools
+            from geolocator import resolve_location, MYANMAR_COORDINATES, is_within_myanmar
+            for row in rows:
+                lat = row.get("latitude")
+                lon = row.get("longitude")
+                has_valid_coords = (
+                    lat is not None and lon is not None and
+                    lat != 0 and lon != 0 and
+                    is_within_myanmar(lat, lon)
+                )
+                if not has_valid_coords:
+                    # Fast offline resolution (no Nominatim HTTP calls in GET /api/news)
+                    resolved = resolve_location(row.get("township") or row.get("location_name"), row.get("city"), row.get("region"))
+                    if not resolved:
+                        text_blob = f"{row.get('township') or ''} {row.get('location_name') or ''} {row.get('summary') or ''}"
+                        for kw, coord in MYANMAR_COORDINATES.items():
+                            if len(kw) >= 2 and kw in text_blob:
+                                resolved = {**coord, "township": kw}
+                                break
+                    if resolved and resolved.get("lat") and resolved.get("lon"):
+                        row["latitude"] = resolved["lat"]
+                        row["longitude"] = resolved["lon"]
+                        if not row.get("region") or row.get("region") == "မသိရ":
+                            row["region"] = resolved.get("region")
+                        if not row.get("city") or row.get("city") == "မသိရ":
+                            row["city"] = resolved.get("city")
+                        if (not row.get("township") or row.get("township") == "မသိရ") and resolved.get("township"):
+                            row["township"] = resolved.get("township")
+                elif not row.get("region") or row.get("region") == "မသိရ" or not row.get("township") or row.get("township") == "မသိရ":
+                    nearest = AgentTools._nearest_known_township(float(lat), float(lon))
+                    if nearest:
+                        if not row.get("region") or row.get("region") == "မသိရ":
+                            row["region"] = nearest.get("region")
+                        if not row.get("city") or row.get("city") == "မသိရ":
+                            row["city"] = nearest.get("city")
+                        if (not row.get("township") or row.get("township") == "မသိရ") and nearest.get("distance_degrees", 1.0) <= 0.25:
+                            row["township"] = nearest.get("name")
+        except Exception as e:
+            print(f"⚠️ On-the-fly geo-enrichment warning: {e}")
+
+        return rows
 
     def get_aggregated_stats(self, days=90):
         # 1. Mock fallback Mode

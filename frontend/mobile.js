@@ -110,21 +110,28 @@ function spreadWithinTownship(coords, id) {
 function resolveItemCoordinates(item) {
   let lat = parseFloat(item.latitude);
   let lng = parseFloat(item.longitude);
-  if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+  if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0 && isWithinMyanmar(lat, lng)) {
+    if (!item._spreadApplied) {
+      const spread = spreadWithinTownship([lat, lng], item.id);
+      item._spreadApplied = true;
+      return spread;
+    }
     return [lat, lng];
   }
 
-  const ts = (item.township || item.city || "").trim();
-  if (ts) {
+  const searchFields = [item.township, item.city, item.location_name, item.summary, item.raw_text]
+    .filter(Boolean)
+    .map(s => String(s).trim());
+
+  for (const text of searchFields) {
     for (const [name, coords] of Object.entries(TOWNSHIP_COORDINATES)) {
-      if (ts.includes(name)) return spreadWithinTownship(coords, item.id);
+      if (text.includes(name)) return spreadWithinTownship(coords, item.id);
     }
   }
 
-  const reg = (item.region || "").trim();
-  if (reg) {
+  for (const text of searchFields) {
     for (const [name, cfg] of Object.entries(REGION_COORDINATES)) {
-      if (name !== "All" && reg.includes(name)) {
+      if (name !== "All" && text.includes(name)) {
         const idNum = Number(item.id) || 1;
         const offsetLat = (Math.sin(idNum * 12.9898) * 0.12);
         const offsetLng = (Math.cos(idNum * 78.233) * 0.12);
@@ -283,7 +290,7 @@ async function fetchNews() {
 }
 
 function applyFilters() {
-  filteredNews = allNews.filter(item => {
+  filteredNews = dedupeAircraftAlerts(allNews).filter(item => {
     // Resolve coordinates
     const coords = resolveItemCoordinates(item);
     if (!coords || coords.length !== 2) return false;
@@ -314,8 +321,6 @@ function applyFilters() {
 
     return true;
   });
-
-  filteredNews = dedupeAircraftAlerts(filteredNews);
 
   renderMap();
   checkAlerts();
