@@ -605,18 +605,15 @@ class DBManager:
                             WHERE (channel_handle = %s AND internal_id = %s)
                             OR (MD5(raw_text) = MD5(%s) AND raw_text = %s) -- Efficient exact text deduplication using index
                             OR (
-                                crime_type = %s AND (event_date = %s::DATE OR %s::DATE IS NULL) 
+                                %s::TEXT IS NOT NULL AND crime_type = %s 
+                                AND %s::DATE IS NOT NULL AND event_date = %s::DATE
                                 AND (
-                                    (COALESCE(city, '') = COALESCE(%s, '') AND COALESCE(township, '') = COALESCE(%s, ''))
-                                    OR (COALESCE(location_name, '') = COALESCE(%s, ''))
+                                    (%s::TEXT IS NOT NULL AND township = %s)
+                                    OR (%s::TEXT IS NOT NULL AND location_name = %s)
                                 )
-                                -- If location or sub-category matches, and date/type match, it's likely a duplicate
                                 AND (
-                                    COALESCE(sub_category, '') = COALESCE(%s, '') 
-                                    OR (
-                                        (city IS NOT NULL OR township IS NOT NULL) 
-                                        AND (city = %s OR township = %s)
-                                    )
+                                    (%s::TEXT IS NOT NULL AND sub_category = %s)
+                                    OR (%s::TEXT IS NOT NULL AND township = %s)
                                 )
                             )
                         )
@@ -655,15 +652,18 @@ class DBManager:
                         # For the WHERE NOT EXISTS clause (Text check)
                         data.get('raw_text'),
                         data.get('raw_text'),
-                        # For the WHERE NOT EXISTS clause (Semantic check)
+                        # For the WHERE NOT EXISTS clause (Safe Semantic check)
+                        data.get('crime_type'),
                         data.get('crime_type'),
                         data.get('event_date'),
-                        data.get('event_date'), # New parameter for NULL check
-                        data.get('city'),
+                        data.get('event_date'),
+                        data.get('township'),
                         data.get('township'),
                         data.get('location_name'),
+                        data.get('location_name'),
                         data.get('sub_category'),
-                        data.get('city'),
+                        data.get('sub_category'),
+                        data.get('township'),
                         data.get('township')
                     )
                     
